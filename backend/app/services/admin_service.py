@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Admin Service Layer
 ================================================================================
-Version: 1.1.0
+Version: 1.2.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.2.0 (2025-11-17):
+  - Added UUID to string conversion in get_users_list()
+  - Added UUID to string conversion in update_user()
+  - Added dict conversion in get_user_permissions() for consistency
+  - Fixed JSON serialization issue with UUID objects from asyncpg
+
 v1.1.0 (2025-11-17):
   - Fixed all execute() calls to use execute_query()
   - Removed get_supabase() import dependencies
@@ -113,7 +119,14 @@ async def get_users_list(
         LIMIT ${param_count} OFFSET ${param_count + 1}
     """
     params.extend([limit, offset])
-    users = await fetch_all(users_query, *params)
+    users_raw = await fetch_all(users_query, *params)
+
+    # Convert UUID objects to strings for JSON serialization
+    users = []
+    for user in users_raw:
+        user_dict = dict(user)
+        user_dict['id'] = str(user_dict['id'])  # Convert UUID to string
+        users.append(user_dict)
 
     total_pages = math.ceil(total / limit) if limit > 0 else 0
 
@@ -281,7 +294,7 @@ async def update_user(
     await execute_query(query, *params)
 
     # Fetch updated user
-    updated_user = await fetch_one(
+    updated_user_raw = await fetch_one(
         """
         SELECT
             up.id,
@@ -298,6 +311,10 @@ async def update_user(
         """,
         user_id,
     )
+
+    # Convert UUID to string
+    updated_user = dict(updated_user_raw)
+    updated_user['id'] = str(updated_user['id'])
 
     # Log activity
     admin = await fetch_one(
@@ -442,7 +459,7 @@ async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
 async def get_user_permissions(user_id: str) -> Dict:
     """Get user's module permissions"""
     # Get all modules with user's permission status
-    permissions = await fetch_all(
+    permissions_raw = await fetch_all(
         """
         SELECT
             m.id as module_id,
@@ -456,6 +473,9 @@ async def get_user_permissions(user_id: str) -> Dict:
         """,
         user_id,
     )
+
+    # Convert to list of dicts (no UUID fields here, but for consistency)
+    permissions = [dict(p) for p in permissions_raw]
 
     return {"user_id": user_id, "permissions": permissions}
 
