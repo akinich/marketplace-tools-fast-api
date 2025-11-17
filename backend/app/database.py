@@ -50,13 +50,15 @@ async def connect_db():
 
     try:
         # Parse DATABASE_URL and create connection pool
+        # NOTE: statement_cache_size=0 disables prepared statements for Supabase transaction pooler compatibility
         pool = await asyncpg.create_pool(
             settings.DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://'),
             min_size=settings.DATABASE_POOL_MIN,
             max_size=settings.DATABASE_POOL_MAX,
+            statement_cache_size=0,  # Required for Supabase transaction pooler
         )
         logger.info(
-            f"✅ Database connected (Pool: {settings.DATABASE_POOL_MIN}-{settings.DATABASE_POOL_MAX})"
+            f"✅ Database connected (Pool: {settings.DATABASE_POOL_MIN}-{settings.DATABASE_POOL_MAX}, prepared statements: disabled)"
         )
 
     except Exception as e:
