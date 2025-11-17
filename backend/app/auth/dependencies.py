@@ -152,6 +152,7 @@ async def get_current_user(token: str = Depends(get_token)) -> CurrentUser:
         email=user["email"],
         full_name=user["full_name"],
         role=user["role"],
+        role_id=user["role_id"],
         is_active=user["is_active"]
     )
 
