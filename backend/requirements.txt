@@ -23,9 +23,6 @@ python-multipart==0.0.6
 # Database - Async PostgreSQL
 asyncpg==0.29.0
 
-# Supabase
-supabase==2.3.0
-
 # Authentication & Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
