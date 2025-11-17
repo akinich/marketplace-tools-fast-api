@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Admin Service Layer
 ================================================================================
-Version: 1.4.0
+Version: 1.5.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.5.0 (2025-11-17):
+  - Added cascading disable for parent modules
+  - When parent module disabled, all sub-modules automatically disabled
+  - Disabling sub-modules does not affect parent module
+  - Enhanced logging for cascade operations
+
 v1.4.0 (2025-11-17):
   - Added parent_module_id to get_user_accessible_modules()
   - Fixed hierarchical navigation in frontend
@@ -355,7 +361,7 @@ async def update_user(
 
     # Log activity
     admin = await fetch_one(
-        "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+        "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
         updated_by_id,
     )
     await log_activity(
@@ -407,7 +413,7 @@ async def delete_user(user_id: str, deleted_by_id: str) -> None:
 
     # Log activity
     admin = await fetch_one(
-        "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+        "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
         deleted_by_id,
     )
     await log_activity(
@@ -454,7 +460,7 @@ async def get_modules_list() -> List[Dict]:
 
 
 async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
-    """Update module settings"""
+    """Update module settings with cascading disable for sub-modules"""
     # Build UPDATE statement
     update_fields = []
     params = []
@@ -484,6 +490,23 @@ async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
         WHERE id = ${param_count}
     """
     await execute_query(query, *params)
+
+    # CASCADE LOGIC: If disabling a parent module, disable all sub-modules too
+    if request.is_active is not None and request.is_active == False:
+        # Check if this module has children
+        submodules = await fetch_all(
+            "SELECT id, module_key FROM modules WHERE parent_module_id = $1",
+            module_id
+        )
+
+        if submodules:
+            # Disable all sub-modules
+            await execute_query(
+                "UPDATE modules SET is_active = FALSE WHERE parent_module_id = $1",
+                module_id
+            )
+            submodule_keys = [dict(sm)['module_key'] for sm in submodules]
+            logger.info(f"Cascaded disable to {len(submodules)} sub-modules: {', '.join(submodule_keys)}")
 
     # Fetch updated module
     module = await fetch_one("SELECT * FROM modules WHERE id = $1", module_id)
@@ -575,7 +598,7 @@ async def update_user_permissions(
 
     # Log activity
     admin = await fetch_one(
-        "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+        "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
         granted_by_id,
     )
     user_email = await fetch_one(

@@ -2,7 +2,7 @@
 
 A modern, full-stack farm management system migrated from Streamlit to FastAPI backend + React frontend for improved performance, scalability, and user experience.
 
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Version](https://img.shields.io/badge/version-1.1.0-green)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
@@ -48,12 +48,14 @@ This project represents a complete architectural upgrade from the original Strea
 - Limited to ~100 concurrent users
 - Single-client (web only)
 
-**After (FastAPI + React v1.0.0):**
+**After (FastAPI + React v1.1.0):**
 - Separated backend API + frontend SPA
 - RESTful API architecture
 - **10-100x performance improvement** (<200ms API responses)
 - Scales to 1000+ concurrent users
 - Multi-client support (web, mobile, third-party)
+- **Hierarchical module system** with parent-child relationships
+- **Enhanced permissions management** with visual hierarchy
 
 ---
 
@@ -69,28 +71,40 @@ This project represents a complete architectural upgrade from the original Strea
 ### Dashboard
 - ✅ Farm-wide KPI summary
 - ✅ Inventory metrics (items, low stock, value)
+- ✅ **Indian Rupee (₹) currency formatting**
+- ✅ **Hierarchical navigation** with nested sub-menus
 - ✅ User activity statistics
 - ✅ Real-time data updates
 
 ### Admin Panel
-- ✅ User CRUD operations
-- ✅ Auto-generated temporary passwords
+- ✅ User CRUD operations with direct password creation
+- ✅ Auto-generated temporary passwords (shown once after creation)
 - ✅ Role and module management
+- ✅ **Hierarchical module system** (parent-child relationships)
+- ✅ **Enhanced permissions dialog** with visual hierarchy
+- ✅ "Grant All Sub-modules" batch permissions
+- ✅ **Cascading module disable** (disable parent → auto-disable children)
 - ✅ Permission assignment (per user, per module)
 - ✅ Activity logs with filtering
 - ✅ System statistics
+- ✅ Three admin sub-modules: Users, Modules, Activity
 
 ### Inventory Module
 - ✅ Item master management (SKU, category, units)
-- ✅ Supplier and category management
+- ✅ **Hierarchical sub-modules** (11 inventory pages)
+- ✅ **Categories Management**: Searchable category grid with item counts
+- ✅ **Suppliers Management**: Full CRUD with contact information
+- ✅ **Current Stock View**: Real-time stock levels with filters
+- ✅ **Stock Adjustments**: Record inventory corrections (coming soon)
+- ✅ **Transaction History**: Complete audit trail (coming soon)
+- ✅ **Analytics & Reports**: Inventory insights and trends
 - ✅ **FIFO stock deduction** with cost tracking
 - ✅ Batch-level inventory tracking
 - ✅ Multi-item purchase orders
 - ✅ PO status workflow (pending → approved → ordered → received)
-- ✅ Low stock alerts
+- ✅ Low stock alerts with visual warnings
 - ✅ Expiry date monitoring
-- ✅ Complete transaction history
-- ✅ Dashboard with statistics
+- ✅ Dashboard with statistics and **INR currency formatting**
 
 ### Biofloc Module *(Coming Soon)*
 - 🔜 Tank management
@@ -980,6 +994,52 @@ v1.0.0 (2025-11-17):
 ---
 
 ## 📝 Version History
+
+### v1.1.0 (2025-11-17) - Phase 1-4 Enhancements
+
+**Phase 1 & 2: Hierarchical Modules & User Creation**
+- ✅ Implemented hierarchical module system (parent-child relationships)
+- ✅ Created 11 inventory sub-modules (Categories, Suppliers, Current Stock, etc.)
+- ✅ Created 3 admin sub-modules (Users, Modules, Activity)
+- ✅ User creation with direct password hashing (bcrypt)
+- ✅ Temporary password generation
+- ✅ Database migration (v1.1.0) with hierarchical support
+
+**Phase 3: Enhanced Permissions UI**
+- ✅ Hierarchical permissions dialog with expandable parent/child modules
+- ✅ "Grant All Sub-modules" batch selection
+- ✅ Visual hierarchy with indentation and borders
+- ✅ Improved UX with collapsible sections
+- ✅ Auto-deselect children when parent is deselected
+
+**Phase 4: Six New Inventory Pages**
+- ✅ Categories Management: Searchable grid view with item counts
+- ✅ Suppliers Management: Full table with contact information
+- ✅ Current Stock: Filterable stock levels with low stock warnings
+- ✅ Stock Adjustments: Framework for recording inventory corrections
+- ✅ Transaction History: Audit trail infrastructure
+- ✅ Analytics & Reports: Dashboard with insights and future features
+
+**Backend Improvements:**
+- ✅ Upgraded from passlib to direct bcrypt for password hashing
+- ✅ Cascading module disable (parent → children)
+- ✅ Fixed ambiguous column errors in admin queries
+- ✅ Added `parent_module_id` to module responses
+- ✅ Enhanced hierarchical permission view (v1.1.1)
+- ✅ Admin service upgraded to v1.5.0
+
+**Frontend Improvements:**
+- ✅ Indian Rupee (₹) currency formatting across dashboard
+- ✅ Hierarchical sidebar navigation with nested sub-menus
+- ✅ AdminPanel v1.3.0 with enhanced permissions dialog
+- ✅ InventoryModule v1.4.0 with 6 new fully-functional pages
+- ✅ DashboardHome v1.1.0 with INR formatting
+
+**Bug Fixes:**
+- ✅ Fixed password length limit error (bcrypt 72-byte issue)
+- ✅ Fixed missing `parent_module_id` in API responses
+- ✅ Fixed permission view for hierarchical modules
+- ✅ Fixed admin sub-modules missing from database
 
 ### v1.0.0 (2025-11-17) - Initial Release
 

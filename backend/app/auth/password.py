@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Password Hashing & Verification
 ================================================================================
-Version: 1.1.0
+Version: 1.2.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.2.0 (2025-11-17):
+  - Replaced passlib with direct bcrypt usage (fixes compatibility issues)
+  - Updated to bcrypt 4.1.2 (stable, modern version)
+  - Automatic UTF-8 encoding handling
+  - Simplified password hashing implementation
+
 v1.1.0 (2025-11-17):
   - Fixed generate_temporary_password() to enforce 72 byte bcrypt limit
   - Reduced default password length to 16 characters (safe for bcrypt)
@@ -22,16 +28,10 @@ v1.0.0 (2025-11-17):
 ================================================================================
 """
 
-from passlib.context import CryptContext
+import bcrypt
 from app.config import settings
 import secrets
 import string
-
-# ============================================================================
-# PASSWORD CONTEXT
-# ============================================================================
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # ============================================================================
@@ -49,7 +49,15 @@ def hash_password(password: str) -> str:
     Returns:
         Hashed password string
     """
-    return pwd_context.hash(password)
+    # Convert password to bytes
+    password_bytes = password.encode('utf-8')
+
+    # Generate salt and hash
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password_bytes, salt)
+
+    # Return as string
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -63,7 +71,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        password_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except Exception:
+        return False
 
 
 # ============================================================================
@@ -154,14 +167,23 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
     return True, ""
 
 
-def check_password_needs_rehash(hashed_password: str) -> bool:
+def check_password_needs_rehash(hashed_password: str, target_rounds: int = 12) -> bool:
     """
     Check if password hash needs to be updated (e.g., bcrypt rounds changed).
 
     Args:
         hashed_password: Stored hashed password
+        target_rounds: Target number of rounds (default: 12)
 
     Returns:
         True if needs rehashing, False otherwise
     """
-    return pwd_context.needs_update(hashed_password)
+    try:
+        # Extract rounds from existing hash (bcrypt format: $2b$rounds$...)
+        parts = hashed_password.split('$')
+        if len(parts) >= 3:
+            current_rounds = int(parts[2])
+            return current_rounds < target_rounds
+        return False
+    except Exception:
+        return False

@@ -1,10 +1,18 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.2.0
+ * Version: 1.3.0
  * Last Updated: 2025-11-17
  *
  * Changelog:
  * ----------
+ * v1.3.0 (2025-11-17):
+ *   - PHASE 3: Enhanced hierarchical permissions dialog
+ *   - Shows parent modules with expandable/collapsible children
+ *   - Sub-modules displayed with indentation for visual hierarchy
+ *   - "Grant All Sub-modules" checkbox for parent modules
+ *   - Selecting parent auto-selects all children
+ *   - Improved UX with expandable sections and visual grouping
+ *
  * v1.2.0 (2025-11-17):
  *   - Implemented Create User dialog with full form functionality
  *   - Added email validation and role selection
@@ -61,6 +69,8 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   VpnKey as PermissionsIcon,
+  ExpandMore as ExpandMoreIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { adminAPI } from '../api';
@@ -354,7 +364,7 @@ function UserManagementPage() {
   );
 }
 
-// Permissions Dialog Component
+// Permissions Dialog Component - ENHANCED HIERARCHICAL VERSION (Phase 3)
 function PermissionsDialog({ open, onClose, user }) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
@@ -368,12 +378,22 @@ function PermissionsDialog({ open, onClose, user }) {
   const { data: modulesData } = useQuery('allModules', () => adminAPI.getModules());
 
   const [selectedModules, setSelectedModules] = useState([]);
+  const [expandedParents, setExpandedParents] = useState({});
 
   React.useEffect(() => {
     if (permissionsData?.modules) {
       setSelectedModules(permissionsData.modules.map((m) => m.module_id));
     }
   }, [permissionsData]);
+
+  // Separate top-level modules and sub-modules
+  const topLevelModules = React.useMemo(() => {
+    return modulesData?.modules?.filter((m) => !m.parent_module_id && m.module_key !== 'dashboard') || [];
+  }, [modulesData]);
+
+  const getSubModules = React.useCallback((parentId) => {
+    return modulesData?.modules?.filter((m) => m.parent_module_id === parentId) || [];
+  }, [modulesData]);
 
   const updatePermissionsMutation = useMutation(
     (moduleIds) => adminAPI.updateUserPermissions(user.id, moduleIds),
@@ -389,10 +409,48 @@ function PermissionsDialog({ open, onClose, user }) {
     }
   );
 
-  const handleToggleModule = (moduleId) => {
-    setSelectedModules((prev) =>
-      prev.includes(moduleId) ? prev.filter((id) => id !== moduleId) : [...prev, moduleId]
-    );
+  const handleToggleModule = (moduleId, subModules = []) => {
+    setSelectedModules((prev) => {
+      if (prev.includes(moduleId)) {
+        // Deselecting - also deselect all children
+        const subModuleIds = subModules.map((sm) => sm.id);
+        return prev.filter((id) => id !== moduleId && !subModuleIds.includes(id));
+      } else {
+        // Selecting - add module
+        return [...prev, moduleId];
+      }
+    });
+  };
+
+  const handleToggleAllSubModules = (parentId, subModules) => {
+    const subModuleIds = subModules.map((sm) => sm.id);
+    const allSelected = subModuleIds.every((id) => selectedModules.includes(id));
+
+    setSelectedModules((prev) => {
+      if (allSelected) {
+        // Deselect all sub-modules
+        return prev.filter((id) => !subModuleIds.includes(id));
+      } else {
+        // Select parent and all sub-modules
+        const newSelection = [...prev];
+        if (!newSelection.includes(parentId)) {
+          newSelection.push(parentId);
+        }
+        subModuleIds.forEach((id) => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id);
+          }
+        });
+        return newSelection;
+      }
+    });
+  };
+
+  const toggleExpanded = (moduleId) => {
+    setExpandedParents((prev) => ({
+      ...prev,
+      [moduleId]: !prev[moduleId],
+    }));
   };
 
   const handleSave = () => {
@@ -400,32 +458,126 @@ function PermissionsDialog({ open, onClose, user }) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         Manage Permissions - {user.full_name}
+        {user.role_name === 'Admin' && (
+          <Typography variant="caption" display="block" color="text.secondary">
+            Admin users have full access to all modules
+          </Typography>
+        )}
       </DialogTitle>
       <DialogContent>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress />
           </Box>
+        ) : user.role_name === 'Admin' ? (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            This user has the Admin role and automatically has access to all modules.
+            Permission management is only available for non-admin users.
+          </Alert>
         ) : (
           <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
+            <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
               Select modules this user can access:
             </Typography>
-            {modulesData?.modules?.map((module) => (
-              <FormControlLabel
-                key={module.id}
-                control={
-                  <Checkbox
-                    checked={selectedModules.includes(module.id)}
-                    onChange={() => handleToggleModule(module.id)}
-                  />
-                }
-                label={`${module.module_name} - ${module.description}`}
-              />
-            ))}
+
+            {/* Hierarchical Module List */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {topLevelModules.map((parentModule) => {
+                const subModules = getSubModules(parentModule.id);
+                const hasChildren = subModules.length > 0;
+                const isExpanded = expandedParents[parentModule.id] ?? true; // Default expanded
+                const allSubModulesSelected = hasChildren && subModules.every((sm) => selectedModules.includes(sm.id));
+
+                return (
+                  <Box key={parentModule.id} sx={{ mb: 1 }}>
+                    {/* Parent Module */}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        bgcolor: 'action.hover',
+                        borderRadius: 1,
+                        p: 1,
+                      }}
+                    >
+                      {hasChildren && (
+                        <IconButton
+                          size="small"
+                          onClick={() => toggleExpanded(parentModule.id)}
+                          sx={{ mr: 1 }}
+                        >
+                          {isExpanded ? <ExpandMoreIcon /> : <ChevronRightIcon />}
+                        </IconButton>
+                      )}
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={selectedModules.includes(parentModule.id)}
+                            onChange={() => handleToggleModule(parentModule.id, subModules)}
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography variant="body1" fontWeight="medium">
+                              {parentModule.icon} {parentModule.module_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {parentModule.description}
+                            </Typography>
+                          </Box>
+                        }
+                        sx={{ flex: 1, mr: 0 }}
+                      />
+                      {hasChildren && (
+                        <Button
+                          size="small"
+                          variant={allSubModulesSelected ? 'outlined' : 'text'}
+                          onClick={() => handleToggleAllSubModules(parentModule.id, subModules)}
+                          sx={{ minWidth: 'auto', whiteSpace: 'nowrap' }}
+                        >
+                          {allSubModulesSelected ? 'Deselect All' : 'Grant All'}
+                        </Button>
+                      )}
+                    </Box>
+
+                    {/* Sub-Modules (Collapsible) */}
+                    {hasChildren && isExpanded && (
+                      <Box sx={{ ml: 6, mt: 0.5, borderLeft: '2px solid', borderColor: 'divider', pl: 2 }}>
+                        {subModules.map((subModule) => (
+                          <FormControlLabel
+                            key={subModule.id}
+                            control={
+                              <Checkbox
+                                checked={selectedModules.includes(subModule.id)}
+                                onChange={() => handleToggleModule(subModule.id)}
+                              />
+                            }
+                            label={
+                              <Box>
+                                <Typography variant="body2">
+                                  {subModule.icon} {subModule.module_name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {subModule.description}
+                                </Typography>
+                              </Box>
+                            }
+                            sx={{ display: 'flex', mb: 0.5 }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+
+            {topLevelModules.length === 0 && (
+              <Alert severity="info">No modules available</Alert>
+            )}
           </Box>
         )}
       </DialogContent>
@@ -434,7 +586,7 @@ function PermissionsDialog({ open, onClose, user }) {
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={updatePermissionsMutation.isLoading}
+          disabled={updatePermissionsMutation.isLoading || user.role_name === 'Admin'}
         >
           {updatePermissionsMutation.isLoading ? 'Saving...' : 'Save'}
         </Button>
