@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - Authentication Service
 ================================================================================
-Version: 1.0.1
+Version: 1.1.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.1.0 (2025-11-17):
+  - Implemented full password reset flow with Supabase Auth
+  - Added token generation and storage in database
+  - Integrated Supabase email sending for password reset
+  - Added password reset token verification
+  - Added password update with bcrypt hashing
+
 v1.0.1 (2025-11-17):
   - Removed Supabase client dependency
   - Direct database authentication
@@ -14,21 +21,21 @@ v1.0.1 (2025-11-17):
 
 v1.0.0 (2025-11-17):
   - Initial authentication service implementation
-
-TODO: Add password_hash column to user_profiles for proper password verification
-Currently using simplified auth - passwords stored in Supabase auth.users
 ================================================================================
 """
 
 from typing import Optional, Dict
 from fastapi import HTTPException, status
 import logging
+import secrets
+from datetime import datetime, timedelta
 
-from app.database import fetch_one, execute_query
+from app.database import fetch_one, execute_query, fetch_all
 from app.auth.jwt import create_access_token, create_refresh_token, verify_refresh_token
-from app.auth.password import verify_password
+from app.auth.password import verify_password, hash_password
 from app.config import settings
 from app.schemas.auth import LoginResponse, UserInfo
+from app.utils.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -220,55 +227,145 @@ async def refresh_access_token(refresh_token: str) -> Dict[str, any]:
 # ============================================================================
 
 
-async def send_password_reset_email(email: str) -> None:
+async def send_password_reset_email(email: str) -> Dict[str, str]:
     """
-    Send password reset email.
-
-    TODO: Implement email sending functionality
-    For now, this is a placeholder that logs the request
+    Send password reset email using Supabase Auth.
 
     Args:
         email: User email address
+
+    Returns:
+        Dict with status message
 
     Note:
         Always returns success to prevent email enumeration attacks
     """
     try:
-        # Check if user exists
+        # Check if user exists in our database
         user = await fetch_one(
-            "SELECT up.id FROM user_profiles up JOIN auth.users au ON au.id = up.id WHERE au.email = $1",
+            "SELECT up.id, au.email FROM user_profiles up JOIN auth.users au ON au.id = up.id WHERE au.email = $1 AND up.is_active = TRUE",
             email
         )
 
         if user:
-            logger.info(f"Password reset requested for: {email}")
-            # TODO: Generate reset token and send email
-            # For now, admin will need to reset passwords manually in Supabase
+            # Use Supabase Auth to send password reset email
+            supabase = get_supabase_client()
+
+            # Supabase will send the email with the configured template
+            response = supabase.auth.reset_password_email(
+                email,
+                options={
+                    "redirect_to": f"{settings.FRONTEND_URL}/reset-password"
+                }
+            )
+
+            logger.info(f"Password reset email sent to: {email}")
+
+            # Generate our own token for additional tracking (optional)
+            token = secrets.token_urlsafe(32)
+            expires_at = datetime.utcnow() + timedelta(hours=1)
+
+            # Store token in database
+            await execute_query(
+                """
+                INSERT INTO password_reset_tokens (user_id, token, expires_at)
+                VALUES ($1, $2, $3)
+                """,
+                user['id'],
+                token,
+                expires_at
+            )
+
+            logger.info(f"Password reset token generated for user: {user['id']}")
+
+        else:
+            # User doesn't exist, but don't reveal this (security)
+            logger.warning(f"Password reset attempted for non-existent/inactive user: {email}")
 
     except Exception as e:
         # Log error but don't expose to user (security)
         logger.error(f"Password reset email error for {email}: {e}")
         # Still return success to prevent email enumeration
 
+    # Always return success to prevent email enumeration
+    return {"message": "If your email exists in our system, you will receive a password reset link shortly."}
 
-async def reset_password(recovery_token: str, new_password: str) -> None:
+
+async def reset_password(recovery_token: str, new_password: str) -> Dict[str, str]:
     """
-    Reset user password using recovery token.
+    Reset user password using Supabase recovery token.
 
-    TODO: Implement proper password reset with tokens
-    Currently not functional - requires password_hash column in user_profiles
+    This endpoint is called from the frontend after user clicks the reset link.
+    Supabase handles token validation, we just update the password hash in our system.
 
     Args:
-        recovery_token: Token from password reset email
+        recovery_token: Access token from Supabase password reset email
         new_password: New password
+
+    Returns:
+        Success message
 
     Raises:
         HTTPException: If reset fails
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Password reset not yet implemented. Please contact administrator.",
-    )
+    try:
+        # Verify the recovery token with Supabase
+        supabase = get_supabase_client()
+
+        # Get user from Supabase using the recovery token
+        user_response = supabase.auth.get_user(recovery_token)
+
+        if not user_response or not user_response.user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+
+        user_id = user_response.user.id
+        email = user_response.user.email
+
+        # Update password in Supabase Auth
+        supabase.auth.update_user(
+            recovery_token,
+            {"password": new_password}
+        )
+
+        # Also update password_hash in user_profiles if column exists
+        # This ensures consistency if we migrate away from Supabase Auth
+        hashed_password = hash_password(new_password)
+
+        await execute_query(
+            """
+            UPDATE user_profiles
+            SET password_hash = $1, updated_at = NOW()
+            WHERE id = $2
+            """,
+            hashed_password,
+            user_id
+        )
+
+        # Mark any password reset tokens as used
+        await execute_query(
+            """
+            UPDATE password_reset_tokens
+            SET used = TRUE, used_at = NOW()
+            WHERE user_id = $1 AND used = FALSE
+            """,
+            user_id
+        )
+
+        logger.info(f"Password reset successful for user: {email}")
+
+        return {"message": "Password reset successful. You can now login with your new password."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to reset password. Please request a new reset link."
+        )
 
 
 # ============================================================================

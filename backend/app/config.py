@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     DATABASE_POOL_MAX: int = 50
 
     # ========================================================================
+    # SUPABASE CONFIGURATION (for password reset emails)
+    # ========================================================================
+    SUPABASE_URL: str = Field(..., description="Supabase project URL")
+    SUPABASE_SERVICE_KEY: str = Field(..., description="Supabase service role key")
+
+    # ========================================================================
     # JWT AUTHENTICATION
     # ========================================================================
     JWT_SECRET_KEY: str = Field(..., description="Secret key for JWT encoding")
