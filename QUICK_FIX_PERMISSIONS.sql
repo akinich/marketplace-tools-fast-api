@@ -30,7 +30,7 @@ BEGIN
     -- Get user ID from email (CHANGE THIS EMAIL!)
     SELECT id INTO v_user_id
     FROM auth.users
-    WHERE email = 'YOUR_EMAIL_HERE';  -- ← CHANGE THIS!
+    WHERE email = 'akinich@gmail.com';  -- ← CHANGE THIS!
 
     IF v_user_id IS NULL THEN
         RAISE EXCEPTION 'User not found. Check the email address!';
@@ -65,7 +65,7 @@ FROM user_module_permissions ump
 JOIN user_profiles up ON up.id = ump.user_id
 JOIN auth.users u ON u.id = up.id
 JOIN modules m ON m.id = ump.module_id
-WHERE u.email = 'YOUR_EMAIL_HERE'  -- ← CHANGE THIS!
+WHERE u.email = 'akinich@gmail.com'  -- ← CHANGE THIS!
 ORDER BY m.parent_module_id NULLS FIRST, m.display_order;
 
 -- You should see ALL modules listed here
