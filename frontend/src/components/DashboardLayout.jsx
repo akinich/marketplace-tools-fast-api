@@ -130,8 +130,8 @@ export default function DashboardLayout() {
           </ListItemButton>
         </ListItem>
 
-        {/* Dynamic Modules */}
-        {modules.map((module) => (
+        {/* Dynamic Modules (exclude dashboard as it's already shown above) */}
+        {modules.filter(m => m.module_key !== 'dashboard').map((module) => (
           <React.Fragment key={module.module_key}>
             <ListItem disablePadding>
               <ListItemButton
@@ -172,6 +172,13 @@ export default function DashboardLayout() {
             {module.module_key === 'inventory' && (
               <Collapse in={expandedModules.inventory} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
+                  <ListItemButton
+                    sx={{ pl: 4 }}
+                    selected={location.pathname === '/inventory'}
+                    onClick={() => navigate('/inventory')}
+                  >
+                    <ListItemText primary="Dashboard" />
+                  </ListItemButton>
                   <ListItemButton
                     sx={{ pl: 4 }}
                     selected={location.pathname === '/inventory/items'}

@@ -3,7 +3,7 @@
  * Version: 1.0.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import {
   Box,
@@ -21,6 +21,10 @@ import {
   CircularProgress,
   Alert,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import { Add as AddIcon, Warning as WarningIcon } from '@mui/icons-material';
 import { useQuery } from 'react-query';
@@ -29,6 +33,7 @@ import { inventoryAPI } from '../api';
 // Items Page
 function ItemsPage() {
   const { data, isLoading, error } = useQuery('inventoryItems', () => inventoryAPI.getItems());
+  const [openAddDialog, setOpenAddDialog] = useState(false);
 
   if (isLoading) {
     return (
@@ -48,10 +53,31 @@ function ItemsPage() {
         <Typography variant="h5" fontWeight="bold">
           Inventory Items
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddDialog(true)}>
           Add Item
         </Button>
       </Box>
+
+      {/* Add Item Dialog */}
+      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Item</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Item creation form will be implemented here. This will include fields for:
+            <ul>
+              <li>Item Name</li>
+              <li>SKU</li>
+              <li>Category</li>
+              <li>Unit</li>
+              <li>Reorder Threshold</li>
+              <li>And more...</li>
+            </ul>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenAddDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Card>
         <CardContent>
@@ -111,6 +137,7 @@ function PurchaseOrdersPage() {
   const { data, isLoading, error } = useQuery('purchaseOrders', () =>
     inventoryAPI.getPurchaseOrders({ status: 'All', days_back: 30 })
   );
+  const [openCreatePODialog, setOpenCreatePODialog] = useState(false);
 
   if (isLoading) {
     return (
@@ -130,10 +157,30 @@ function PurchaseOrdersPage() {
         <Typography variant="h5" fontWeight="bold">
           Purchase Orders
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreatePODialog(true)}>
           Create PO
         </Button>
       </Box>
+
+      {/* Create PO Dialog */}
+      <Dialog open={openCreatePODialog} onClose={() => setOpenCreatePODialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Create Purchase Order</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Purchase Order creation form will be implemented here. This will include:
+            <ul>
+              <li>Supplier Selection</li>
+              <li>PO Date & Expected Delivery</li>
+              <li>Items Selection (with quantities and costs)</li>
+              <li>Notes</li>
+              <li>Total Cost Calculation</li>
+            </ul>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCreatePODialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Card>
         <CardContent>
@@ -271,6 +318,125 @@ function AlertsPage() {
   );
 }
 
+// Inventory Dashboard Page
+function InventoryDashboardPage() {
+  const { data, isLoading, error } = useQuery('inventoryDashboard', () => inventoryAPI.getDashboard());
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">Failed to load inventory dashboard: {error.message}</Alert>;
+  }
+
+  return (
+    <Box>
+      <Typography variant="h5" fontWeight="bold" gutterBottom>
+        Inventory Dashboard
+      </Typography>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+        Overview of your inventory metrics
+      </Typography>
+
+      <Grid container spacing={3}>
+        {/* Total Items */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" variant="overline">
+                Total Items
+              </Typography>
+              <Typography variant="h4">{data?.total_items || 0}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Low Stock Items */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderLeft: 4, borderColor: 'warning.main' }}>
+            <CardContent>
+              <Typography color="textSecondary" variant="overline">
+                Low Stock Items
+              </Typography>
+              <Typography variant="h4" color="warning.main">
+                {data?.low_stock_items || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Expiring Soon */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderLeft: 4, borderColor: 'error.main' }}>
+            <CardContent>
+              <Typography color="textSecondary" variant="overline">
+                Expiring Soon
+              </Typography>
+              <Typography variant="h4" color="error.main">
+                {data?.expiring_soon_items || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Pending POs */}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" variant="overline">
+                Pending POs
+              </Typography>
+              <Typography variant="h4">{data?.pending_pos || 0}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Total Stock Value */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Total Stock Value
+              </Typography>
+              <Typography variant="h3" color="primary">
+                ${Number(data?.total_stock_value || 0).toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Quick Stats */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Quick Stats
+              </Typography>
+              <Typography variant="body2">
+                Total Categories: {data?.total_categories || 0}
+              </Typography>
+              <Typography variant="body2">
+                Active Suppliers: {data?.active_suppliers || 0}
+              </Typography>
+              <Typography variant="body2">
+                Recent Transactions (7d): {data?.recent_transactions_7d || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+}
+
 // Stock Operations Page (Placeholder)
 function StockOperationsPage() {
   return (
@@ -289,7 +455,7 @@ function StockOperationsPage() {
 export default function InventoryModule() {
   return (
     <Routes>
-      <Route index element={<Navigate to="items" replace />} />
+      <Route index element={<InventoryDashboardPage />} />
       <Route path="items" element={<ItemsPage />} />
       <Route path="stock" element={<StockOperationsPage />} />
       <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
