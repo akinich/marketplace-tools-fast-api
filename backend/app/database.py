@@ -9,16 +9,14 @@ Changelog:
 ----------
 v1.0.0 (2025-11-17):
   - Initial database setup
-  - Async PostgreSQL connection using databases library
+  - Async PostgreSQL connection using asyncpg
   - Connection pool management
-  - Supabase client initialization
   - Helper functions for queries
 
 ================================================================================
 """
 
-from databases import Database
-from supabase import create_client, Client
+import asyncpg
 from typing import Optional, Dict, List, Any
 import logging
 
@@ -34,11 +32,8 @@ logger = logging.getLogger(__name__)
 # DATABASE INSTANCES
 # ============================================================================
 
-# Async PostgreSQL database connection
-database: Optional[Database] = None
-
-# Supabase client (for Auth and convenience methods)
-supabase: Optional[Client] = None
+# Async PostgreSQL connection pool
+pool: Optional[asyncpg.Pool] = None
 
 
 # ============================================================================
@@ -48,26 +43,21 @@ supabase: Optional[Client] = None
 
 async def connect_db():
     """
-    Initialize database connections on application startup.
+    Initialize database connection pool on application startup.
     Called from main.py startup event.
     """
-    global database, supabase
+    global pool
 
     try:
-        # Initialize async PostgreSQL connection
-        database = Database(
-            settings.DATABASE_URL,
+        # Parse DATABASE_URL and create connection pool
+        pool = await asyncpg.create_pool(
+            settings.DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://'),
             min_size=settings.DATABASE_POOL_MIN,
             max_size=settings.DATABASE_POOL_MAX,
         )
-        await database.connect()
         logger.info(
             f"✅ Database connected (Pool: {settings.DATABASE_POOL_MIN}-{settings.DATABASE_POOL_MAX})"
         )
-
-        # Initialize Supabase client
-        supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        logger.info("✅ Supabase client initialized")
 
     except Exception as e:
         logger.error(f"❌ Database connection failed: {e}")
@@ -76,14 +66,14 @@ async def connect_db():
 
 async def disconnect_db():
     """
-    Close database connections on application shutdown.
+    Close database connection pool on application shutdown.
     Called from main.py shutdown event.
     """
-    global database
+    global pool
 
     try:
-        if database:
-            await database.disconnect()
+        if pool:
+            await pool.close()
             logger.info("✅ Database disconnected")
     except Exception as e:
         logger.error(f"❌ Database disconnection error: {e}")
@@ -94,28 +84,16 @@ async def disconnect_db():
 # ============================================================================
 
 
-def get_db() -> Database:
+def get_db() -> asyncpg.Pool:
     """
-    Get database instance for dependency injection.
+    Get database pool for dependency injection.
 
     Usage:
         @router.get("/items")
-        async def get_items(db: Database = Depends(get_db)):
-            results = await db.fetch_all("SELECT * FROM items")
+        async def get_items(db: asyncpg.Pool = Depends(get_db)):
+            results = await fetch_all("SELECT * FROM items")
     """
-    return database
-
-
-def get_supabase() -> Client:
-    """
-    Get Supabase client for dependency injection.
-
-    Usage:
-        @router.post("/auth/login")
-        async def login(sb: Client = Depends(get_supabase)):
-            result = sb.auth.sign_in_with_password(...)
-    """
-    return supabase
+    return pool
 
 
 # ============================================================================
@@ -135,8 +113,9 @@ async def fetch_one(query: str, *values) -> Optional[Dict]:
         Dict with column names as keys, or None if no results
     """
     try:
-        result = await database.fetch_one(query=query, values=values)
-        return dict(result) if result else None
+        async with pool.acquire() as conn:
+            result = await conn.fetchrow(query, *values)
+            return dict(result) if result else None
     except Exception as e:
         logger.error(f"Query error (fetch_one): {e}")
         raise
@@ -154,14 +133,15 @@ async def fetch_all(query: str, *values) -> List[Dict]:
         List of dicts, empty list if no results
     """
     try:
-        results = await database.fetch_all(query=query, values=values)
-        return [dict(row) for row in results]
+        async with pool.acquire() as conn:
+            results = await conn.fetch(query, *values)
+            return [dict(row) for row in results]
     except Exception as e:
         logger.error(f"Query error (fetch_all): {e}")
         raise
 
 
-async def execute(query: str, *values) -> Any:
+async def execute_query(query: str, *values) -> str:
     """
     Execute INSERT, UPDATE, DELETE query.
 
@@ -170,32 +150,34 @@ async def execute(query: str, *values) -> Any:
         *values: Values to bind to placeholders
 
     Returns:
-        Result of the query execution
+        Result status string (e.g., "INSERT 0 1")
     """
     try:
-        result = await database.execute(query=query, values=values)
-        return result
+        async with pool.acquire() as conn:
+            result = await conn.execute(query, *values)
+            return result
     except Exception as e:
         logger.error(f"Query error (execute): {e}")
         raise
 
 
-async def execute_many(query: str, values: List[Dict]) -> None:
+async def execute_many(query: str, values: List[tuple]) -> None:
     """
     Execute query multiple times with different values (bulk insert).
 
     Args:
-        query: SQL query with :key placeholders
-        values: List of dicts with values
+        query: SQL query with $1, $2, etc. placeholders
+        values: List of tuples with values
 
     Example:
         await execute_many(
-            "INSERT INTO items (name, price) VALUES (:name, :price)",
-            [{"name": "Item1", "price": 10}, {"name": "Item2", "price": 20}]
+            "INSERT INTO items (name, price) VALUES ($1, $2)",
+            [("Item1", 10), ("Item2", 20)]
         )
     """
     try:
-        await database.execute_many(query=query, values=values)
+        async with pool.acquire() as conn:
+            await conn.executemany(query, values)
     except Exception as e:
         logger.error(f"Query error (execute_many): {e}")
         raise
@@ -211,23 +193,29 @@ class DatabaseTransaction:
     Context manager for database transactions.
 
     Usage:
-        async with DatabaseTransaction():
-            await execute("INSERT INTO items ...")
-            await execute("UPDATE stock ...")
+        async with DatabaseTransaction() as conn:
+            await conn.execute("INSERT INTO items ...")
+            await conn.execute("UPDATE stock ...")
             # Commits if no exception, rolls back otherwise
     """
 
     def __init__(self):
+        self.conn = None
         self.transaction = None
 
     async def __aenter__(self):
-        self.transaction = await database.transaction()
-        await self.transaction.__aenter__()
-        return self.transaction
+        self.conn = await pool.acquire()
+        self.transaction = self.conn.transaction()
+        await self.transaction.start()
+        return self.conn
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.transaction:
-            await self.transaction.__aexit__(exc_type, exc_val, exc_tb)
+        if exc_type:
+            await self.transaction.rollback()
+        else:
+            await self.transaction.commit()
+
+        await pool.release(self.conn)
 
 
 # ============================================================================
@@ -243,7 +231,8 @@ async def check_database_health() -> bool:
         True if healthy, False otherwise
     """
     try:
-        await database.fetch_one("SELECT 1")
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
         return True
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
