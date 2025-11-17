@@ -223,17 +223,17 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth
+from app.routes import auth, admin, inventory, dashboard
 
 # Mount routers
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
+app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin Panel"])
+app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
+app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
 
-# To be added:
-# from app.routes import admin, inventory, biofloc, dashboard
-# app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
-# app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
+# To be added later:
+# from app.routes import biofloc
 # app.include_router(biofloc.router, prefix=f"{settings.API_PREFIX}/biofloc", tags=["Biofloc"])
-# app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
 
 
 # ============================================================================
