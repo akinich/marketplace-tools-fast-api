@@ -1,6 +1,20 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Last Updated: 2025-11-17
+ *
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-17):
+ *   - Fixed duplicate dashboard appearing in sidebar
+ *   - Added Module Management submenu to Admin Panel
+ *   - Added Dashboard submenu to Inventory Management
+ *   - Improved module filtering to exclude dashboard from dynamic list
+ *
+ * v1.0.0 (2025-11-17):
+ *   - Initial dashboard layout with sidebar navigation
+ *   - Dynamic module loading from API
+ *   - Expandable/collapsible submenus
  */
 
 import React, { useState, useEffect } from 'react';

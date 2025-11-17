@@ -2,11 +2,19 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.1.0 (2025-11-17):
+  - CRITICAL: Fixed transaction blocks to use transaction-aware helper functions
+  - Updated add_stock() to properly use DatabaseTransaction with conn parameter
+  - Updated use_stock_fifo() to properly use DatabaseTransaction with conn parameter
+  - Updated create_purchase_order() to properly use DatabaseTransaction with conn parameter
+  - Ensured all operations within transactions use same connection for atomicity
+  - Imported transaction-aware functions (fetch_one_tx, fetch_all_tx, execute_query_tx)
+
 v1.0.0 (2025-11-17):
   - Initial inventory service implementation
   - Item master CRUD operations

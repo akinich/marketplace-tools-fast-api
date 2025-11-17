@@ -1,6 +1,19 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Last Updated: 2025-11-17
+ *
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-17):
+ *   - Added Module Management page to view all system modules
+ *   - Added User Permissions dialog with checkbox interface
+ *   - Added permissions icon button to user management table
+ *   - Integrated permission management with backend API
+ *   - Added real-time permission updates with notifications
+ *
+ * v1.0.0 (2025-11-17):
+ *   - Initial admin panel with User Management and Activity Logs
  */
 
 import React, { useState } from 'react';

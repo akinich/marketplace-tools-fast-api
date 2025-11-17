@@ -1,6 +1,18 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Last Updated: 2025-11-17
+ *
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-17):
+ *   - Added Inventory Dashboard page with metrics overview
+ *   - Added placeholder dialogs for Add Item and Create PO actions
+ *   - Changed default route from items to dashboard
+ *   - Improved UX with action button feedback
+ *
+ * v1.0.0 (2025-11-17):
+ *   - Initial inventory module with Items, Stock, POs, and Alerts pages
  */
 
 import React, { useState } from 'react';

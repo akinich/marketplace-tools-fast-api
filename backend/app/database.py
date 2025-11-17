@@ -2,11 +2,21 @@
 ================================================================================
 Farm Management System - Database Connection Manager
 ================================================================================
-Version: 1.0.0
+Version: 1.2.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.2.0 (2025-11-17):
+  - CRITICAL: Fixed execute_query() to handle RETURNING clauses properly
+  - Added transaction-aware helper functions (fetch_one_tx, fetch_all_tx, execute_query_tx)
+  - Fixed DatabaseTransaction to use connection parameter for transactional operations
+  - Improved RETURNING clause detection (single vs multiple columns)
+
+v1.1.0 (2025-11-17):
+  - Added statement_cache_size=0 for Supabase transaction pooler compatibility
+  - Fixed prepared statement errors with pgbouncer
+
 v1.0.0 (2025-11-17):
   - Initial database setup
   - Async PostgreSQL connection using asyncpg
