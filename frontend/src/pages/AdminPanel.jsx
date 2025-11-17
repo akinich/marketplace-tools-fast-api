@@ -72,6 +72,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
+import Switch from '@mui/material/Switch';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { adminAPI } from '../api';
 import { useSnackbar } from 'notistack';
@@ -597,7 +598,32 @@ function PermissionsDialog({ open, onClose, user }) {
 
 // Module Management Page
 function ModuleManagementPage() {
+  const { enqueueSnackbar } = useSnackbar();
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery('allModules', () => adminAPI.getModules());
+
+  const toggleModuleMutation = useMutation(
+    ({ moduleId, isActive }) => adminAPI.updateModule(moduleId, { is_active: isActive }),
+    {
+      onSuccess: (_, variables) => {
+        enqueueSnackbar(
+          `Module ${variables.isActive ? 'enabled' : 'disabled'} successfully`,
+          { variant: 'success' }
+        );
+        queryClient.invalidateQueries('allModules');
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to update module: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const handleToggleModule = (moduleId, currentStatus) => {
+    toggleModuleMutation.mutate({ moduleId, isActive: !currentStatus });
+  };
 
   if (isLoading) {
     return (
@@ -611,40 +637,104 @@ function ModuleManagementPage() {
     return <Alert severity="error">Failed to load modules: {error.message}</Alert>;
   }
 
+  // Separate top-level and sub-modules for better display
+  const topLevelModules = data?.modules?.filter((m) => !m.parent_module_id) || [];
+  const getSubModules = (parentId) => data?.modules?.filter((m) => m.parent_module_id === parentId) || [];
+
   return (
     <Box>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
         Module Management
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        System modules available in the application
+        System modules available in the application. Toggle to enable/disable modules.
       </Typography>
 
       <Grid container spacing={3}>
-        {data?.modules?.map((module) => (
-          <Grid item xs={12} md={6} key={module.id}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <Box>
-                    <Typography variant="h6">{module.module_name}</Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      {module.description}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Key: {module.module_key} | Order: {module.display_order}
-                    </Typography>
+        {topLevelModules.map((module) => {
+          const subModules = getSubModules(module.id);
+          const hasChildren = subModules.length > 0;
+
+          return (
+            <Grid item xs={12} key={module.id}>
+              <Card>
+                <CardContent>
+                  {/* Parent Module */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: hasChildren ? 2 : 0 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6">
+                        {module.icon} {module.module_name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {module.description}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Key: {module.module_key} | Order: {module.display_order}
+                        {hasChildren && ` | ${subModules.length} sub-module(s)`}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={module.is_active ? 'Active' : 'Inactive'}
+                        color={module.is_active ? 'success' : 'default'}
+                        size="small"
+                      />
+                      <Switch
+                        checked={module.is_active}
+                        onChange={() => handleToggleModule(module.id, module.is_active)}
+                        disabled={toggleModuleMutation.isLoading}
+                        color="primary"
+                      />
+                    </Box>
                   </Box>
-                  <Chip
-                    label={module.is_active ? 'Active' : 'Inactive'}
-                    color={module.is_active ? 'success' : 'default'}
-                    size="small"
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+
+                  {/* Sub-Modules */}
+                  {hasChildren && (
+                    <Box sx={{ mt: 2, pl: 4, borderLeft: '2px solid', borderColor: 'divider' }}>
+                      {subModules.map((subModule) => (
+                        <Box
+                          key={subModule.id}
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            py: 1,
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            '&:last-child': { borderBottom: 'none' },
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2" fontWeight="medium">
+                              {subModule.icon} {subModule.module_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {subModule.description}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label={subModule.is_active ? 'Active' : 'Inactive'}
+                              color={subModule.is_active ? 'success' : 'default'}
+                              size="small"
+                            />
+                            <Switch
+                              checked={subModule.is_active}
+                              onChange={() => handleToggleModule(subModule.id, subModule.is_active)}
+                              disabled={toggleModuleMutation.isLoading}
+                              color="primary"
+                              size="small"
+                            />
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
     </Box>
   );

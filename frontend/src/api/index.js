@@ -79,6 +79,11 @@ export const adminAPI = {
     const response = await apiClient.get('/admin/modules');
     return response.data;
   },
+
+  updateModule: async (moduleId, data) => {
+    const response = await apiClient.put(`/admin/modules/${moduleId}`, data);
+    return response.data;
+  },
 };
 
 // ============================================================================

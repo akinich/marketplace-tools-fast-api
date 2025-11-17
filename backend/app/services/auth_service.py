@@ -236,7 +236,7 @@ async def send_password_reset_email(email: str) -> None:
     try:
         # Check if user exists
         user = await fetch_one(
-            "SELECT id FROM user_profiles up JOIN auth.users au ON au.id = up.id WHERE au.email = $1",
+            "SELECT up.id FROM user_profiles up JOIN auth.users au ON au.id = up.id WHERE au.email = $1",
             email
         )
 
