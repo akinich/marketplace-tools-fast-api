@@ -10,6 +10,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import { IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 import App from './App';
 import theme from './theme/theme';
@@ -31,7 +33,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'top', horizontal: 'right' }}>
+          <SnackbarProvider
+            maxSnack={3}
+            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            autoHideDuration={3000}
+            action={(snackbarKey) => (
+              <IconButton
+                size="small"
+                aria-label="close"
+                color="inherit"
+                onClick={() => {
+                  // Close the snackbar
+                  const closeSnackbar = window.closeSnackbar || (() => {});
+                  closeSnackbar(snackbarKey);
+                }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+          >
             <App />
           </SnackbarProvider>
         </ThemeProvider>
