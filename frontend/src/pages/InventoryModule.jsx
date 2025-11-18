@@ -80,6 +80,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useSnackbar } from 'notistack';
 import { inventoryAPI } from '../api';
+import { formatCurrency } from '../utils/formatters';
 
 // Add Item Dialog Component
 function AddItemDialog({ open, onClose, onSuccess }) {
@@ -476,7 +477,7 @@ function PurchaseOrdersPage() {
                     <TableCell>
                       <Chip label={po.status} size="small" />
                     </TableCell>
-                    <TableCell>${Number(po.total_cost).toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(po.total_cost)}</TableCell>
                     <TableCell>{po.items_count}</TableCell>
                   </TableRow>
                 ))}
@@ -671,10 +672,7 @@ function InventoryDashboardPage() {
                 Total Stock Value
               </Typography>
               <Typography variant="h3" color="primary">
-                ${Number(data?.total_stock_value || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatCurrency(data?.total_stock_value || 0)}
               </Typography>
             </CardContent>
           </Card>
@@ -1099,7 +1097,7 @@ function AnalyticsPage() {
                   Categories: <strong>{data?.total_categories || 0}</strong>
                 </Typography>
                 <Typography variant="body2">
-                  Total Value: <strong>${Number(data?.total_stock_value || 0).toLocaleString()}</strong>
+                  Total Value: <strong>{formatCurrency(data?.total_stock_value || 0)}</strong>
                 </Typography>
               </CardContent>
             </Card>

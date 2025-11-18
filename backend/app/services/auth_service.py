@@ -252,9 +252,9 @@ async def send_password_reset_email(email: str) -> Dict[str, str]:
             supabase = get_supabase_client()
 
             # Supabase will send the email with the configured template
-            response = supabase.auth.reset_password_email(
+            response = supabase.auth.reset_password_for_email(
                 email,
-                options={
+                {
                     "redirect_to": f"{settings.FRONTEND_URL}/reset-password"
                 }
             )
@@ -324,9 +324,9 @@ async def reset_password(recovery_token: str, new_password: str) -> Dict[str, st
         user_id = user_response.user.id
         email = user_response.user.email
 
-        # Update password in Supabase Auth
-        supabase.auth.update_user(
-            recovery_token,
+        # Update password in Supabase Auth using admin API
+        supabase.auth.admin.update_user_by_id(
+            user_id,
             {"password": new_password}
         )
 

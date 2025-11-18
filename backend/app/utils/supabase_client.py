@@ -2,10 +2,17 @@
 ================================================================================
 Supabase Client Utility
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-17
+Version: 1.0.1
+Last Updated: 2025-11-18
 
-Provides Supabase client for password reset emails and other Supabase Auth operations.
+Changelog:
+----------
+v1.0.1 (2025-11-18):
+  - Fixed Client initialization to use correct API
+  - Removed proxy parameter (not supported in supabase-py 2.3.0)
+
+v1.0.0 (2025-11-17):
+  - Initial implementation
 ================================================================================
 """
 
