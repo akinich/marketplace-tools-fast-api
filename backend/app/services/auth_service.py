@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Authentication Service
 ================================================================================
-Version: 1.1.0
-Last Updated: 2025-11-17
+Version: 1.2.0
+Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.2.0 (2025-11-18):
+  - CRITICAL SECURITY FIX: Implemented proper password verification
+  - Added password_hash column to user query
+  - Enabled bcrypt password verification on login
+  - Prevents authentication bypass vulnerability
+
 v1.1.0 (2025-11-17):
   - Implemented full password reset flow with Supabase Auth
   - Added token generation and storage in database
@@ -76,7 +82,8 @@ async def authenticate_user(email: str, password: str) -> LoginResponse:
                 up.full_name,
                 up.role_id,
                 r.role_name as role,
-                up.is_active
+                up.is_active,
+                up.password_hash
             FROM user_profiles up
             JOIN auth.users au ON au.id = up.id
             LEFT JOIN roles r ON r.id = up.role_id
@@ -97,9 +104,18 @@ async def authenticate_user(email: str, password: str) -> LoginResponse:
                 detail="Account is inactive. Please contact administrator.",
             )
 
-        # TODO: Add password verification once password_hash column is added to user_profiles
-        # For now, we're trusting that users created through Supabase Auth UI have valid passwords
-        # In production, add: if not verify_password(password, user_profile["password_hash"]): raise 401
+        # Verify password
+        if not user_profile.get("password_hash"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account not fully configured. Please use password reset.",
+            )
+
+        if not verify_password(password, user_profile["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
 
         # Generate JWT tokens
         access_token = create_access_token(
