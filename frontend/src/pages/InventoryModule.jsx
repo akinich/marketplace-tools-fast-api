@@ -1,10 +1,18 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.7.0
+ * Version: 1.8.0
  * Last Updated: 2025-11-18
  *
  * Changelog:
  * ----------
+ * v1.8.0 (2025-11-18):
+ *   - FIXED: PO item dropdown now shows items properly with unique query keys
+ *   - FIXED: Add Stock item dropdown loading states
+ *   - FEATURE: Auto-fill supplier from item's default supplier in PO dialog
+ *   - FEATURE: Auto-fill supplier from item's default supplier in Add Stock dialog
+ *   - Enhanced loading states for all dropdowns (suppliers, items)
+ *   - Better UX with "Loading..." and "No items available" messages
+ *
  * v1.7.0 (2025-11-18):
  *   - IMPLEMENTED: Complete Purchase Order creation dialog
  *   - Dynamic items list with add/remove functionality
@@ -449,9 +457,12 @@ function CreatePODialog({ open, onClose }) {
 
   const [errors, setErrors] = useState({});
 
-  // Fetch suppliers and items for dropdowns
-  const { data: suppliersData } = useQuery('suppliers', inventoryAPI.getSuppliers);
-  const { data: itemsData } = useQuery('items', () =>
+  // Fetch suppliers and items for dropdowns (use unique keys for this dialog)
+  const { data: suppliersData, isLoading: suppliersLoading } = useQuery(
+    'po-dialog-suppliers',
+    inventoryAPI.getSuppliers
+  );
+  const { data: itemsData, isLoading: itemsLoading } = useQuery('po-dialog-items', () =>
     inventoryAPI.getItems({ page: 1, limit: 1000 })
   );
 
@@ -497,6 +508,14 @@ function CreatePODialog({ open, onClose }) {
     const newItems = [...items];
     newItems[index][field] = value;
     setItems(newItems);
+
+    // Auto-fill supplier from item's default supplier (if not already set)
+    if (field === 'item_master_id' && value && !formData.supplier_id) {
+      const selectedItem = availableItems.find((item) => item.id === parseInt(value));
+      if (selectedItem && selectedItem.default_supplier_id) {
+        setFormData({ ...formData, supplier_id: selectedItem.default_supplier_id });
+      }
+    }
   };
 
   const addItem = () => {
@@ -620,12 +639,19 @@ function CreatePODialog({ open, onClose }) {
                   value={formData.supplier_id}
                   onChange={handleChange}
                   label="Supplier"
+                  disabled={suppliersLoading}
                 >
-                  {suppliers.map((supplier) => (
-                    <MenuItem key={supplier.id} value={supplier.id}>
-                      {supplier.supplier_name}
-                    </MenuItem>
-                  ))}
+                  {suppliersLoading ? (
+                    <MenuItem disabled>Loading suppliers...</MenuItem>
+                  ) : suppliers.length === 0 ? (
+                    <MenuItem disabled>No suppliers available</MenuItem>
+                  ) : (
+                    suppliers.map((supplier) => (
+                      <MenuItem key={supplier.id} value={supplier.id}>
+                        {supplier.supplier_name}
+                      </MenuItem>
+                    ))
+                  )}
                 </Select>
                 {errors.supplier_id && <FormHelperText>{errors.supplier_id}</FormHelperText>}
               </FormControl>
@@ -696,12 +722,19 @@ function CreatePODialog({ open, onClose }) {
                       value={item.item_master_id}
                       onChange={(e) => handleItemChange(index, 'item_master_id', e.target.value)}
                       label="Item"
+                      disabled={itemsLoading}
                     >
-                      {availableItems.map((availItem) => (
-                        <MenuItem key={availItem.id} value={availItem.id}>
-                          {availItem.item_name} ({availItem.unit})
-                        </MenuItem>
-                      ))}
+                      {itemsLoading ? (
+                        <MenuItem disabled>Loading items...</MenuItem>
+                      ) : availableItems.length === 0 ? (
+                        <MenuItem disabled>No items available</MenuItem>
+                      ) : (
+                        availableItems.map((availItem) => (
+                          <MenuItem key={availItem.id} value={availItem.id}>
+                            {availItem.item_name} ({availItem.unit})
+                          </MenuItem>
+                        ))
+                      )}
                     </Select>
                     {errors[`item_${index}_item`] && (
                       <FormHelperText>{errors[`item_${index}_item`]}</FormHelperText>
@@ -1098,8 +1131,12 @@ function AddStockDialog({ open, onClose }) {
   });
   const [errors, setErrors] = useState({});
 
-  const { data: itemsData } = useQuery('inventoryItems', () => inventoryAPI.getItems());
-  const { data: suppliersData } = useQuery('suppliers', () => inventoryAPI.getSuppliers());
+  const { data: itemsData, isLoading: itemsLoading } = useQuery('addstock-dialog-items', () =>
+    inventoryAPI.getItems({ page: 1, limit: 1000 })
+  );
+  const { data: suppliersData, isLoading: suppliersLoading } = useQuery('addstock-dialog-suppliers', () =>
+    inventoryAPI.getSuppliers()
+  );
 
   const addStockMutation = useMutation((data) => inventoryAPI.addStock(data), {
     onSuccess: () => {
@@ -1114,8 +1151,17 @@ function AddStockDialog({ open, onClose }) {
   });
 
   const handleChange = (field) => (event) => {
-    setFormData({ ...formData, [field]: event.target.value });
+    const value = event.target.value;
+    setFormData({ ...formData, [field]: value });
     if (errors[field]) setErrors({ ...errors, [field]: null });
+
+    // Auto-fill supplier from item's default supplier (if selecting item and supplier not yet set)
+    if (field === 'item_master_id' && value && !formData.supplier_id) {
+      const selectedItem = itemsData?.items?.find((item) => item.id === parseInt(value));
+      if (selectedItem && selectedItem.default_supplier_id) {
+        setFormData((prev) => ({ ...prev, [field]: value, supplier_id: selectedItem.default_supplier_id }));
+      }
+    }
   };
 
   const validate = () => {
@@ -1157,10 +1203,18 @@ function AddStockDialog({ open, onClose }) {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
           <FormControl fullWidth required error={!!errors.item_master_id}>
             <InputLabel>Item</InputLabel>
-            <Select value={formData.item_master_id} onChange={handleChange('item_master_id')} label="Item">
-              {itemsData?.items?.map((item) => (
-                <MenuItem key={item.id} value={item.id}>{item.item_name} ({item.unit})</MenuItem>
-              ))}
+            <Select value={formData.item_master_id} onChange={handleChange('item_master_id')} label="Item" disabled={itemsLoading}>
+              {itemsLoading ? (
+                <MenuItem disabled>Loading items...</MenuItem>
+              ) : !itemsData?.items || itemsData.items.length === 0 ? (
+                <MenuItem disabled>No items available</MenuItem>
+              ) : (
+                itemsData.items.map((item) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.item_name} ({item.unit})
+                  </MenuItem>
+                ))
+              )}
             </Select>
             {errors.item_master_id && <FormHelperText>{errors.item_master_id}</FormHelperText>}
           </FormControl>
@@ -1169,11 +1223,17 @@ function AddStockDialog({ open, onClose }) {
           <TextField label="Purchase Date" required type="date" fullWidth value={formData.purchase_date} onChange={handleChange('purchase_date')} error={!!errors.purchase_date} helperText={errors.purchase_date} InputLabelProps={{ shrink: true }} />
           <FormControl fullWidth>
             <InputLabel>Supplier</InputLabel>
-            <Select value={formData.supplier_id} onChange={handleChange('supplier_id')} label="Supplier">
+            <Select value={formData.supplier_id} onChange={handleChange('supplier_id')} label="Supplier" disabled={suppliersLoading}>
               <MenuItem value=""><em>None</em></MenuItem>
-              {suppliersData?.suppliers?.map((supplier) => (
-                <MenuItem key={supplier.id} value={supplier.id}>{supplier.supplier_name}</MenuItem>
-              ))}
+              {suppliersLoading ? (
+                <MenuItem disabled>Loading suppliers...</MenuItem>
+              ) : suppliersData?.suppliers && suppliersData.suppliers.length > 0 ? (
+                suppliersData.suppliers.map((supplier) => (
+                  <MenuItem key={supplier.id} value={supplier.id}>
+                    {supplier.supplier_name}
+                  </MenuItem>
+                ))
+              ) : null}
             </Select>
           </FormControl>
           <TextField label="Batch Number" fullWidth value={formData.batch_number} onChange={handleChange('batch_number')} placeholder="e.g., BATCH-2024-001" />
