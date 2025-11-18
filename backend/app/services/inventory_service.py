@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.3.0
+Version: 1.3.1
 Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.3.1 (2025-11-18):
+  - CRITICAL FIX: Categories API now returns consistent field names
+  - Changed category_name to 'category' alias in all category endpoints
+  - Added item_count to all category responses (GET, POST, PUT)
+  - Frontend Categories page now fully functional with correct field mapping
+
 v1.3.0 (2025-11-18):
   - CRITICAL FIX: Auto-create categories when creating items
   - Fixed foreign key violation when creating items with new categories
@@ -382,9 +388,20 @@ async def delete_supplier(supplier_id: int) -> None:
 
 
 async def get_categories_list() -> List[Dict]:
-    """Get all categories"""
+    """Get all categories with item counts"""
     categories = await fetch_all(
-        "SELECT id, category_name, description, created_at FROM inventory_categories ORDER BY category_name"
+        """
+        SELECT
+            ic.id,
+            ic.category_name as category,
+            ic.description,
+            ic.created_at,
+            COUNT(im.id) as item_count
+        FROM inventory_categories ic
+        LEFT JOIN item_master im ON im.category = ic.category_name
+        GROUP BY ic.id, ic.category_name, ic.description, ic.created_at
+        ORDER BY ic.category_name
+        """
     )
     return categories
 
@@ -413,7 +430,19 @@ async def create_category(request: CreateCategoryRequest) -> Dict:
     )
 
     category = await fetch_one(
-        "SELECT * FROM inventory_categories WHERE id = $1", category_id
+        """
+        SELECT
+            ic.id,
+            ic.category_name as category,
+            ic.description,
+            ic.created_at,
+            COUNT(im.id) as item_count
+        FROM inventory_categories ic
+        LEFT JOIN item_master im ON im.category = ic.category_name
+        WHERE ic.id = $1
+        GROUP BY ic.id, ic.category_name, ic.description, ic.created_at
+        """,
+        category_id
     )
     return category
 
@@ -470,7 +499,19 @@ async def update_category(category_id: int, request: UpdateCategoryRequest) -> D
     await execute_query(query, *params)
 
     category = await fetch_one(
-        "SELECT * FROM inventory_categories WHERE id = $1", category_id
+        """
+        SELECT
+            ic.id,
+            ic.category_name as category,
+            ic.description,
+            ic.created_at,
+            COUNT(im.id) as item_count
+        FROM inventory_categories ic
+        LEFT JOIN item_master im ON im.category = ic.category_name
+        WHERE ic.id = $1
+        GROUP BY ic.id, ic.category_name, ic.description, ic.created_at
+        """,
+        category_id
     )
     return category
 
