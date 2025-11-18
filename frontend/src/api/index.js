@@ -217,6 +217,76 @@ export const inventoryAPI = {
     const response = await apiClient.get('/inventory/dashboard');
     return response.data;
   },
+
+  // ============================================================================
+  // PHASE 1 & 2: BATCH OPERATIONS & RESERVATIONS (Added: 2025-11-18)
+  // ============================================================================
+
+  // Batch Deduction
+  batchDeduct: async (data) => {
+    const response = await apiClient.post('/inventory/stock/use-batch', data);
+    return response.data;
+  },
+
+  // Bulk Fetch
+  bulkFetch: async (data) => {
+    const response = await apiClient.post('/inventory/items/bulk-fetch', data);
+    return response.data;
+  },
+
+  // Stock Reservations
+  createReservation: async (data) => {
+    const response = await apiClient.post('/inventory/stock/reserve', data);
+    return response.data;
+  },
+
+  getReservations: async (params = {}) => {
+    const response = await apiClient.get('/inventory/stock/reservations', { params });
+    return response.data;
+  },
+
+  cancelReservation: async (reservationId) => {
+    const response = await apiClient.delete(`/inventory/stock/reserve/${reservationId}`);
+    return response.data;
+  },
+
+  confirmReservation: async (reservationId) => {
+    const response = await apiClient.post(`/inventory/stock/confirm-reservation/${reservationId}`);
+    return response.data;
+  },
+
+  // ============================================================================
+  // PHASE 3: MODULE INTEGRATION (Added: 2025-11-18)
+  // ============================================================================
+
+  // Module-Specific Views
+  getModuleItems: async (moduleName) => {
+    const response = await apiClient.get(`/inventory/module/${moduleName}/items`);
+    return response.data;
+  },
+
+  getModuleConsumption: async (moduleName, daysBack = 30) => {
+    const response = await apiClient.get(`/inventory/module/${moduleName}/consumption`, {
+      params: { days_back: daysBack },
+    });
+    return response.data;
+  },
+
+  // Item-Module Mappings
+  createItemModuleMapping: async (itemId, data) => {
+    const response = await apiClient.post(`/inventory/items/${itemId}/modules`, data);
+    return response.data;
+  },
+
+  getItemModuleMappings: async (itemId) => {
+    const response = await apiClient.get(`/inventory/items/${itemId}/modules`);
+    return response.data;
+  },
+
+  deleteItemModuleMapping: async (itemId, moduleName) => {
+    const response = await apiClient.delete(`/inventory/items/${itemId}/modules/${moduleName}`);
+    return response.data;
+  },
 };
 
 // Export all APIs

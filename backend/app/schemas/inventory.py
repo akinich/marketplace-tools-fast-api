@@ -746,6 +746,67 @@ class BulkFetchResponse(BaseModel):
 
 
 # ============================================================================
+# ITEM-MODULE MAPPING SCHEMAS
+# ============================================================================
+
+
+class ItemModuleMappingItem(BaseModel):
+    """Item-module mapping item"""
+
+    id: int
+    item_id: int
+    module_name: str
+    custom_settings: dict = Field(default_factory=dict)
+    is_primary: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CreateItemModuleMappingRequest(BaseModel):
+    """Create item-module mapping request"""
+
+    module_name: ModuleType = Field(..., description="Module that uses this item")
+    custom_settings: dict = Field(default_factory=dict, description="Module-specific settings")
+    is_primary: bool = Field(False, description="Is this the primary module for this item")
+
+
+class ItemModuleMappingsResponse(BaseModel):
+    """Item-module mappings response"""
+
+    mappings: List[ItemModuleMappingItem]
+    total: int
+
+
+class ModuleConsumptionItem(BaseModel):
+    """Module consumption report item"""
+
+    item_id: int
+    item_name: str
+    sku: Optional[str]
+    category: Optional[str]
+    unit: str
+    total_quantity_used: Decimal
+    total_cost: Decimal
+    transaction_count: int
+    last_used: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class ModuleConsumptionResponse(BaseModel):
+    """Module consumption report response"""
+
+    module_name: str
+    items: List[ModuleConsumptionItem]
+    total_cost: Decimal
+    total_items: int
+    period_days: int
+
+
+# ============================================================================
 # STOCK RESERVATION SCHEMAS
 # ============================================================================
 

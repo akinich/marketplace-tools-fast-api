@@ -579,3 +579,90 @@ async def confirm_reservation(
         reservation_id, user.id, user.full_name
     )
     return result
+
+
+# ============================================================================
+# MODULE-SPECIFIC ENDPOINTS
+# ============================================================================
+
+
+@router.get(
+    "/module/{module_name}/items",
+    summary="Get Module Items",
+    description="Get items used by a specific module",
+)
+async def get_module_items(
+    module_name: str = Path(..., description="Module name (biofloc, hatchery, etc.)"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Get items used by a specific module"""
+    result = await inventory_service.get_module_items(module_name)
+    return result
+
+
+@router.get(
+    "/module/{module_name}/consumption",
+    response_model=ModuleConsumptionResponse,
+    summary="Get Module Consumption",
+    description="Get consumption report for a specific module",
+)
+async def get_module_consumption(
+    module_name: str = Path(..., description="Module name"),
+    days_back: int = Query(30, ge=1, le=365, description="Days back to analyze"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Get consumption report for a module"""
+    result = await inventory_service.get_module_consumption(module_name, days_back)
+    return result
+
+
+# ============================================================================
+# ITEM-MODULE MAPPING ENDPOINTS
+# ============================================================================
+
+
+@router.post(
+    "/items/{item_id}/modules",
+    response_model=ItemModuleMappingItem,
+    status_code=status.HTTP_201_CREATED,
+    summary="Map Item to Module",
+    description="Create a mapping between an item and a module",
+)
+async def create_item_module_mapping(
+    item_id: int = Path(..., description="Item ID"),
+    request: CreateItemModuleMappingRequest = ...,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Map an item to a module"""
+    mapping = await inventory_service.create_item_module_mapping(item_id, request)
+    return mapping
+
+
+@router.get(
+    "/items/{item_id}/modules",
+    response_model=ItemModuleMappingsResponse,
+    summary="Get Item Module Mappings",
+    description="Get all module mappings for an item",
+)
+async def get_item_module_mappings(
+    item_id: int = Path(..., description="Item ID"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Get module mappings for an item"""
+    result = await inventory_service.get_item_module_mappings(item_id)
+    return result
+
+
+@router.delete(
+    "/items/{item_id}/modules/{module_name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove Module Mapping",
+    description="Remove a module mapping from an item",
+)
+async def delete_item_module_mapping(
+    item_id: int = Path(..., description="Item ID"),
+    module_name: str = Path(..., description="Module name to unmap"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Remove module mapping from item"""
+    await inventory_service.delete_item_module_mapping(item_id, module_name)

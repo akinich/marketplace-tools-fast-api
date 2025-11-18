@@ -1844,3 +1844,151 @@ async def confirm_reservation(
             status_code=e.status_code,
             detail=f"Failed to confirm reservation: {e.detail}",
         )
+
+
+# ============================================================================
+# MODULE-SPECIFIC OPERATIONS
+# ============================================================================
+
+
+async def get_module_items(module_name: str) -> Dict:
+    """
+    Get items used by a specific module.
+    """
+    query = """
+        SELECT DISTINCT
+            im.id,
+            im.item_name,
+            im.sku,
+            im.category,
+            im.unit,
+            im.current_qty,
+            im.reorder_threshold,
+            im.is_active,
+            imm.is_primary,
+            imm.custom_settings
+        FROM item_master im
+        INNER JOIN item_module_mapping imm ON im.id = imm.item_id
+        WHERE imm.module_name = $1 AND im.is_active = TRUE
+        ORDER BY imm.is_primary DESC, im.item_name ASC
+    """
+    items = await fetch_all(query, module_name)
+    return {"items": items, "total": len(items)}
+
+
+async def get_module_consumption(module_name: str, days_back: int = 30) -> Dict:
+    """
+    Get consumption report for a specific module.
+    """
+    query = """
+        SELECT
+            it.item_master_id as item_id,
+            im.item_name,
+            im.sku,
+            im.category,
+            im.unit,
+            SUM(ABS(it.quantity_change)) as total_quantity_used,
+            SUM(ABS(it.total_cost)) as total_cost,
+            COUNT(*) as transaction_count,
+            MAX(it.transaction_date) as last_used
+        FROM inventory_transactions it
+        INNER JOIN item_master im ON it.item_master_id = im.id
+        WHERE it.module_reference = $1
+          AND it.transaction_type = 'use'
+          AND it.transaction_date >= NOW() - INTERVAL '$2 days'
+        GROUP BY it.item_master_id, im.item_name, im.sku, im.category, im.unit
+        ORDER BY total_cost DESC
+    """
+    items = await fetch_all(query, module_name, days_back)
+
+    # Calculate total cost
+    total_cost = sum(item["total_cost"] for item in items)
+
+    return {
+        "module_name": module_name,
+        "items": items,
+        "total_cost": total_cost,
+        "total_items": len(items),
+        "period_days": days_back,
+    }
+
+
+async def create_item_module_mapping(
+    item_id: int, request: "CreateItemModuleMappingRequest"
+) -> Dict:
+    """
+    Create a mapping between an item and a module.
+    """
+    # Verify item exists
+    item = await fetch_one("SELECT id FROM item_master WHERE id = $1", item_id)
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
+        )
+
+    # If setting as primary, unset other primary mappings for this item
+    if request.is_primary:
+        await execute_query(
+            "UPDATE item_module_mapping SET is_primary = FALSE WHERE item_id = $1",
+            item_id,
+        )
+
+    # Create mapping
+    mapping_id = await execute_query(
+        """
+        INSERT INTO item_module_mapping (item_id, module_name, custom_settings, is_primary)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (item_id, module_name)
+        DO UPDATE SET custom_settings = $3, is_primary = $4, updated_at = NOW()
+        RETURNING id
+        """,
+        item_id,
+        request.module_name.value,
+        request.custom_settings,
+        request.is_primary,
+    )
+
+    # Fetch created mapping
+    mapping = await fetch_one(
+        """
+        SELECT id, item_id, module_name, custom_settings, is_primary, created_at
+        FROM item_module_mapping
+        WHERE id = $1
+        """,
+        mapping_id,
+    )
+
+    return mapping
+
+
+async def get_item_module_mappings(item_id: int) -> Dict:
+    """
+    Get all module mappings for an item.
+    """
+    mappings = await fetch_all(
+        """
+        SELECT id, item_id, module_name, custom_settings, is_primary, created_at
+        FROM item_module_mapping
+        WHERE item_id = $1
+        ORDER BY is_primary DESC, module_name ASC
+        """,
+        item_id,
+    )
+
+    return {"mappings": mappings, "total": len(mappings)}
+
+
+async def delete_item_module_mapping(item_id: int, module_name: str) -> None:
+    """
+    Remove a module mapping from an item.
+    """
+    result = await execute_query(
+        "DELETE FROM item_module_mapping WHERE item_id = $1 AND module_name = $2 RETURNING id",
+        item_id,
+        module_name,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mapping not found"
+        )
