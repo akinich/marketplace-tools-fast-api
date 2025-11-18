@@ -32,31 +32,26 @@ import MortalityForm from '../components/MortalityForm';
 import WaterTestForm from '../components/WaterTestForm';
 import HarvestForm from '../components/HarvestForm';
 
-// Import error boundary
-import ErrorBoundary from '../components/ErrorBoundary';
-
 export default function BioflocModule() {
   return (
-    <ErrorBoundary>
-      <Routes>
-        {/* Default route - Dashboard */}
-        <Route index element={<BioflocDashboard />} />
+    <Routes>
+      {/* Default route - Dashboard */}
+      <Route index element={<BioflocDashboard />} />
 
-        {/* Main pages */}
-        <Route path="dashboard" element={<BioflocDashboard />} />
-        <Route path="tanks" element={<BioflocTanks />} />
-        <Route path="batches" element={<BioflocBatches />} />
+      {/* Main pages */}
+      <Route path="dashboard" element={<BioflocDashboard />} />
+      <Route path="tanks" element={<BioflocTanks />} />
+      <Route path="batches" element={<BioflocBatches />} />
 
-        {/* Operational forms */}
-        <Route path="feeding" element={<FeedingForm />} />
-        <Route path="sampling" element={<SamplingForm />} />
-        <Route path="mortality" element={<MortalityForm />} />
-        <Route path="water-tests" element={<WaterTestForm />} />
-        <Route path="harvests" element={<HarvestForm />} />
+      {/* Operational forms */}
+      <Route path="feeding" element={<FeedingForm />} />
+      <Route path="sampling" element={<SamplingForm />} />
+      <Route path="mortality" element={<MortalityForm />} />
+      <Route path="water-tests" element={<WaterTestForm />} />
+      <Route path="harvests" element={<HarvestForm />} />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/biofloc" replace />} />
-      </Routes>
-    </ErrorBoundary>
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/biofloc" replace />} />
+    </Routes>
   );
 }
