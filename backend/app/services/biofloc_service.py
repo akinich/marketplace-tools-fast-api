@@ -1413,8 +1413,10 @@ async def get_dashboard_stats() -> Dict:
         """
     )
 
-    # Tank utilization
-    utilization = (tank_stats["active_tanks"] / tank_stats["total_tanks"] * 100) if tank_stats["total_tanks"] > 0 else 0
+    # Tank utilization - safe calculation
+    total_tanks = tank_stats.get("total_tanks", 0) if tank_stats else 0
+    active_tanks = tank_stats.get("active_tanks", 0) if tank_stats else 0
+    utilization = (active_tanks / total_tanks * 100) if total_tanks > 0 else 0
 
     # Water quality alerts (last 3 days)
     water_alerts = await fetch_one(
@@ -1447,17 +1449,17 @@ async def get_dashboard_stats() -> Dict:
     )
 
     return {
-        "active_tanks": tank_stats["active_tanks"],
-        "available_tanks": tank_stats["available_tanks"],
-        "maintenance_tanks": tank_stats["maintenance_tanks"],
-        "active_batches": batch_stats["active_batches"],
-        "total_fish_count": int(batch_stats["total_fish_count"]),
-        "total_biomass_kg": float(batch_stats["total_biomass_kg"]),
+        "active_tanks": tank_stats.get("active_tanks", 0) if tank_stats else 0,
+        "available_tanks": tank_stats.get("available_tanks", 0) if tank_stats else 0,
+        "maintenance_tanks": tank_stats.get("maintenance_tanks", 0) if tank_stats else 0,
+        "active_batches": batch_stats.get("active_batches", 0) if batch_stats else 0,
+        "total_fish_count": int(batch_stats.get("total_fish_count", 0)) if batch_stats else 0,
+        "total_biomass_kg": float(batch_stats.get("total_biomass_kg", 0)) if batch_stats else 0.0,
         "avg_tank_utilization": round(utilization, 2),
-        "low_do_alerts": water_alerts["low_do_alerts"] or 0,
-        "high_ammonia_alerts": water_alerts["high_ammonia_alerts"] or 0,
-        "recent_mortalities_7d": int(mortality_stats["recent_mortalities_7d"]),
-        "upcoming_harvests": upcoming["upcoming_harvests"] or 0
+        "low_do_alerts": water_alerts.get("low_do_alerts", 0) if water_alerts else 0,
+        "high_ammonia_alerts": water_alerts.get("high_ammonia_alerts", 0) if water_alerts else 0,
+        "recent_mortalities_7d": int(mortality_stats.get("recent_mortalities_7d", 0)) if mortality_stats else 0,
+        "upcoming_harvests": upcoming.get("upcoming_harvests", 0) if upcoming else 0
     }
 
 

@@ -1157,10 +1157,10 @@ async def get_expiry_alerts(days: int = 30) -> List[Dict]:
         WHERE ib.is_active = TRUE
           AND ib.remaining_qty > 0
           AND ib.expiry_date IS NOT NULL
-          AND ib.expiry_date <= CURRENT_DATE + $1::interval
+          AND ib.expiry_date <= CURRENT_DATE + make_interval(days => $1)
         ORDER BY ib.expiry_date
         """,
-        f"{days} days",
+        days,
     )
     return items
 
