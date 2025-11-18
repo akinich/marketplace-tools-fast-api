@@ -9,6 +9,7 @@ import useAuthStore from './store/authStore';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardHome from './pages/DashboardHome';
 import AdminPanel from './pages/AdminPanel';
@@ -30,6 +31,7 @@ function App() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Protected Routes */}
       <Route

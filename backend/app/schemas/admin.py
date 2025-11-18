@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Admin Panel Schemas
 ================================================================================
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.1.0 (2025-11-17):
+  - Added parent_module_id to ModuleItem for hierarchical structure
+  - Added hierarchical permission schemas (ModulePermissionItemWithChildren)
+  - Updated ModulesListResponse to support parent-child relationships
+  - Schemas now support sub-module permission management
+
 v1.0.0 (2025-11-17):
   - Initial admin panel Pydantic models
   - User management schemas
@@ -157,6 +163,7 @@ class ModuleItem(BaseModel):
     icon: str
     display_order: int
     is_active: bool
+    parent_module_id: Optional[int] = Field(None, description="Parent module ID (NULL for top-level modules)")
 
     class Config:
         from_attributes = True

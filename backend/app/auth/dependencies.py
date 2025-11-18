@@ -2,11 +2,20 @@
 ================================================================================
 Farm Management System - Authentication Dependencies
 ================================================================================
-Version: 1.0.0
+Version: 1.2.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.2.0 (2025-11-17):
+  - CRITICAL: Added missing role_id field to CurrentUser initialization
+  - Fixed Pydantic validation error for role_id field requirement
+
+v1.1.0 (2025-11-17):
+  - CRITICAL: Fixed UUID to string conversion for Pydantic validation
+  - asyncpg returns UUID objects, Pydantic expects strings
+  - Added explicit str() conversion for user ID field
+
 v1.0.0 (2025-11-17):
   - Initial authentication dependencies for FastAPI
   - Token extraction from Authorization header
@@ -146,7 +155,15 @@ async def get_current_user(token: str = Depends(get_token)) -> CurrentUser:
             detail="Account is inactive. Please contact administrator.",
         )
 
-    return CurrentUser(**user)
+    # Convert UUID to string for Pydantic validation
+    return CurrentUser(
+        id=str(user["id"]),
+        email=user["email"],
+        full_name=user["full_name"],
+        role=user["role"],
+        role_id=user["role_id"],
+        is_active=user["is_active"]
+    )
 
 
 # ============================================================================

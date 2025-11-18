@@ -1,6 +1,27 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.0.0
+ * Version: 1.2.0
+ * Last Updated: 2025-11-17
+ *
+ * Changelog:
+ * ----------
+ * v1.2.0 (2025-11-17):
+ *   - Implemented fully hierarchical module navigation
+ *   - Dynamically loads sub-modules from API (parent_module_id)
+ *   - Filters to show only top-level modules, sub-modules nested under parents
+ *   - Maps inventory sub-module keys to proper routes
+ *   - Fixed issue where sub-modules were showing flat in sidebar
+ *
+ * v1.1.0 (2025-11-17):
+ *   - Fixed duplicate dashboard appearing in sidebar
+ *   - Added Module Management submenu to Admin Panel
+ *   - Added Dashboard submenu to Inventory Management
+ *   - Improved module filtering to exclude dashboard from dynamic list
+ *
+ * v1.0.0 (2025-11-17):
+ *   - Initial dashboard layout with sidebar navigation
+ *   - Dynamic module loading from API
+ *   - Expandable/collapsible submenus
  */
 
 import React, { useState, useEffect } from 'react';
@@ -49,7 +70,7 @@ export default function DashboardLayout() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [modules, setModules] = useState([]);
+  const [allModules, setAllModules] = useState([]);
   const [expandedModules, setExpandedModules] = useState({});
 
   // Fetch user accessible modules
@@ -57,7 +78,7 @@ export default function DashboardLayout() {
     const fetchModules = async () => {
       try {
         const data = await dashboardAPI.getUserModules();
-        setModules(data.modules);
+        setAllModules(data.modules || []);
       } catch (error) {
         console.error('Failed to fetch modules:', error);
       }
@@ -65,6 +86,12 @@ export default function DashboardLayout() {
 
     fetchModules();
   }, []);
+
+  // Separate top-level modules and sub-modules
+  const topLevelModules = allModules.filter((m) => !m.parent_module_id && m.module_key !== 'dashboard');
+  const getSubModules = (parentModuleId) => {
+    return allModules.filter((m) => m.parent_module_id === parentModuleId);
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -107,6 +134,40 @@ export default function DashboardLayout() {
     return icons[moduleKey] || <DashboardIcon />;
   };
 
+  // Map sub-module keys to routes
+  const getSubModuleRoute = (parentModuleKey, subModuleKey) => {
+    // Admin sub-modules (hardcoded for now)
+    const adminRoutes = {
+      admin_users: '/admin/users',
+      admin_modules: '/admin/modules',
+      admin_activity: '/admin/activity',
+    };
+
+    // Inventory sub-modules
+    const inventoryRoutes = {
+      inventory_dashboard: '/inventory',
+      inventory_current_stock: '/inventory/current-stock',
+      inventory_add_stock: '/inventory/stock',
+      inventory_adjustments: '/inventory/adjustments',
+      inventory_purchase_orders: '/inventory/purchase-orders',
+      inventory_alerts: '/inventory/alerts',
+      inventory_history: '/inventory/history',
+      inventory_items: '/inventory/items',
+      inventory_categories: '/inventory/categories',
+      inventory_suppliers: '/inventory/suppliers',
+      inventory_analytics: '/inventory/analytics',
+    };
+
+    if (parentModuleKey === 'admin') {
+      return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
+    } else if (parentModuleKey === 'inventory') {
+      return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey.replace('inventory_', '')}`;
+    }
+
+    // Default: construct route from keys
+    return `/${parentModuleKey}/${subModuleKey.replace(`${parentModuleKey}_`, '')}`;
+  };
+
   const drawer = (
     <Box>
       <Toolbar sx={{ backgroundColor: 'primary.main', color: 'white' }}>
@@ -130,81 +191,49 @@ export default function DashboardLayout() {
           </ListItemButton>
         </ListItem>
 
-        {/* Dynamic Modules */}
-        {modules.map((module) => (
-          <React.Fragment key={module.module_key}>
-            <ListItem disablePadding>
-              <ListItemButton
-                selected={location.pathname.startsWith(`/${module.module_key}`)}
-                onClick={() => handleModuleClick(module.module_key)}
-              >
-                <ListItemIcon>{getModuleIcon(module.module_key)}</ListItemIcon>
-                <ListItemText primary={module.module_name} />
-                {['admin', 'inventory'].includes(module.module_key) && (
-                  expandedModules[module.module_key] ? <ExpandLess /> : <ExpandMore />
-                )}
-              </ListItemButton>
-            </ListItem>
+        {/* Dynamic Modules (only top-level, exclude dashboard) */}
+        {topLevelModules.map((module) => {
+          const subModules = getSubModules(module.module_id);
+          const hasSubModules = subModules.length > 0;
 
-            {/* Sub-menus for Admin */}
-            {module.module_key === 'admin' && (
-              <Collapse in={expandedModules.admin} timeout="auto" unmountOnExit>
-                <List component="div" disablePadding>
-                  <ListItemButton
-                    sx={{ pl: 4 }}
-                    selected={location.pathname === '/admin/users'}
-                    onClick={() => navigate('/admin/users')}
-                  >
-                    <ListItemText primary="User Management" />
-                  </ListItemButton>
-                  <ListItemButton
-                    sx={{ pl: 4 }}
-                    selected={location.pathname === '/admin/activity'}
-                    onClick={() => navigate('/admin/activity')}
-                  >
-                    <ListItemText primary="Activity Logs" />
-                  </ListItemButton>
-                </List>
-              </Collapse>
-            )}
+          return (
+            <React.Fragment key={module.module_key}>
+              <ListItem disablePadding>
+                <ListItemButton
+                  selected={location.pathname.startsWith(`/${module.module_key}`)}
+                  onClick={() => handleModuleClick(module.module_key)}
+                >
+                  <ListItemIcon>{getModuleIcon(module.module_key)}</ListItemIcon>
+                  <ListItemText primary={module.module_name} />
+                  {hasSubModules && (
+                    expandedModules[module.module_key] ? <ExpandLess /> : <ExpandMore />
+                  )}
+                </ListItemButton>
+              </ListItem>
 
-            {/* Sub-menus for Inventory */}
-            {module.module_key === 'inventory' && (
-              <Collapse in={expandedModules.inventory} timeout="auto" unmountOnExit>
-                <List component="div" disablePadding>
-                  <ListItemButton
-                    sx={{ pl: 4 }}
-                    selected={location.pathname === '/inventory/items'}
-                    onClick={() => navigate('/inventory/items')}
-                  >
-                    <ListItemText primary="Items" />
-                  </ListItemButton>
-                  <ListItemButton
-                    sx={{ pl: 4 }}
-                    selected={location.pathname === '/inventory/stock'}
-                    onClick={() => navigate('/inventory/stock')}
-                  >
-                    <ListItemText primary="Stock Operations" />
-                  </ListItemButton>
-                  <ListItemButton
-                    sx={{ pl: 4 }}
-                    selected={location.pathname === '/inventory/purchase-orders'}
-                    onClick={() => navigate('/inventory/purchase-orders')}
-                  >
-                    <ListItemText primary="Purchase Orders" />
-                  </ListItemButton>
-                  <ListItemButton
-                    sx={{ pl: 4 }}
-                    selected={location.pathname === '/inventory/alerts'}
-                    onClick={() => navigate('/inventory/alerts')}
-                  >
-                    <ListItemText primary="Alerts" />
-                  </ListItemButton>
-                </List>
-              </Collapse>
-            )}
-          </React.Fragment>
-        ))}
+              {/* Dynamic Sub-menus */}
+              {hasSubModules && (
+                <Collapse in={expandedModules[module.module_key]} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {subModules.map((subModule) => {
+                      const route = getSubModuleRoute(module.module_key, subModule.module_key);
+                      return (
+                        <ListItemButton
+                          key={subModule.module_key}
+                          sx={{ pl: 4 }}
+                          selected={location.pathname === route}
+                          onClick={() => navigate(route)}
+                        >
+                          <ListItemText primary={subModule.module_name} />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              )}
+            </React.Fragment>
+          );
+        })}
       </List>
     </Box>
   );

@@ -1,6 +1,16 @@
 /**
  * Dashboard Home Page
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Last Updated: 2025-11-17
+ *
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-17):
+ *   - Added INR currency formatting for inventory value
+ *   - Uses formatCurrency utility with Indian Rupee symbol (₹)
+ *
+ * v1.0.0 (2025-11-17):
+ *   - Initial dashboard home page
  */
 
 import React from 'react';
@@ -22,6 +32,7 @@ import {
 } from '@mui/icons-material';
 
 import { dashboardAPI } from '../api';
+import { formatCurrency } from '../utils/formatters';
 
 const StatCard = ({ title, value, icon: Icon, color }) => (
   <Card>
@@ -132,13 +143,10 @@ export default function DashboardHome() {
                 Inventory Value
               </Typography>
               <Typography variant="h4">
-                ${Number(data?.total_inventory_value || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatCurrency(data?.total_inventory_value || 0)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Total stock value
+                Total stock value (INR)
               </Typography>
             </CardContent>
           </Card>

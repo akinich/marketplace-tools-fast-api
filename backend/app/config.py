@@ -2,15 +2,19 @@
 ================================================================================
 Farm Management System - Configuration Management
 ================================================================================
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.1.0 (2025-11-17):
+  - Removed Supabase-specific configuration fields
+  - Simplified to database-only configuration
+  - Removed SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY fields
+
 v1.0.0 (2025-11-17):
   - Initial configuration setup
   - Pydantic Settings for environment validation
-  - Supabase, Database, JWT, CORS configuration
   - Type-safe settings with validation
 
 ================================================================================
@@ -19,7 +23,6 @@ v1.0.0 (2025-11-17):
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
 from typing import List
-import secrets
 
 
 class Settings(BaseSettings):
@@ -38,15 +41,6 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
 
     # ========================================================================
-    # SUPABASE CONFIGURATION
-    # ========================================================================
-    SUPABASE_URL: str = Field(..., description="Supabase project URL")
-    SUPABASE_ANON_KEY: str = Field(..., description="Supabase anon/public key")
-    SUPABASE_SERVICE_KEY: str = Field(
-        ..., description="Supabase service role key (admin access)"
-    )
-
-    # ========================================================================
     # DATABASE CONFIGURATION
     # ========================================================================
     DATABASE_URL: str = Field(..., description="PostgreSQL connection string")
@@ -54,14 +48,18 @@ class Settings(BaseSettings):
     DATABASE_POOL_MAX: int = 50
 
     # ========================================================================
+    # SUPABASE CONFIGURATION (for password reset emails)
+    # ========================================================================
+    SUPABASE_URL: str = Field(..., description="Supabase project URL")
+    SUPABASE_SERVICE_KEY: str = Field(..., description="Supabase service role key")
+
+    # ========================================================================
     # JWT AUTHENTICATION
     # ========================================================================
-    JWT_SECRET_KEY: str = Field(
-        default_factory=lambda: secrets.token_urlsafe(32),
-        description="Secret key for JWT encoding",
-    )
+    JWT_SECRET_KEY: str = Field(..., description="Secret key for JWT encoding")
+    JWT_REFRESH_SECRET_KEY: str = Field(..., description="Secret key for refresh token encoding")
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ========================================================================
@@ -161,7 +159,6 @@ def display_settings():
     print(f"API Version: {settings.API_VERSION}")
     print(f"API Prefix: {settings.API_PREFIX}")
     print(f"Database: {'Connected' if settings.DATABASE_URL else 'Not configured'}")
-    print(f"Supabase: {'Connected' if settings.SUPABASE_URL else 'Not configured'}")
     print(f"JWT Algorithm: {settings.JWT_ALGORITHM}")
     print(f"Access Token Expiry: {settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
     print(f"CORS Origins: {settings.ALLOWED_ORIGINS}")

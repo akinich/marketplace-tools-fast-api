@@ -22,15 +22,13 @@ python-multipart==0.0.6
 
 # Database - Async PostgreSQL
 asyncpg==0.29.0
-databases[postgresql]==0.8.0
-sqlalchemy==2.0.23
 
-# Supabase
+# Supabase Client (for password reset emails)
 supabase==2.3.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
 python-dotenv==1.0.0
 pydantic[email]==2.5.0
 pydantic-settings==2.1.0
@@ -41,7 +39,7 @@ xlsxwriter==3.1.9
 openpyxl==3.1.2
 
 # HTTP Client
-httpx==0.25.2
+httpx==0.24.1  # Compatible with supabase 2.3.0 (requires <0.25.0)
 aiofiles==23.2.1
 
 # Development & Testing
@@ -49,6 +47,3 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 black==23.12.0
 ruff==0.1.8
-
-# CORS & Middleware
-python-cors==1.0.0

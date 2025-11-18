@@ -2,11 +2,15 @@
 ================================================================================
 Farm Management System - Dashboard Schemas
 ================================================================================
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.1.0 (2025-11-17):
+  - Added parent_module_id to ModuleAccess for hierarchical navigation
+  - Supports nested module structure in sidebar
+
 v1.0.0 (2025-11-17):
   - Initial dashboard Pydantic models
   - Farm-wide KPI schemas
@@ -74,6 +78,7 @@ class ModuleAccess(BaseModel):
     module_name: str
     icon: str
     display_order: int
+    parent_module_id: Optional[int] = Field(None, description="Parent module ID (NULL for top-level modules)")
 
 
 class UserModulesResponse(BaseModel):

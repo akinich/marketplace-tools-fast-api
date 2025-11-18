@@ -2,11 +2,42 @@
 ================================================================================
 Farm Management System - Admin Service Layer
 ================================================================================
-Version: 1.0.0
+Version: 1.5.0
 Last Updated: 2025-11-17
 
 Changelog:
 ----------
+v1.5.0 (2025-11-17):
+  - Added cascading disable for parent modules
+  - When parent module disabled, all sub-modules automatically disabled
+  - Disabling sub-modules does not affect parent module
+  - Enhanced logging for cascade operations
+
+v1.4.0 (2025-11-17):
+  - Added parent_module_id to get_user_accessible_modules()
+  - Fixed hierarchical navigation in frontend
+  - Now properly returns parent_module_id for nested modules
+
+v1.3.0 (2025-11-17):
+  - Implemented create_user() with password_hash support
+  - Added hierarchical module support in get_modules_list()
+  - Now returns parent_module_id in module queries
+  - User creation now works directly from Admin Panel
+  - Email uniqueness validation added
+  - Role validation added before user creation
+
+v1.2.0 (2025-11-17):
+  - Added UUID to string conversion in get_users_list()
+  - Added UUID to string conversion in update_user()
+  - Added dict conversion in get_user_permissions() for consistency
+  - Fixed JSON serialization issue with UUID objects from asyncpg
+
+v1.1.0 (2025-11-17):
+  - Fixed all execute() calls to use execute_query()
+  - Removed get_supabase() import dependencies
+  - Modified create_user() to return 501 with instructions
+  - Database-only operations (no Supabase client)
+
 v1.0.0 (2025-11-17):
   - Initial admin service implementation
   - User CRUD operations
@@ -22,8 +53,9 @@ from typing import Optional, List, Dict
 from fastapi import HTTPException, status
 import logging
 import math
+import uuid
 
-from app.database import get_db, get_supabase, fetch_one, fetch_all, execute
+from app.database import get_db, fetch_one, fetch_all, execute_query
 from app.auth.password import generate_temporary_password, hash_password
 from app.services.auth_service import log_activity
 from app.schemas.admin import (
@@ -107,7 +139,14 @@ async def get_users_list(
         LIMIT ${param_count} OFFSET ${param_count + 1}
     """
     params.extend([limit, offset])
-    users = await fetch_all(users_query, *params)
+    users_raw = await fetch_all(users_query, *params)
+
+    # Convert UUID objects to strings for JSON serialization
+    users = []
+    for user in users_raw:
+        user_dict = dict(user)
+        user_dict['id'] = str(user_dict['id'])  # Convert UUID to string
+        users.append(user_dict)
 
     total_pages = math.ceil(total / limit) if limit > 0 else 0
 
@@ -132,43 +171,57 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
         Dict with user info and temporary_password
 
     Raises:
-        HTTPException: If user creation fails
+        HTTPException: If user creation fails or email already exists
     """
     try:
         # Generate temporary password
         temp_password = generate_temporary_password()
+        password_hash_value = hash_password(temp_password)
+        user_id = str(uuid.uuid4())
 
-        # Create user in Supabase Auth
-        supabase = get_supabase()
-        auth_response = supabase.auth.admin.create_user(
-            {
-                "email": request.email,
-                "password": temp_password,
-                "email_confirm": True,  # Auto-confirm email
-            }
+        # Check if email already exists
+        existing_user = await fetch_one(
+            "SELECT id FROM auth.users WHERE email = $1",
+            request.email
         )
-
-        if not auth_response.user:
+        if existing_user:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user in authentication system",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User with email {request.email} already exists"
             )
 
-        user_id = auth_response.user.id
+        # Check if role exists
+        role_exists = await fetch_one(
+            "SELECT id FROM roles WHERE id = $1",
+            request.role_id
+        )
+        if not role_exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Role ID {request.role_id} does not exist"
+            )
 
-        # Create user profile
-        await execute(
+        # Insert into auth.users
+        await execute_query(
+            "INSERT INTO auth.users (id, email) VALUES ($1, $2)",
+            user_id,
+            request.email
+        )
+
+        # Create user profile with password_hash
+        await execute_query(
             """
-            INSERT INTO user_profiles (id, full_name, role_id, is_active)
-            VALUES ($1, $2, $3, TRUE)
+            INSERT INTO user_profiles (id, full_name, role_id, is_active, password_hash)
+            VALUES ($1, $2, $3, TRUE, $4)
             """,
             user_id,
             request.full_name,
             request.role_id,
+            password_hash_value
         )
 
         # Fetch created user with role info
-        user = await fetch_one(
+        user_raw = await fetch_one(
             """
             SELECT
                 up.id,
@@ -186,9 +239,13 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
             user_id,
         )
 
+        # Convert UUID to string
+        user = dict(user_raw)
+        user['id'] = str(user['id'])
+
         # Log activity
         admin = await fetch_one(
-            "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+            "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
             created_by_id,
         )
         await log_activity(
@@ -198,15 +255,17 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
             action_type="create_user",
             description=f"Created new user: {request.email}",
             module_key="admin",
-            metadata={"new_user_id": str(user_id), "email": request.email},
+            metadata={"new_user_id": user_id, "email": request.email},
         )
+
+        logger.info(f"User created successfully: {request.email} (ID: {user_id})")
 
         return {"user": user, "temporary_password": temp_password}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Create user error: {e}")
+        logger.error(f"Create user error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {str(e)}",
@@ -275,10 +334,10 @@ async def update_user(
         SET {', '.join(update_fields)}
         WHERE id = ${param_count}
     """
-    await execute(query, *params)
+    await execute_query(query, *params)
 
     # Fetch updated user
-    updated_user = await fetch_one(
+    updated_user_raw = await fetch_one(
         """
         SELECT
             up.id,
@@ -296,9 +355,13 @@ async def update_user(
         user_id,
     )
 
+    # Convert UUID to string
+    updated_user = dict(updated_user_raw)
+    updated_user['id'] = str(updated_user['id'])
+
     # Log activity
     admin = await fetch_one(
-        "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+        "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
         updated_by_id,
     )
     await log_activity(
@@ -343,14 +406,14 @@ async def delete_user(user_id: str, deleted_by_id: str) -> None:
         )
 
     # Soft delete (deactivate)
-    await execute(
+    await execute_query(
         "UPDATE user_profiles SET is_active = FALSE, updated_at = NOW() WHERE id = $1",
         user_id,
     )
 
     # Log activity
     admin = await fetch_one(
-        "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+        "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
         deleted_by_id,
     )
     await log_activity(
@@ -383,19 +446,21 @@ async def get_roles_list() -> List[Dict]:
 
 
 async def get_modules_list() -> List[Dict]:
-    """Get all modules"""
-    modules = await fetch_all(
+    """Get all modules with hierarchical structure"""
+    modules_raw = await fetch_all(
         """
-        SELECT id, module_key, module_name, description, icon, display_order, is_active
+        SELECT id, module_key, module_name, description, icon, display_order, is_active, parent_module_id
         FROM modules
-        ORDER BY display_order
+        ORDER BY parent_module_id NULLS FIRST, display_order
         """
     )
+    # Convert to list of dicts
+    modules = [dict(m) for m in modules_raw]
     return modules
 
 
 async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
-    """Update module settings"""
+    """Update module settings with cascading disable for sub-modules"""
     # Build UPDATE statement
     update_fields = []
     params = []
@@ -424,7 +489,24 @@ async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
         SET {', '.join(update_fields)}
         WHERE id = ${param_count}
     """
-    await execute(query, *params)
+    await execute_query(query, *params)
+
+    # CASCADE LOGIC: If disabling a parent module, disable all sub-modules too
+    if request.is_active is not None and request.is_active == False:
+        # Check if this module has children
+        submodules = await fetch_all(
+            "SELECT id, module_key FROM modules WHERE parent_module_id = $1",
+            module_id
+        )
+
+        if submodules:
+            # Disable all sub-modules
+            await execute_query(
+                "UPDATE modules SET is_active = FALSE WHERE parent_module_id = $1",
+                module_id
+            )
+            submodule_keys = [dict(sm)['module_key'] for sm in submodules]
+            logger.info(f"Cascaded disable to {len(submodules)} sub-modules: {', '.join(submodule_keys)}")
 
     # Fetch updated module
     module = await fetch_one("SELECT * FROM modules WHERE id = $1", module_id)
@@ -439,7 +521,7 @@ async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
 async def get_user_permissions(user_id: str) -> Dict:
     """Get user's module permissions"""
     # Get all modules with user's permission status
-    permissions = await fetch_all(
+    permissions_raw = await fetch_all(
         """
         SELECT
             m.id as module_id,
@@ -453,6 +535,9 @@ async def get_user_permissions(user_id: str) -> Dict:
         """,
         user_id,
     )
+
+    # Convert to list of dicts (no UUID fields here, but for consistency)
+    permissions = [dict(p) for p in permissions_raw]
 
     return {"user_id": user_id, "permissions": permissions}
 
@@ -484,7 +569,7 @@ async def update_user_permissions(
         )
 
     # Delete existing permissions
-    await execute("DELETE FROM user_module_permissions WHERE user_id = $1", user_id)
+    await execute_query("DELETE FROM user_module_permissions WHERE user_id = $1", user_id)
 
     # Insert new permissions
     if request.module_ids:
@@ -498,7 +583,7 @@ async def update_user_permissions(
             INSERT INTO user_module_permissions (user_id, module_id, can_access, granted_by, granted_at)
             VALUES {', '.join(values)}
         """
-        await execute(insert_query)
+        await execute_query(insert_query)
 
     # Get module keys
     module_keys = await fetch_all(
@@ -513,7 +598,7 @@ async def update_user_permissions(
 
     # Log activity
     admin = await fetch_one(
-        "SELECT email, r.role_name FROM user_profiles up LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
+        "SELECT au.email, r.role_name FROM user_profiles up JOIN auth.users au ON au.id = up.id LEFT JOIN roles r ON r.id = up.role_id WHERE up.id = $1",
         granted_by_id,
     )
     user_email = await fetch_one(
@@ -604,15 +689,17 @@ async def get_activity_logs(
 
 async def get_user_accessible_modules(user_id: str) -> List[Dict]:
     """Get modules accessible to user (using view)"""
-    modules = await fetch_all(
+    modules_raw = await fetch_all(
         """
-        SELECT module_id, module_key, module_name, icon, display_order
+        SELECT module_id, module_key, module_name, icon, display_order, parent_module_id
         FROM user_accessible_modules
         WHERE user_id = $1
         ORDER BY display_order
         """,
         user_id,
     )
+    # Convert to list of dicts
+    modules = [dict(m) for m in modules_raw]
     return modules
 
 
