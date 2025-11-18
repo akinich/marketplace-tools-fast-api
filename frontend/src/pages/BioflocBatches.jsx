@@ -158,7 +158,7 @@ const BatchCard = ({ batch, onView }) => {
 };
 
 // Batch Form Dialog
-const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
+const BatchFormDialog = ({ open, onClose, onSave, tanks, isSubmitting, error }) => {
   const [formData, setFormData] = useState({
     batch_code: '',
     species: '',
@@ -169,13 +169,56 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
     tank_id: '',
     notes: '',
   });
+  const [validationErrors, setValidationErrors] = useState({});
 
   const handleChange = (field) => (event) => {
     setFormData({ ...formData, [field]: event.target.value });
+    // Clear validation error for this field
+    if (validationErrors[field]) {
+      setValidationErrors({ ...validationErrors, [field]: null });
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.batch_code?.trim()) {
+      errors.batch_code = 'Batch code is required';
+    }
+
+    if (!formData.species?.trim()) {
+      errors.species = 'Species is required';
+    }
+
+    if (!formData.initial_count || formData.initial_count <= 0) {
+      errors.initial_count = 'Valid fish count is required';
+    }
+
+    if (!formData.initial_avg_weight_g || formData.initial_avg_weight_g <= 0) {
+      errors.initial_avg_weight_g = 'Valid average weight is required';
+    }
+
+    if (!formData.tank_id) {
+      errors.tank_id = 'Tank assignment is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = () => {
-    onSave(formData);
+    if (!validateForm()) {
+      return;
+    }
+
+    // Convert to proper types
+    const submitData = {
+      ...formData,
+      initial_count: parseInt(formData.initial_count, 10),
+      initial_avg_weight_g: parseFloat(formData.initial_avg_weight_g),
+    };
+
+    onSave(submitData);
   };
 
   return (
@@ -183,13 +226,19 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
       <DialogTitle>Create New Batch</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 1 }}>
+              {error.response?.data?.detail || error.message || 'Failed to create batch'}
+            </Alert>
+          )}
           <TextField
             label="Batch Code"
             value={formData.batch_code}
             onChange={handleChange('batch_code')}
             required
             fullWidth
-            helperText="Unique identifier (e.g., B2025001)"
+            error={!!validationErrors.batch_code}
+            helperText={validationErrors.batch_code || "Unique identifier (e.g., B2025001)"}
           />
           <TextField
             label="Species"
@@ -197,6 +246,8 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
             onChange={handleChange('species')}
             required
             fullWidth
+            error={!!validationErrors.species}
+            helperText={validationErrors.species}
             placeholder="e.g., Nile Tilapia, Catfish"
           />
           <TextField
@@ -222,6 +273,8 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
             onChange={handleChange('initial_count')}
             required
             fullWidth
+            error={!!validationErrors.initial_count}
+            helperText={validationErrors.initial_count}
           />
           <TextField
             label="Initial Average Weight (grams)"
@@ -230,9 +283,11 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
             onChange={handleChange('initial_avg_weight_g')}
             required
             fullWidth
+            error={!!validationErrors.initial_avg_weight_g}
+            helperText={validationErrors.initial_avg_weight_g}
             inputProps={{ step: "0.01" }}
           />
-          <FormControl fullWidth required>
+          <FormControl fullWidth required error={!!validationErrors.tank_id}>
             <InputLabel>Initial Tank Assignment</InputLabel>
             <Select
               value={formData.tank_id}
@@ -245,6 +300,11 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
                 </MenuItem>
               ))}
             </Select>
+            {validationErrors.tank_id && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 2 }}>
+                {validationErrors.tank_id}
+              </Typography>
+            )}
           </FormControl>
           <TextField
             label="Notes"
@@ -257,9 +317,20 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks }) => {
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          Create Batch
+        <Button onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+              Creating...
+            </>
+          ) : (
+            'Create Batch'
+          )}
         </Button>
       </DialogActions>
     </Dialog>
@@ -295,7 +366,12 @@ export default function BioflocBatches() {
       onSuccess: () => {
         queryClient.invalidateQueries('bioflocBatches');
         queryClient.invalidateQueries('bioflocTanks');
+        queryClient.invalidateQueries('bioflocDashboard');
         setDialogOpen(false);
+      },
+      onError: (error) => {
+        console.error('Failed to create batch:', error);
+        // Error will be displayed in the dialog
       },
     }
   );
@@ -445,9 +521,14 @@ export default function BioflocBatches() {
       {/* Batch Form Dialog */}
       <BatchFormDialog
         open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => {
+          setDialogOpen(false);
+          createMutation.reset(); // Clear any errors
+        }}
         onSave={handleSave}
         tanks={tanksData?.tanks || []}
+        isSubmitting={createMutation.isLoading}
+        error={createMutation.error}
       />
     </Box>
   );

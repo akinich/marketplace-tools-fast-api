@@ -172,7 +172,7 @@ export default function BioflocDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Biomass"
-            value={`${data?.total_biomass_kg?.toFixed(1) || 0} kg`}
+            value={`${(data?.total_biomass_kg || 0).toFixed(1)} kg`}
             subtitle="Current stock weight"
             icon={GrowthIcon}
             color="#7b1fa2"
@@ -213,7 +213,7 @@ export default function BioflocDashboard() {
                   />
                 </Box>
                 <Typography variant="h6" fontWeight="bold">
-                  {tankUtilization.toFixed(0)}%
+                  {(tankUtilization || 0).toFixed(0)}%
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
