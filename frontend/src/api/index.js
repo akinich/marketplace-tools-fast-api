@@ -5,6 +5,7 @@
 
 import apiClient from './client';
 import { authAPI } from './auth';
+import { bioflocAPI } from './biofloc';
 
 // ============================================================================
 // DASHBOARD API
@@ -290,10 +291,11 @@ export const inventoryAPI = {
 };
 
 // Export all APIs
-export { authAPI, apiClient };
+export { authAPI, bioflocAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
   admin: adminAPI,
   inventory: inventoryAPI,
+  biofloc: bioflocAPI,
 };
