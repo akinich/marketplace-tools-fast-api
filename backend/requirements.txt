@@ -1,11 +1,14 @@
 # ============================================================================
 # Farm Management System - Backend Dependencies
 # ============================================================================
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2025-11-17
 #
 # Changelog:
 # ----------
+# v1.1.0 (2025-11-18):
+#   - Added APScheduler for background tasks (inventory reservation auto-expiry)
+#
 # v1.0.0 (2025-11-17):
 #   - Initial dependencies for FastAPI backend
 #   - Async PostgreSQL support
@@ -41,6 +44,9 @@ openpyxl==3.1.2
 # HTTP Client
 httpx==0.27.0  # Compatible with supabase 2.7.4
 aiofiles==23.2.1
+
+# Background Tasks & Scheduling
+APScheduler==3.10.4
 
 # Development & Testing
 pytest==7.4.3

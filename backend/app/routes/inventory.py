@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Inventory Module Routes
 ================================================================================
-Version: 1.1.0
+Version: 1.2.0
 Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.2.0 (2025-11-18):
+  - Added batch deduction endpoint (POST /stock/use-batch)
+  - Added bulk fetch endpoint (POST /items/bulk-fetch)
+  - Added stock reservation endpoints (reserve, list, cancel, confirm)
+  - Enhanced cross-module integration for biofloc
+
 v1.1.0 (2025-11-18):
   - Added DELETE endpoint for suppliers (soft delete)
   - Added POST/PUT/DELETE endpoints for categories (full CRUD)
@@ -26,7 +32,7 @@ v1.0.0 (2025-11-17):
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Path
 from typing import Optional
 
 from app.schemas.inventory import *
@@ -453,3 +459,123 @@ async def get_inventory_dashboard(
     """Get inventory dashboard statistics"""
     stats = await inventory_service.get_inventory_dashboard()
     return stats
+
+
+# ============================================================================
+# BATCH DEDUCTION ENDPOINT
+# ============================================================================
+
+
+@router.post(
+    "/stock/use-batch",
+    response_model=BatchDeductionResponse,
+    summary="Batch Deduct Stock",
+    description="Deduct multiple items in a single atomic transaction (all succeed or all fail)",
+)
+async def batch_deduct_stock(
+    request: BatchDeductionRequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """
+    Batch deduct multiple items atomically.
+    Perfect for feeding sessions or multi-item operations.
+    """
+    result = await inventory_service.batch_deduct_stock(request, user.id, user.full_name)
+    return result
+
+
+# ============================================================================
+# BULK FETCH ENDPOINT
+# ============================================================================
+
+
+@router.post(
+    "/items/bulk-fetch",
+    response_model=BulkFetchResponse,
+    summary="Bulk Fetch Items",
+    description="Fetch multiple items by IDs or SKUs in a single request",
+)
+async def bulk_fetch_items(
+    request: BulkFetchRequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """
+    Fetch multiple items at once.
+    Useful for morning stock checks or pre-operation validation.
+    """
+    result = await inventory_service.bulk_fetch_items(request)
+    return result
+
+
+# ============================================================================
+# STOCK RESERVATION ENDPOINTS
+# ============================================================================
+
+
+@router.post(
+    "/stock/reserve",
+    response_model=ReservationItem,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Stock Reservation",
+    description="Reserve stock for planned usage (soft lock)",
+)
+async def create_reservation(
+    request: CreateReservationRequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Create stock reservation for planned operations"""
+    reservation = await inventory_service.create_reservation(request, user.id)
+    return reservation
+
+
+@router.get(
+    "/stock/reservations",
+    response_model=ReservationsListResponse,
+    summary="List Stock Reservations",
+    description="Get list of stock reservations with optional filters",
+)
+async def list_reservations(
+    item_id: Optional[int] = Query(None, description="Filter by item ID"),
+    module_reference: Optional[str] = Query(None, description="Filter by module"),
+    status: Optional[str] = Query(None, description="Filter by status (pending, confirmed, cancelled, expired)"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """List stock reservations"""
+    result = await inventory_service.get_reservations_list(
+        item_id=item_id,
+        module_reference=module_reference,
+        status_filter=status,
+    )
+    return result
+
+
+@router.delete(
+    "/stock/reserve/{reservation_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Cancel Reservation",
+    description="Cancel a pending stock reservation",
+)
+async def cancel_reservation(
+    reservation_id: str = Path(..., description="Reservation ID to cancel"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Cancel a pending reservation"""
+    result = await inventory_service.cancel_reservation(reservation_id)
+    return result
+
+
+@router.post(
+    "/stock/confirm-reservation/{reservation_id}",
+    response_model=ConfirmReservationResponse,
+    summary="Confirm Reservation",
+    description="Convert reservation to actual stock usage (FIFO deduction)",
+)
+async def confirm_reservation(
+    reservation_id: str = Path(..., description="Reservation ID to confirm"),
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Confirm reservation and deduct stock"""
+    result = await inventory_service.confirm_reservation(
+        reservation_id, user.id, user.full_name
+    )
+    return result

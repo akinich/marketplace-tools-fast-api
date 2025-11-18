@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - FastAPI Main Application
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-17
+Version: 1.1.0
+Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.1.0 (2025-11-18):
+  - Added background scheduler for inventory reservation auto-expiry
+  - Integrated APScheduler into lifespan management
+  - Enhanced health check with scheduler status
+
 v1.0.0 (2025-11-17):
   - Initial FastAPI application setup
   - CORS middleware configuration
@@ -30,6 +35,7 @@ from typing import Any
 
 from app.config import settings, display_settings
 from app.database import connect_db, disconnect_db, check_database_health
+from app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
 # ============================================================================
 # LOGGING SETUP
@@ -61,6 +67,10 @@ async def lifespan(app: FastAPI):
     try:
         # Connect to database
         await connect_db()
+
+        # Start background scheduler
+        start_scheduler()
+
         logger.info("✅ All services initialized successfully")
     except Exception as e:
         logger.error(f"❌ Failed to initialize services: {e}")
@@ -72,7 +82,13 @@ async def lifespan(app: FastAPI):
     # SHUTDOWN
     # ========================================================================
     logger.info("👋 Shutting down Farm Management System API...")
+
+    # Stop background scheduler
+    stop_scheduler()
+
+    # Disconnect from database
     await disconnect_db()
+
     logger.info("✅ Shutdown complete")
 
 
@@ -198,13 +214,16 @@ async def health_check():
     Health check endpoint - verify all services are operational.
     """
     db_healthy = await check_database_health()
+    scheduler_status = get_scheduler_status()
 
     return {
-        "status": "healthy" if db_healthy else "unhealthy",
+        "status": "healthy" if db_healthy and scheduler_status["status"] == "running" else "unhealthy",
         "services": {
             "api": "operational",
             "database": "operational" if db_healthy else "down",
+            "scheduler": scheduler_status["status"],
         },
+        "scheduled_jobs": scheduler_status.get("jobs", []),
         "version": settings.API_VERSION,
         "environment": settings.APP_ENV,
     }

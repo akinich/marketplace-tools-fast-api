@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.3.1
+Version: 1.4.0
 Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.4.0 (2025-11-18):
+  - Added batch_deduct_stock() for atomic multi-item deduction
+  - Added bulk_fetch_items() for fetching multiple items efficiently
+  - Added reservation system: create_reservation(), get_reservations_list(),
+    cancel_reservation(), confirm_reservation()
+  - Enhanced cross-module integration for biofloc and other modules
+
 v1.3.1 (2025-11-18):
   - CRITICAL FIX: Categories API now returns consistent field names
   - Changed category_name to 'category' alias in all category endpoints
@@ -1281,3 +1288,559 @@ async def get_inventory_dashboard() -> Dict:
         "pending_pos": pending_pos,
         "recent_transactions_count": recent_transactions_count,
     }
+
+
+# ============================================================================
+# BATCH DEDUCTION (Multi-item atomic operations)
+# ============================================================================
+
+
+async def batch_deduct_stock(
+    request: "BatchDeductionRequest", user_id: str, username: str
+) -> Dict:
+    """
+    Deduct multiple items in a single atomic transaction.
+    All items succeed or all fail (rollback).
+    """
+    from app.schemas.inventory import BatchDeductionResultItem
+
+    results = []
+    transaction_ids = []
+    total_cost = Decimal("0")
+    successful = 0
+    failed = 0
+
+    async with DatabaseTransaction() as conn:
+        try:
+            for deduction_item in request.deductions:
+                try:
+                    # Resolve item by ID or SKU
+                    if deduction_item.item_id:
+                        item = await fetch_one_tx(
+                            "SELECT id, item_name, sku FROM item_master WHERE id = $1 AND is_active = TRUE",
+                            deduction_item.item_id,
+                            conn=conn,
+                        )
+                    else:
+                        item = await fetch_one_tx(
+                            "SELECT id, item_name, sku FROM item_master WHERE sku = $1 AND is_active = TRUE",
+                            deduction_item.sku,
+                            conn=conn,
+                        )
+
+                    if not item:
+                        failed += 1
+                        results.append(
+                            BatchDeductionResultItem(
+                                item_name=f"Unknown ({deduction_item.sku or deduction_item.item_id})",
+                                sku=deduction_item.sku,
+                                quantity=deduction_item.quantity,
+                                cost=Decimal("0"),
+                                success=False,
+                                error="Item not found",
+                            )
+                        )
+                        continue
+
+                    # Get available batches (FIFO)
+                    batches = await fetch_all_tx(
+                        """
+                        SELECT id, batch_number, remaining_qty, unit_cost
+                        FROM inventory_batches
+                        WHERE item_master_id = $1
+                          AND is_active = TRUE
+                          AND remaining_qty > 0
+                        ORDER BY purchase_date ASC, id ASC
+                        """,
+                        item["id"],
+                        conn=conn,
+                    )
+
+                    if not batches:
+                        failed += 1
+                        results.append(
+                            BatchDeductionResultItem(
+                                item_name=item["item_name"],
+                                sku=item["sku"],
+                                quantity=deduction_item.quantity,
+                                cost=Decimal("0"),
+                                success=False,
+                                error="No stock available",
+                                available=Decimal("0"),
+                                requested=deduction_item.quantity,
+                            )
+                        )
+                        continue
+
+                    # Calculate total available
+                    total_available = sum(Decimal(str(b["remaining_qty"])) for b in batches)
+
+                    if deduction_item.quantity > total_available:
+                        failed += 1
+                        results.append(
+                            BatchDeductionResultItem(
+                                item_name=item["item_name"],
+                                sku=item["sku"],
+                                quantity=deduction_item.quantity,
+                                cost=Decimal("0"),
+                                success=False,
+                                error="Insufficient stock",
+                                available=total_available,
+                                requested=deduction_item.quantity,
+                            )
+                        )
+                        continue
+
+                    # Deduct from batches using FIFO
+                    remaining_to_deduct = deduction_item.quantity
+                    item_cost = Decimal("0")
+
+                    for batch in batches:
+                        if remaining_to_deduct <= 0:
+                            break
+
+                        batch_remaining = Decimal(str(batch["remaining_qty"]))
+                        batch_unit_cost = Decimal(str(batch["unit_cost"]))
+
+                        qty_from_batch = min(remaining_to_deduct, batch_remaining)
+                        cost_from_batch = qty_from_batch * batch_unit_cost
+
+                        # Update batch remaining quantity
+                        new_batch_qty = batch_remaining - qty_from_batch
+                        await execute_query_tx(
+                            "UPDATE inventory_batches SET remaining_qty = $1, updated_at = NOW() WHERE id = $2",
+                            new_batch_qty,
+                            batch["id"],
+                            conn=conn,
+                        )
+
+                        # Get new item balance (trigger updates current_qty)
+                        item_updated = await fetch_one_tx(
+                            "SELECT current_qty FROM item_master WHERE id = $1",
+                            item["id"],
+                            conn=conn,
+                        )
+                        new_balance = item_updated["current_qty"]
+
+                        # Log transaction with batch_id and session_number
+                        notes = f"Batch operation: {request.global_notes or 'N/A'}"
+                        if deduction_item.notes:
+                            notes += f" | Item note: {deduction_item.notes}"
+
+                        tx_result = await fetch_one_tx(
+                            """
+                            INSERT INTO inventory_transactions (
+                                item_master_id, batch_id, transaction_type, quantity_change,
+                                new_balance, unit_cost, total_cost, module_reference, tank_id,
+                                user_id, username, notes, module_batch_id, session_number
+                            )
+                            VALUES ($1, $2, 'use', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                            RETURNING id
+                            """,
+                            item["id"],
+                            batch["id"],  # inventory batch_id
+                            -qty_from_batch,  # Negative for deduction
+                            new_balance,
+                            batch_unit_cost,
+                            cost_from_batch,
+                            request.module_reference.value,
+                            request.tank_id,
+                            user_id,
+                            username,
+                            notes,
+                            str(request.batch_id) if request.batch_id else None,  # module_batch_id (biofloc batch)
+                            request.session_number,
+                            conn=conn,
+                        )
+
+                        transaction_ids.append(tx_result["id"])
+
+                        item_cost += cost_from_batch
+                        remaining_to_deduct -= qty_from_batch
+
+                    # Item successfully deducted
+                    successful += 1
+                    total_cost += item_cost
+                    results.append(
+                        BatchDeductionResultItem(
+                            item_name=item["item_name"],
+                            sku=item["sku"],
+                            quantity=deduction_item.quantity,
+                            cost=item_cost,
+                            success=True,
+                        )
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error deducting item {deduction_item}: {e}")
+                    failed += 1
+                    results.append(
+                        BatchDeductionResultItem(
+                            item_name="Error",
+                            sku=deduction_item.sku,
+                            quantity=deduction_item.quantity,
+                            cost=Decimal("0"),
+                            success=False,
+                            error=str(e),
+                        )
+                    )
+
+            # If any item failed, rollback entire transaction
+            if failed > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Batch deduction failed. {failed} items failed, {successful} would have succeeded. All rolled back.",
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Batch deduction error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Batch deduction failed: {str(e)}",
+            )
+
+    return {
+        "success": True,
+        "total": len(request.deductions),
+        "successful": successful,
+        "failed": failed,
+        "total_cost": total_cost,
+        "results": results,
+        "transaction_ids": transaction_ids,
+    }
+
+
+# ============================================================================
+# BULK FETCH (Multi-item retrieval)
+# ============================================================================
+
+
+async def bulk_fetch_items(request: "BulkFetchRequest") -> Dict:
+    """
+    Fetch multiple items by IDs or SKUs in a single query.
+    """
+    from app.schemas.inventory import BulkFetchItemResponse
+
+    items = []
+    not_found = []
+
+    # Build query based on identifiers
+    if request.item_ids:
+        query = """
+            SELECT
+                im.id,
+                im.sku,
+                im.item_name as name,
+                im.current_qty,
+                im.unit,
+                im.category,
+                im.reorder_threshold,
+                (
+                    SELECT unit_cost
+                    FROM inventory_batches
+                    WHERE item_master_id = im.id
+                      AND is_active = TRUE
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ) as last_purchase_price
+            FROM item_master im
+            WHERE im.id = ANY($1) AND im.is_active = TRUE
+        """
+        result_items = await fetch_all(query, request.item_ids)
+        found_ids = {item["id"] for item in result_items}
+        not_found.extend([id for id in request.item_ids if id not in found_ids])
+
+    if request.skus:
+        query = """
+            SELECT
+                im.id,
+                im.sku,
+                im.item_name as name,
+                im.current_qty,
+                im.unit,
+                im.category,
+                im.reorder_threshold,
+                (
+                    SELECT unit_cost
+                    FROM inventory_batches
+                    WHERE item_master_id = im.id
+                      AND is_active = TRUE
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ) as last_purchase_price
+            FROM item_master im
+            WHERE im.sku = ANY($1) AND im.is_active = TRUE
+        """
+        sku_items = await fetch_all(query, request.skus)
+        result_items = result_items + sku_items if request.item_ids else sku_items
+        found_skus = {item["sku"] for item in sku_items if item["sku"]}
+        not_found.extend([sku for sku in request.skus if sku not in found_skus])
+
+    # Enrich with reserved quantities if requested
+    for item_data in result_items:
+        item_dict = dict(item_data)
+
+        if request.include_reserved:
+            # Get reserved quantity
+            reservation_result = await fetch_one(
+                """
+                SELECT COALESCE(SUM(quantity), 0) as reserved_qty
+                FROM inventory_reservations
+                WHERE item_id = $1 AND status = 'pending' AND reserved_until > NOW()
+                """,
+                item_data["id"],
+            )
+            item_dict["reserved_qty"] = reservation_result["reserved_qty"]
+            item_dict["available_qty"] = item_data["current_qty"] - reservation_result["reserved_qty"]
+
+        # Include batches if requested
+        if request.include_batches:
+            batches = await fetch_all(
+                """
+                SELECT
+                    id, item_master_id, batch_number, quantity_purchased,
+                    remaining_qty, unit_cost, purchase_date, expiry_date,
+                    supplier_id, po_number, notes, is_active, created_at,
+                    (SELECT item_name FROM item_master WHERE id = item_master_id) as item_name,
+                    (SELECT supplier_name FROM suppliers WHERE id = supplier_id) as supplier_name
+                FROM inventory_batches
+                WHERE item_master_id = $1 AND is_active = TRUE
+                ORDER BY purchase_date ASC
+                """,
+                item_data["id"],
+            )
+            item_dict["batches"] = batches
+
+        items.append(BulkFetchItemResponse(**item_dict))
+
+    total = len(items)
+    requested = len(request.item_ids or []) + len(request.skus or [])
+
+    return {
+        "items": items,
+        "total": total,
+        "requested": requested,
+        "found": total,
+        "not_found": not_found,
+    }
+
+
+# ============================================================================
+# STOCK RESERVATION SYSTEM
+# ============================================================================
+
+
+async def create_reservation(request: "CreateReservationRequest", user_id: str) -> Dict:
+    """
+    Create a stock reservation (soft lock) for planned usage.
+    """
+    from datetime import timedelta
+
+    # Verify item exists and has sufficient available stock
+    item = await fetch_one(
+        "SELECT id, item_name, sku, current_qty FROM item_master WHERE id = $1 AND is_active = TRUE",
+        request.item_id,
+    )
+
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
+        )
+
+    # Get currently reserved quantity
+    reserved_result = await fetch_one(
+        """
+        SELECT COALESCE(SUM(quantity), 0) as reserved_qty
+        FROM inventory_reservations
+        WHERE item_id = $1 AND status = 'pending' AND reserved_until > NOW()
+        """,
+        request.item_id,
+    )
+    reserved_qty = reserved_result["reserved_qty"]
+    available_qty = item["current_qty"] - reserved_qty
+
+    if request.quantity > available_qty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Insufficient available stock. Available: {available_qty}, Requested: {request.quantity}",
+        )
+
+    # Calculate reserved_until timestamp
+    from datetime import datetime, timezone
+    reserved_until = datetime.now(timezone.utc) + timedelta(hours=request.duration_hours)
+
+    # Create reservation
+    reservation_id = await execute_query(
+        """
+        INSERT INTO inventory_reservations (
+            item_id, quantity, module_reference, reference_id,
+            status, reserved_until, notes, created_by
+        )
+        VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)
+        RETURNING id
+        """,
+        request.item_id,
+        request.quantity,
+        request.module_reference.value,
+        str(request.reference_id) if request.reference_id else None,
+        reserved_until,
+        request.notes,
+        user_id,
+    )
+
+    # Fetch created reservation
+    reservation = await fetch_one(
+        """
+        SELECT
+            ir.id, ir.item_id, ir.quantity, ir.module_reference, ir.reference_id,
+            ir.status, ir.reserved_until, ir.notes, ir.created_by, ir.created_at,
+            im.item_name, im.sku,
+            up.full_name as created_by_name
+        FROM inventory_reservations ir
+        JOIN item_master im ON im.id = ir.item_id
+        LEFT JOIN user_profiles up ON up.id = ir.created_by
+        WHERE ir.id = $1
+        """,
+        reservation_id,
+    )
+
+    return reservation
+
+
+async def get_reservations_list(
+    item_id: Optional[int] = None,
+    module_reference: Optional[str] = None,
+    status_filter: Optional[str] = None,
+) -> Dict:
+    """
+    Get list of reservations with optional filters.
+    """
+    where_conditions = []
+    params = []
+    param_count = 1
+
+    if item_id:
+        where_conditions.append(f"ir.item_id = ${param_count}")
+        params.append(item_id)
+        param_count += 1
+
+    if module_reference:
+        where_conditions.append(f"ir.module_reference = ${param_count}")
+        params.append(module_reference)
+        param_count += 1
+
+    if status_filter:
+        where_conditions.append(f"ir.status = ${param_count}")
+        params.append(status_filter)
+        param_count += 1
+    else:
+        # Default: only show active reservations
+        where_conditions.append("ir.status = 'pending'")
+
+    where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+
+    query = f"""
+        SELECT
+            ir.id, ir.item_id, ir.quantity, ir.module_reference, ir.reference_id,
+            ir.status, ir.reserved_until, ir.notes, ir.created_by, ir.created_at,
+            im.item_name, im.sku,
+            up.full_name as created_by_name
+        FROM inventory_reservations ir
+        JOIN item_master im ON im.id = ir.item_id
+        LEFT JOIN user_profiles up ON up.id = ir.created_by
+        {where_clause}
+        ORDER BY ir.created_at DESC
+    """
+
+    reservations = await fetch_all(query, *params)
+    total = len(reservations)
+
+    return {"reservations": reservations, "total": total}
+
+
+async def cancel_reservation(reservation_id: str) -> Dict:
+    """
+    Cancel a pending reservation.
+    """
+    result = await execute_query(
+        """
+        UPDATE inventory_reservations
+        SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1 AND status = 'pending'
+        RETURNING id
+        """,
+        reservation_id,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reservation not found or already processed",
+        )
+
+    return {"success": True, "message": "Reservation cancelled successfully"}
+
+
+async def confirm_reservation(
+    reservation_id: str, user_id: str, username: str
+) -> Dict:
+    """
+    Convert a reservation to actual stock usage (FIFO deduction).
+    """
+    # Get reservation details
+    reservation = await fetch_one(
+        """
+        SELECT ir.*, im.item_name
+        FROM inventory_reservations ir
+        JOIN item_master im ON im.id = ir.item_id
+        WHERE ir.id = $1 AND ir.status = 'pending'
+        """,
+        reservation_id,
+    )
+
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reservation not found or already processed",
+        )
+
+    # Create UseStockRequest from reservation
+    from app.schemas.inventory import UseStockRequest
+
+    use_request = UseStockRequest(
+        item_master_id=reservation["item_id"],
+        quantity=reservation["quantity"],
+        purpose=f"Confirmed reservation {reservation_id}",
+        module_reference=reservation["module_reference"],
+        notes=reservation["notes"],
+    )
+
+    # Use existing FIFO deduction logic
+    try:
+        result = await use_stock_fifo(use_request, user_id, username)
+
+        # Mark reservation as confirmed
+        await execute_query(
+            """
+            UPDATE inventory_reservations
+            SET status = 'confirmed', updated_at = NOW()
+            WHERE id = $1
+            """,
+            reservation_id,
+        )
+
+        return {
+            "success": True,
+            "message": "Reservation confirmed and stock deducted",
+            "reservation_id": reservation_id,
+            "cost": result["total_cost"],
+        }
+
+    except HTTPException as e:
+        # If deduction fails, keep reservation as pending
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=f"Failed to confirm reservation: {e.detail}",
+        )

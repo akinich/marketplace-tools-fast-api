@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - Inventory Module Schemas
 ================================================================================
-Version: 1.1.0
+Version: 1.2.0
 Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.2.0 (2025-11-18):
+  - Added ModuleType enum for cross-module integration
+  - Added batch deduction schemas (BatchDeductionItem, BatchDeductionRequest, BatchDeductionResponse)
+  - Added bulk fetch schemas (BulkFetchRequest, BulkFetchResponse)
+  - Added stock reservation schemas (CreateReservationRequest, ReservationItem, etc.)
+  - Enhanced cross-module integration capabilities for biofloc
+
 v1.1.0 (2025-11-18):
   - Added CreateCategoryRequest and UpdateCategoryRequest schemas
   - Added stock adjustments schemas (CreateAdjustmentRequest, StockAdjustmentItem, AdjustmentsListResponse)
@@ -24,9 +31,26 @@ v1.0.0 (2025-11-17):
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum
+from uuid import UUID
+
+
+# ============================================================================
+# MODULE TYPE ENUM
+# ============================================================================
+
+
+class ModuleType(str, Enum):
+    """Module types for cross-module integration"""
+
+    BIOFLOC = "biofloc"
+    HATCHERY = "hatchery"
+    GROWOUT = "growout"
+    NURSERY = "nursery"
+    GENERAL = "general"  # fallback
 
 
 # ============================================================================
@@ -591,6 +615,188 @@ class InventoryDashboardResponse(BaseModel):
     expiring_soon_items: int
     pending_pos: int
     recent_transactions_count: int
+
+
+# ============================================================================
+# BATCH DEDUCTION SCHEMAS (Multi-item atomic operations)
+# ============================================================================
+
+
+class BatchDeductionItem(BaseModel):
+    """Single item in batch deduction request"""
+
+    item_id: Optional[int] = Field(None, gt=0, description="Item ID (use this OR sku)")
+    sku: Optional[str] = Field(None, max_length=100, description="Item SKU (use this OR item_id)")
+    quantity: Decimal = Field(..., gt=0, description="Quantity to deduct")
+    notes: Optional[str] = Field(None, description="Item-specific note")
+
+    @validator("sku")
+    def validate_item_identifier(cls, v, values):
+        """Ensure either item_id or sku is provided"""
+        if not v and not values.get("item_id"):
+            raise ValueError("Either item_id or sku must be provided")
+        if v and values.get("item_id"):
+            raise ValueError("Provide either item_id or sku, not both")
+        return v
+
+
+class BatchDeductionRequest(BaseModel):
+    """Batch deduction request for multiple items in single transaction"""
+
+    deductions: List[BatchDeductionItem] = Field(..., min_items=1, max_items=50)
+    module_reference: ModuleType = Field(..., description="Module using the stock")
+    tank_id: Optional[str] = Field(None, description="Tank UUID if applicable")
+    batch_id: Optional[UUID] = Field(None, description="Biofloc batch UUID for tracking")
+    session_number: Optional[int] = Field(None, ge=1, description="Session number (e.g., feeding session 1, 2, 3)")
+    global_notes: Optional[str] = Field(None, description="Notes for entire batch operation")
+
+    @validator("deductions")
+    def validate_deductions_limit(cls, v):
+        """Enforce max 50 items per batch"""
+        if len(v) > 50:
+            raise ValueError("Maximum 50 items allowed per batch deduction")
+        return v
+
+
+class BatchDeductionResultItem(BaseModel):
+    """Result for single item in batch deduction"""
+
+    item_name: str
+    sku: Optional[str]
+    quantity: Decimal
+    cost: Decimal
+    success: bool
+    error: Optional[str] = None
+    available: Optional[Decimal] = Field(None, description="Available quantity if failed")
+    requested: Optional[Decimal] = Field(None, description="Requested quantity if failed")
+
+
+class BatchDeductionResponse(BaseModel):
+    """Response for batch deduction operation"""
+
+    success: bool
+    total: int
+    successful: int
+    failed: int
+    total_cost: Decimal
+    results: List[BatchDeductionResultItem]
+    transaction_ids: List[int] = Field(default_factory=list, description="Transaction IDs for successful deductions")
+
+
+# ============================================================================
+# BULK FETCH SCHEMAS
+# ============================================================================
+
+
+class BulkFetchRequest(BaseModel):
+    """Bulk fetch request for multiple items"""
+
+    item_ids: Optional[List[int]] = Field(None, description="List of item IDs to fetch")
+    skus: Optional[List[str]] = Field(None, description="List of SKUs to fetch")
+    include_stock: bool = Field(True, description="Include current stock levels")
+    include_batches: bool = Field(False, description="Include batch details")
+    include_reserved: bool = Field(False, description="Include reserved quantities")
+
+    @validator("item_ids")
+    def validate_item_ids_limit(cls, v):
+        """Enforce max 100 items"""
+        if v and len(v) > 100:
+            raise ValueError("Maximum 100 item IDs allowed per request")
+        return v
+
+    @validator("skus")
+    def validate_skus_limit(cls, v, values):
+        """Ensure at least one identifier provided and max 100"""
+        if v and len(v) > 100:
+            raise ValueError("Maximum 100 SKUs allowed per request")
+        if not v and not values.get("item_ids"):
+            raise ValueError("Either item_ids or skus must be provided")
+        return v
+
+
+class BulkFetchItemResponse(BaseModel):
+    """Single item in bulk fetch response"""
+
+    id: int
+    sku: Optional[str]
+    name: str
+    current_qty: Decimal
+    unit: str
+    category: Optional[str]
+    reorder_threshold: Decimal
+    last_purchase_price: Optional[Decimal] = None
+    reserved_qty: Optional[Decimal] = Field(None, description="Reserved quantity (if include_reserved=true)")
+    available_qty: Optional[Decimal] = Field(None, description="Available = current - reserved")
+    batches: Optional[List[BatchItem]] = Field(None, description="Batch details (if include_batches=true)")
+
+    class Config:
+        from_attributes = True
+
+
+class BulkFetchResponse(BaseModel):
+    """Response for bulk fetch operation"""
+
+    items: List[BulkFetchItemResponse]
+    total: int
+    requested: int
+    found: int
+    not_found: List[Union[int, str]] = Field(
+        default_factory=list, description="IDs or SKUs that were not found"
+    )
+
+
+# ============================================================================
+# STOCK RESERVATION SCHEMAS
+# ============================================================================
+
+
+class CreateReservationRequest(BaseModel):
+    """Create stock reservation request"""
+
+    item_id: int = Field(..., gt=0, description="Item to reserve")
+    quantity: Decimal = Field(..., gt=0, description="Quantity to reserve")
+    module_reference: ModuleType = Field(..., description="Module creating reservation")
+    reference_id: Optional[UUID] = Field(None, description="Tank ID, batch ID, or other reference")
+    duration_hours: int = Field(24, ge=1, le=720, description="Reservation duration (1-720 hours, default 24)")
+    notes: Optional[str] = None
+
+
+class ReservationItem(BaseModel):
+    """Reservation item"""
+
+    id: UUID
+    item_id: int
+    item_name: Optional[str]
+    sku: Optional[str]
+    quantity: Decimal
+    module_reference: str
+    reference_id: Optional[UUID]
+    status: str
+    reserved_until: datetime
+    notes: Optional[str]
+    created_by: UUID
+    created_by_name: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ReservationsListResponse(BaseModel):
+    """Reservations list response"""
+
+    reservations: List[ReservationItem]
+    total: int
+
+
+class ConfirmReservationResponse(BaseModel):
+    """Response for confirming a reservation"""
+
+    success: bool
+    message: str
+    reservation_id: UUID
+    transaction_id: Optional[int] = None
+    cost: Optional[Decimal] = None
 
 
 # Forward references for nested models
