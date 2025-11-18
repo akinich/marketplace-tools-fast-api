@@ -1,10 +1,20 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.5.0
+ * Version: 1.6.0
  * Last Updated: 2025-11-18
  *
  * Changelog:
  * ----------
+ * v1.6.0 (2025-11-18):
+ *   - Added FULL CRUD functionality to Categories page
+ *   - Added FULL CRUD functionality to Suppliers page
+ *   - CategoryDialog: Create/Edit dialog with validation
+ *   - SupplierDialog: Create/Edit dialog with email validation
+ *   - Both pages now have Create, Edit, Delete actions
+ *   - Added IconButton imports for action icons
+ *   - Enhanced UX with inline edit/delete buttons
+ *   - Confirmation dialogs before delete operations
+ *
  * v1.5.0 (2025-11-18):
  *   - CRITICAL FIX: Implemented 3 previously placeholder pages
  *   - Stock Operations: Full Add Stock and Use Stock forms with FIFO logic
@@ -75,6 +85,7 @@ import {
   Select,
   MenuItem,
   FormHelperText,
+  IconButton,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -975,10 +986,139 @@ function StockOperationsPage() {
 // PHASE 4: NEW INVENTORY PAGES - Full Implementations
 // ============================================================================
 
+// Category Create/Edit Dialog Component
+function CategoryDialog({ open, onClose, category = null }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const isEdit = Boolean(category);
+
+  const [formData, setFormData] = useState({
+    category_name: category?.category || '',
+    description: category?.description || '',
+  });
+  const [errors, setErrors] = useState({});
+
+  React.useEffect(() => {
+    if (category) {
+      setFormData({ category_name: category.category, description: category.description || '' });
+    }
+  }, [category]);
+
+  const saveMutation = useMutation(
+    (data) => isEdit ? inventoryAPI.updateCategory(category.id, data) : inventoryAPI.createCategory(data),
+    {
+      onSuccess: () => {
+        enqueueSnackbar(`Category ${isEdit ? 'updated' : 'created'} successfully`, { variant: 'success' });
+        queryClient.invalidateQueries('categories');
+        handleClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(`Failed to ${isEdit ? 'update' : 'create'} category: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+      },
+    }
+  );
+
+  const handleChange = (field) => (event) => {
+    setFormData({ ...formData, [field]: event.target.value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.category_name.trim()) newErrors.category_name = 'Category name is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    saveMutation.mutate(formData);
+  };
+
+  const handleClose = () => {
+    setFormData({ category_name: '', description: '' });
+    setErrors({});
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{isEdit ? 'Edit Category' : 'Create New Category'}</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <TextField
+            label="Category Name"
+            required
+            fullWidth
+            value={formData.category_name}
+            onChange={handleChange('category_name')}
+            error={!!errors.category_name}
+            helperText={errors.category_name}
+            autoFocus
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            value={formData.description}
+            onChange={handleChange('description')}
+            placeholder="Optional description..."
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={saveMutation.isLoading}>Cancel</Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={saveMutation.isLoading}
+          startIcon={saveMutation.isLoading ? <CircularProgress size={20} /> : isEdit ? <EditIcon /> : <AddIcon />}
+        >
+          {isEdit ? 'Update' : 'Create'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // Categories Management Page
 function CategoriesPage() {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
   const { data, isLoading, error } = useQuery('categories', inventoryAPI.getCategories);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const deleteMutation = useMutation(
+    (categoryId) => inventoryAPI.deleteCategory(categoryId),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Category deleted successfully', { variant: 'success' });
+        queryClient.invalidateQueries('categories');
+      },
+      onError: (error) => {
+        enqueueSnackbar(`Failed to delete category: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+      },
+    }
+  );
+
+  const handleCreate = () => {
+    setSelectedCategory(null);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (cat) => {
+    setSelectedCategory(cat);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (cat) => {
+    if (window.confirm(`Delete category "${cat.category}"? This will fail if items are using this category.`)) {
+      deleteMutation.mutate(cat.id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1002,6 +1142,9 @@ function CategoriesPage() {
         <Typography variant="h5" fontWeight="bold">
           Manage Categories
         </Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
+          New Category
+        </Button>
       </Box>
 
       <Box sx={{ mb: 3 }}>
@@ -1020,15 +1163,32 @@ function CategoriesPage() {
 
       <Grid container spacing={3}>
         {filteredCategories.map((cat) => (
-          <Grid item xs={12} sm={6} md={4} key={cat.category}>
+          <Grid item xs={12} sm={6} md={4} key={cat.id}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  🏷️ {cat.category}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {cat.item_count} item{cat.item_count !== 1 ? 's' : ''}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" gutterBottom>
+                      🏷️ {cat.category}
+                    </Typography>
+                    {cat.description && (
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {cat.description}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      {cat.item_count} item{cat.item_count !== 1 ? 's' : ''}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <IconButton size="small" onClick={() => handleEdit(cat)} title="Edit">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleDelete(cat)} title="Delete">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
@@ -1037,17 +1197,184 @@ function CategoriesPage() {
 
       {filteredCategories.length === 0 && (
         <Alert severity="info" sx={{ mt: 2 }}>
-          {searchTerm ? 'No categories match your search' : 'No categories yet. Categories are created automatically when you add items.'}
+          {searchTerm ? 'No categories match your search' : 'No categories yet. Click "New Category" to create one.'}
         </Alert>
       )}
+
+      <CategoryDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        category={selectedCategory}
+      />
     </Box>
+  );
+}
+
+// Supplier Create/Edit Dialog Component
+function SupplierDialog({ open, onClose, supplier = null }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const isEdit = Boolean(supplier);
+
+  const [formData, setFormData] = useState({
+    supplier_name: supplier?.supplier_name || '',
+    contact_person: supplier?.contact_person || '',
+    phone: supplier?.phone || '',
+    email: supplier?.email || '',
+    address: supplier?.address || '',
+  });
+  const [errors, setErrors] = useState({});
+
+  React.useEffect(() => {
+    if (supplier) {
+      setFormData({
+        supplier_name: supplier.supplier_name,
+        contact_person: supplier.contact_person || '',
+        phone: supplier.phone || '',
+        email: supplier.email || '',
+        address: supplier.address || '',
+      });
+    }
+  }, [supplier]);
+
+  const saveMutation = useMutation(
+    (data) => isEdit ? inventoryAPI.updateSupplier(supplier.id, data) : inventoryAPI.createSupplier(data),
+    {
+      onSuccess: () => {
+        enqueueSnackbar(`Supplier ${isEdit ? 'updated' : 'created'} successfully`, { variant: 'success' });
+        queryClient.invalidateQueries('suppliers');
+        handleClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(`Failed to ${isEdit ? 'update' : 'create'} supplier: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+      },
+    }
+  );
+
+  const handleChange = (field) => (event) => {
+    setFormData({ ...formData, [field]: event.target.value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.supplier_name.trim()) newErrors.supplier_name = 'Supplier name is required';
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Invalid email format';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    saveMutation.mutate(formData);
+  };
+
+  const handleClose = () => {
+    setFormData({ supplier_name: '', contact_person: '', phone: '', email: '', address: '' });
+    setErrors({});
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{isEdit ? 'Edit Supplier' : 'Create New Supplier'}</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <TextField
+            label="Supplier Name"
+            required
+            fullWidth
+            value={formData.supplier_name}
+            onChange={handleChange('supplier_name')}
+            error={!!errors.supplier_name}
+            helperText={errors.supplier_name}
+            autoFocus
+          />
+          <TextField
+            label="Contact Person"
+            fullWidth
+            value={formData.contact_person}
+            onChange={handleChange('contact_person')}
+          />
+          <TextField
+            label="Email"
+            type="email"
+            fullWidth
+            value={formData.email}
+            onChange={handleChange('email')}
+            error={!!errors.email}
+            helperText={errors.email}
+          />
+          <TextField
+            label="Phone"
+            fullWidth
+            value={formData.phone}
+            onChange={handleChange('phone')}
+          />
+          <TextField
+            label="Address"
+            fullWidth
+            multiline
+            rows={2}
+            value={formData.address}
+            onChange={handleChange('address')}
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={saveMutation.isLoading}>Cancel</Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={saveMutation.isLoading}
+          startIcon={saveMutation.isLoading ? <CircularProgress size={20} /> : isEdit ? <EditIcon /> : <AddIcon />}
+        >
+          {isEdit ? 'Update' : 'Create'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
 // Suppliers Management Page
 function SuppliersPage() {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
   const { data, isLoading, error } = useQuery('suppliers', inventoryAPI.getSuppliers);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+
+  const deleteMutation = useMutation(
+    (supplierId) => inventoryAPI.deleteSupplier(supplierId),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Supplier deleted successfully', { variant: 'success' });
+        queryClient.invalidateQueries('suppliers');
+      },
+      onError: (error) => {
+        enqueueSnackbar(`Failed to delete supplier: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+      },
+    }
+  );
+
+  const handleCreate = () => {
+    setSelectedSupplier(null);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (supplier) => {
+    setSelectedSupplier(supplier);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = (supplier) => {
+    if (window.confirm(`Delete supplier "${supplier.supplier_name}"? This will fail if items are using this supplier.`)) {
+      deleteMutation.mutate(supplier.id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1063,7 +1390,7 @@ function SuppliersPage() {
 
   const filteredSuppliers = data?.suppliers?.filter((supplier) =>
     supplier.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (supplier.contact_email && supplier.contact_email.toLowerCase().includes(searchTerm.toLowerCase()))
+    (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
   ) || [];
 
   return (
@@ -1072,6 +1399,9 @@ function SuppliersPage() {
         <Typography variant="h5" fontWeight="bold">
           Manage Suppliers
         </Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
+          New Supplier
+        </Button>
       </Box>
 
       <Box sx={{ mb: 3 }}>
@@ -1099,6 +1429,7 @@ function SuppliersPage() {
                   <TableCell>Email</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1110,14 +1441,22 @@ function SuppliersPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>{supplier.contact_person || '-'}</TableCell>
-                    <TableCell>{supplier.contact_email || '-'}</TableCell>
-                    <TableCell>{supplier.contact_phone || '-'}</TableCell>
+                    <TableCell>{supplier.email || '-'}</TableCell>
+                    <TableCell>{supplier.phone || '-'}</TableCell>
                     <TableCell>
                       <Chip
                         label={supplier.is_active ? 'Active' : 'Inactive'}
                         color={supplier.is_active ? 'success' : 'default'}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton size="small" onClick={() => handleEdit(supplier)} title="Edit">
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => handleDelete(supplier)} title="Delete">
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1129,9 +1468,15 @@ function SuppliersPage() {
 
       {filteredSuppliers.length === 0 && (
         <Alert severity="info" sx={{ mt: 2 }}>
-          {searchTerm ? 'No suppliers match your search' : 'No suppliers found'}
+          {searchTerm ? 'No suppliers match your search' : 'No suppliers yet. Click "New Supplier" to create one.'}
         </Alert>
       )}
+
+      <SupplierDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        supplier={selectedSupplier}
+      />
     </Box>
   );
 }

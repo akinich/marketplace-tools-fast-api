@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.2.0
+Version: 1.3.0
 Last Updated: 2025-11-18
 
 Changelog:
 ----------
+v1.3.0 (2025-11-18):
+  - CRITICAL FIX: Auto-create categories when creating items
+  - Fixed foreign key violation when creating items with new categories
+  - Categories are now automatically created if they don't exist
+  - Added ON CONFLICT DO NOTHING to prevent duplicate category errors
+
 v1.2.0 (2025-11-18):
   - Added delete_supplier() function for soft delete
   - Added create_category(), update_category(), delete_category() functions
@@ -116,6 +122,25 @@ async def create_item(request: CreateItemRequest, user_id: str) -> Dict:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Item with SKU '{request.sku}' already exists",
             )
+
+    # Auto-create category if it doesn't exist
+    if request.category:
+        category_exists = await fetch_one(
+            "SELECT id FROM inventory_categories WHERE category_name = $1",
+            request.category
+        )
+        if not category_exists:
+            # Create the category automatically
+            await execute_query(
+                """
+                INSERT INTO inventory_categories (category_name, description)
+                VALUES ($1, $2)
+                ON CONFLICT (category_name) DO NOTHING
+                """,
+                request.category,
+                f"Auto-created category"
+            )
+            logger.info(f"Auto-created category: {request.category}")
 
     # Insert item
     item_id = await execute_query(
