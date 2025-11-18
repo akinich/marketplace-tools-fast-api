@@ -458,7 +458,7 @@ export default function BioflocBatches() {
           <Card>
             <CardContent>
               <Typography color="textSecondary" variant="overline">Total Batches</Typography>
-              <Typography variant="h4" fontWeight="bold">{batches.length}</Typography>
+              <Typography variant="h4" fontWeight="bold">{batches?.length || 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -467,7 +467,7 @@ export default function BioflocBatches() {
             <CardContent>
               <Typography color="textSecondary" variant="overline">Total Fish</Typography>
               <Typography variant="h4" fontWeight="bold">
-                {batches.reduce((sum, b) => sum + (b.current_count || 0), 0).toLocaleString()}
+                {(batches?.reduce((sum, b) => sum + (b.current_count || 0), 0) || 0).toLocaleString()}
               </Typography>
             </CardContent>
           </Card>
@@ -477,7 +477,7 @@ export default function BioflocBatches() {
             <CardContent>
               <Typography color="textSecondary" variant="overline">Total Biomass</Typography>
               <Typography variant="h4" fontWeight="bold">
-                {batches.reduce((sum, b) => sum + (b.current_total_biomass_kg || 0), 0).toFixed(1)} kg
+                {(batches?.reduce((sum, b) => sum + (b.current_total_biomass_kg || 0), 0) || 0).toFixed(1)} kg
               </Typography>
             </CardContent>
           </Card>
@@ -487,7 +487,7 @@ export default function BioflocBatches() {
             <CardContent>
               <Typography color="textSecondary" variant="overline">Avg Survival</Typography>
               <Typography variant="h4" fontWeight="bold" color="success.main">
-                {batches.length > 0
+                {(batches?.length || 0) > 0
                   ? (batches.reduce((sum, b) => {
                       const survivalRate = (b.current_count && b.initial_count && b.initial_count > 0)
                         ? (b.current_count / b.initial_count * 100)
