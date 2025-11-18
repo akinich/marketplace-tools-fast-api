@@ -84,6 +84,11 @@ export const adminAPI = {
     const response = await apiClient.put(`/admin/modules/${moduleId}`, data);
     return response.data;
   },
+
+  getModuleUsersCount: async (moduleId) => {
+    const response = await apiClient.get(`/admin/modules/${moduleId}/users-count`);
+    return response.data;
+  },
 };
 
 // ============================================================================

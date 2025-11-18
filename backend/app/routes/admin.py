@@ -152,6 +152,27 @@ async def update_module(
     return module
 
 
+@router.get(
+    "/modules/{module_id}/users-count",
+    summary="Get Module Users Count",
+    description="Get count of users with permissions to a module (for impact warnings)",
+)
+async def get_module_users_count(
+    module_id: int,
+    admin: CurrentUser = Depends(require_admin),
+):
+    """
+    Get users count for module - used for impact warnings before disabling
+
+    Returns:
+    - module_id, module_name, module_key
+    - users_count: Total number of users with access
+    - users: List of affected users with their details
+    """
+    result = await admin_service.get_module_users_count(module_id)
+    return result
+
+
 # ============================================================================
 # PERMISSION MANAGEMENT ENDPOINTS
 # ============================================================================

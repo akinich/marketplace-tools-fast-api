@@ -1,10 +1,22 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.3.0
- * Last Updated: 2025-11-17
+ * Version: 1.4.0
+ * Last Updated: 2025-11-18
  *
  * Changelog:
  * ----------
+ * v1.4.0 (2025-11-18):
+ *   - MODULE MANAGEMENT SECURITY PROTOCOLS (All 4 protocols implemented):
+ *   - Protocol 1: Critical Module Protection - Prevent disabling dashboard/admin modules
+ *   - Protocol 2: Parent-Child Validation - Validate parent is enabled before enabling child
+ *   - Protocol 3: User Impact Warning - Show confirmation with user count before disabling
+ *   - Protocol 4: Permission Cleanup - Auto-remove permissions (handled by backend)
+ *   - Added ConfirmModuleToggleDialog component for user impact warnings
+ *   - Enhanced handleToggleModule with all security checks and validations
+ *   - Switch controls now disabled for critical modules with helpful tooltips
+ *   - Child module switches disabled when parent is inactive
+ *   - Integrated with backend /modules/{id}/users-count endpoint
+ *
  * v1.3.0 (2025-11-17):
  *   - PHASE 3: Enhanced hierarchical permissions dialog
  *   - Shows parent modules with expandable/collapsible children
@@ -249,6 +261,66 @@ function CreateUserDialog({ open, onClose }) {
             Done
           </Button>
         )}
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Confirm Module Toggle Dialog Component
+function ConfirmModuleToggleDialog({ open, onClose, onConfirm, module, usersCount, isLoading }) {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Confirm Module Disable</DialogTitle>
+      <DialogContent>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Box sx={{ mt: 1 }}>
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              You are about to disable the following module:
+            </Alert>
+
+            <Box sx={{ mb: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+              <Typography variant="h6" gutterBottom>
+                {module?.icon} {module?.module_name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {module?.description}
+              </Typography>
+            </Box>
+
+            {usersCount > 0 && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  <strong>Impact Warning:</strong>
+                </Typography>
+                <Typography variant="body2">
+                  This will affect <strong>{usersCount} user(s)</strong> who currently have access to this module.
+                  Their permissions will be automatically removed.
+                </Typography>
+              </Alert>
+            )}
+
+            <Typography variant="body2" color="text.secondary">
+              Are you sure you want to disable this module?
+            </Typography>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          onClick={onConfirm}
+          variant="contained"
+          color="warning"
+          disabled={isLoading}
+        >
+          Disable Module
+        </Button>
       </DialogActions>
     </Dialog>
   );
@@ -602,6 +674,14 @@ function ModuleManagementPage() {
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery('allModules', () => adminAPI.getModules());
 
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    module: null,
+    usersCount: 0,
+    isLoadingCount: false,
+  });
+
   const toggleModuleMutation = useMutation(
     ({ moduleId, isActive }) => adminAPI.updateModule(moduleId, { is_active: isActive }),
     {
@@ -611,18 +691,85 @@ function ModuleManagementPage() {
           { variant: 'success' }
         );
         queryClient.invalidateQueries('allModules');
+        setConfirmDialog({ open: false, module: null, usersCount: 0, isLoadingCount: false });
       },
       onError: (error) => {
         enqueueSnackbar(
           `Failed to update module: ${error.response?.data?.detail || error.message}`,
           { variant: 'error' }
         );
+        setConfirmDialog({ open: false, module: null, usersCount: 0, isLoadingCount: false });
       },
     }
   );
 
-  const handleToggleModule = (moduleId, currentStatus) => {
-    toggleModuleMutation.mutate({ moduleId, isActive: !currentStatus });
+  const handleToggleModule = async (module, currentStatus) => {
+    const targetStatus = !currentStatus;
+
+    // PROTOCOL 1: Critical Module Protection
+    if (!targetStatus && ['dashboard', 'admin'].includes(module.module_key)) {
+      enqueueSnackbar(
+        `Cannot disable critical system module: ${module.module_name}. This module is required for system operation.`,
+        { variant: 'error' }
+      );
+      return;
+    }
+
+    // PROTOCOL 2: Parent-Child Validation (when enabling child)
+    if (targetStatus && module.parent_module_id) {
+      const parentModule = data?.modules?.find((m) => m.id === module.parent_module_id);
+      if (parentModule && !parentModule.is_active) {
+        enqueueSnackbar(
+          `Cannot enable sub-module '${module.module_name}': parent module '${parentModule.module_name}' is currently disabled.`,
+          { variant: 'error' }
+        );
+        return;
+      }
+    }
+
+    // PROTOCOL 3: User Impact Warning (when disabling)
+    if (!targetStatus) {
+      // Fetch user count and show confirmation dialog
+      setConfirmDialog({
+        open: true,
+        module: module,
+        usersCount: 0,
+        isLoadingCount: true,
+      });
+
+      try {
+        const result = await adminAPI.getModuleUsersCount(module.id);
+        setConfirmDialog((prev) => ({
+          ...prev,
+          usersCount: result.users_count || 0,
+          isLoadingCount: false,
+        }));
+      } catch (error) {
+        console.error('Failed to fetch users count:', error);
+        setConfirmDialog((prev) => ({
+          ...prev,
+          usersCount: 0,
+          isLoadingCount: false,
+        }));
+      }
+      return;
+    }
+
+    // If enabling (all checks passed), proceed directly
+    toggleModuleMutation.mutate({ moduleId: module.id, isActive: targetStatus });
+  };
+
+  const handleConfirmDisable = () => {
+    if (confirmDialog.module) {
+      toggleModuleMutation.mutate({
+        moduleId: confirmDialog.module.id,
+        isActive: false,
+      });
+    }
+  };
+
+  const handleCancelConfirm = () => {
+    setConfirmDialog({ open: false, module: null, usersCount: 0, isLoadingCount: false });
   };
 
   if (isLoading) {
@@ -681,9 +828,17 @@ function ModuleManagementPage() {
                       />
                       <Switch
                         checked={module.is_active}
-                        onChange={() => handleToggleModule(module.id, module.is_active)}
-                        disabled={toggleModuleMutation.isLoading}
+                        onChange={() => handleToggleModule(module, module.is_active)}
+                        disabled={
+                          toggleModuleMutation.isLoading ||
+                          ['dashboard', 'admin'].includes(module.module_key)
+                        }
                         color="primary"
+                        title={
+                          ['dashboard', 'admin'].includes(module.module_key)
+                            ? 'Critical system module - cannot be disabled'
+                            : ''
+                        }
                       />
                     </Box>
                   </Box>
@@ -720,10 +875,18 @@ function ModuleManagementPage() {
                             />
                             <Switch
                               checked={subModule.is_active}
-                              onChange={() => handleToggleModule(subModule.id, subModule.is_active)}
-                              disabled={toggleModuleMutation.isLoading}
+                              onChange={() => handleToggleModule(subModule, subModule.is_active)}
+                              disabled={
+                                toggleModuleMutation.isLoading ||
+                                !module.is_active
+                              }
                               color="primary"
                               size="small"
+                              title={
+                                !module.is_active
+                                  ? `Parent module '${module.module_name}' must be enabled first`
+                                  : ''
+                              }
                             />
                           </Box>
                         </Box>
@@ -736,6 +899,16 @@ function ModuleManagementPage() {
           );
         })}
       </Grid>
+
+      {/* Confirmation Dialog */}
+      <ConfirmModuleToggleDialog
+        open={confirmDialog.open}
+        onClose={handleCancelConfirm}
+        onConfirm={handleConfirmDisable}
+        module={confirmDialog.module}
+        usersCount={confirmDialog.usersCount}
+        isLoading={confirmDialog.isLoadingCount}
+      />
     </Box>
   );
 }

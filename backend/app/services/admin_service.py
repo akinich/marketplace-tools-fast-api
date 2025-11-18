@@ -460,7 +460,52 @@ async def get_modules_list() -> List[Dict]:
 
 
 async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
-    """Update module settings with cascading disable for sub-modules"""
+    """
+    Update module settings with security validations and cascading logic
+
+    Security Protocols:
+    1. Critical Module Protection: Prevents disabling dashboard/admin modules
+    2. Parent-Child Validation: Ensures parent is enabled when enabling child
+    3. Permission Cleanup: Removes user permissions when disabling modules
+    4. Cascade Disable: Automatically disables children when parent is disabled
+    """
+    # Fetch module details for validation
+    module = await fetch_one(
+        "SELECT id, module_key, module_name, parent_module_id, is_active FROM modules WHERE id = $1",
+        module_id
+    )
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found"
+        )
+
+    # SECURITY PROTOCOL 1: Critical Module Protection
+    # Prevent disabling dashboard and admin modules (system-critical)
+    if request.is_active == False:
+        critical_modules = ['dashboard', 'admin']
+        if module['module_key'] in critical_modules:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot disable critical system module: {module['module_name']}. "
+                       f"This module is required for system operation."
+            )
+
+    # SECURITY PROTOCOL 2: Parent-Child Validation
+    # When enabling a child module, ensure parent is enabled
+    if request.is_active == True and module['parent_module_id']:
+        parent = await fetch_one(
+            "SELECT id, module_name, is_active FROM modules WHERE id = $1",
+            module['parent_module_id']
+        )
+        if parent and not parent['is_active']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot enable sub-module '{module['module_name']}': "
+                       f"parent module '{parent['module_name']}' is currently disabled. "
+                       f"Please enable the parent module first."
+            )
+
     # Build UPDATE statement
     update_fields = []
     params = []
@@ -491,8 +536,11 @@ async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
     """
     await execute_query(query, *params)
 
-    # CASCADE LOGIC: If disabling a parent module, disable all sub-modules too
+    # SECURITY PROTOCOL 3 & 4: Cascading Disable + Permission Cleanup
     if request.is_active is not None and request.is_active == False:
+        # Get all affected modules (this module + all descendants)
+        affected_modules = [module_id]
+
         # Check if this module has children
         submodules = await fetch_all(
             "SELECT id, module_key FROM modules WHERE parent_module_id = $1",
@@ -505,12 +553,71 @@ async def update_module(module_id: int, request: UpdateModuleRequest) -> Dict:
                 "UPDATE modules SET is_active = FALSE WHERE parent_module_id = $1",
                 module_id
             )
+            submodule_ids = [dict(sm)['id'] for sm in submodules]
+            affected_modules.extend(submodule_ids)
             submodule_keys = [dict(sm)['module_key'] for sm in submodules]
             logger.info(f"Cascaded disable to {len(submodules)} sub-modules: {', '.join(submodule_keys)}")
 
+        # SECURITY PROTOCOL 3: Permission Cleanup
+        # Remove all user permissions for disabled modules
+        for affected_id in affected_modules:
+            deleted_count = await execute_query(
+                "DELETE FROM user_module_permissions WHERE module_id = $1 RETURNING id",
+                affected_id
+            )
+            if deleted_count:
+                logger.info(f"Removed {deleted_count} user permissions for module ID {affected_id}")
+
     # Fetch updated module
-    module = await fetch_one("SELECT * FROM modules WHERE id = $1", module_id)
-    return module
+    updated_module = await fetch_one("SELECT * FROM modules WHERE id = $1", module_id)
+    return updated_module
+
+
+async def get_module_users_count(module_id: int) -> Dict:
+    """
+    Get count of users who have permissions to a specific module
+
+    Used for impact warnings before disabling modules
+    Returns count and list of affected users
+    """
+    # Verify module exists
+    module = await fetch_one(
+        "SELECT id, module_name, module_key FROM modules WHERE id = $1",
+        module_id
+    )
+    if not module:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Module not found"
+        )
+
+    # Get all users with permissions to this module
+    users = await fetch_all(
+        """
+        SELECT
+            up.id,
+            up.email,
+            up.full_name,
+            r.role_name
+        FROM user_module_permissions ump
+        JOIN user_profiles up ON up.id = ump.user_id
+        LEFT JOIN roles r ON r.id = up.role_id
+        WHERE ump.module_id = $1 AND ump.can_access = TRUE
+        ORDER BY up.full_name
+        """,
+        module_id
+    )
+
+    # Convert to dicts
+    users_list = [dict(u) for u in users]
+
+    return {
+        "module_id": module['id'],
+        "module_name": module['module_name'],
+        "module_key": module['module_key'],
+        "users_count": len(users_list),
+        "users": users_list
+    }
 
 
 # ============================================================================
