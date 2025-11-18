@@ -38,9 +38,10 @@ class CategoryItem(BaseModel):
     """Inventory category"""
 
     id: int
-    category_name: str
+    category: str  # Aliased from category_name in database
     description: Optional[str]
     created_at: datetime
+    item_count: int = 0  # Count of items using this category
 
     class Config:
         from_attributes = True
