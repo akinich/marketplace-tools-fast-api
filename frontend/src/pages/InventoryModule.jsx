@@ -1,10 +1,20 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.6.0
+ * Version: 1.7.0
  * Last Updated: 2025-11-18
  *
  * Changelog:
  * ----------
+ * v1.7.0 (2025-11-18):
+ *   - IMPLEMENTED: Complete Purchase Order creation dialog
+ *   - Dynamic items list with add/remove functionality
+ *   - Real-time total cost calculation
+ *   - Form validation for PO details and items
+ *   - Supplier and item dropdowns with data fetching
+ *   - Support for PO number, dates, notes, and multiple items
+ *   - Each item includes: item selection, quantity, unit cost, line total
+ *   - Full integration with backend API
+ *
  * v1.6.0 (2025-11-18):
  *   - Added FULL CRUD functionality to Categories page
  *   - Added FULL CRUD functionality to Suppliers page
@@ -420,6 +430,370 @@ function ItemsPage() {
 }
 
 // Purchase Orders Page
+// Purchase Order Dialog Component
+function CreatePODialog({ open, onClose }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [formData, setFormData] = useState({
+    po_number: '',
+    supplier_id: '',
+    po_date: new Date().toISOString().split('T')[0],
+    expected_delivery: '',
+    notes: '',
+  });
+
+  const [items, setItems] = useState([
+    { item_master_id: '', ordered_qty: '', unit_cost: '' }
+  ]);
+
+  const [errors, setErrors] = useState({});
+
+  // Fetch suppliers and items for dropdowns
+  const { data: suppliersData } = useQuery('suppliers', inventoryAPI.getSuppliers);
+  const { data: itemsData } = useQuery('items', () =>
+    inventoryAPI.getItems({ page: 1, limit: 1000 })
+  );
+
+  const suppliers = suppliersData?.suppliers || [];
+  const availableItems = itemsData?.items || [];
+
+  const createPOMutation = useMutation(
+    (data) => inventoryAPI.createPurchaseOrder(data),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Purchase Order created successfully', { variant: 'success' });
+        queryClient.invalidateQueries('purchaseOrders');
+        handleClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          error.response?.data?.detail || 'Failed to create Purchase Order',
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const handleClose = () => {
+    setFormData({
+      po_number: '',
+      supplier_id: '',
+      po_date: new Date().toISOString().split('T')[0],
+      expected_delivery: '',
+      notes: '',
+    });
+    setItems([{ item_master_id: '', ordered_qty: '', unit_cost: '' }]);
+    setErrors({});
+    onClose();
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: '' });
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const newItems = [...items];
+    newItems[index][field] = value;
+    setItems(newItems);
+  };
+
+  const addItem = () => {
+    setItems([...items, { item_master_id: '', ordered_qty: '', unit_cost: '' }]);
+  };
+
+  const removeItem = (index) => {
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
+  };
+
+  const calculateTotal = () => {
+    return items.reduce((total, item) => {
+      const qty = parseFloat(item.ordered_qty) || 0;
+      const cost = parseFloat(item.unit_cost) || 0;
+      return total + (qty * cost);
+    }, 0);
+  };
+
+  const validate = () => {
+    const newErrors = {};
+
+    if (!formData.po_number.trim()) {
+      newErrors.po_number = 'PO Number is required';
+    }
+
+    if (!formData.supplier_id) {
+      newErrors.supplier_id = 'Supplier is required';
+    }
+
+    if (!formData.po_date) {
+      newErrors.po_date = 'PO Date is required';
+    }
+
+    if (formData.expected_delivery && formData.expected_delivery < formData.po_date) {
+      newErrors.expected_delivery = 'Expected delivery cannot be before PO date';
+    }
+
+    // Validate items
+    const validItems = items.filter(
+      item => item.item_master_id && item.ordered_qty && item.unit_cost
+    );
+
+    if (validItems.length === 0) {
+      newErrors.items = 'At least one item is required';
+    }
+
+    items.forEach((item, index) => {
+      if (item.item_master_id || item.ordered_qty || item.unit_cost) {
+        if (!item.item_master_id) {
+          newErrors[`item_${index}_item`] = 'Select item';
+        }
+        if (!item.ordered_qty || parseFloat(item.ordered_qty) <= 0) {
+          newErrors[`item_${index}_qty`] = 'Enter valid quantity';
+        }
+        if (!item.unit_cost || parseFloat(item.unit_cost) < 0) {
+          newErrors[`item_${index}_cost`] = 'Enter valid cost';
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    // Filter out empty items
+    const validItems = items
+      .filter(item => item.item_master_id && item.ordered_qty && item.unit_cost)
+      .map(item => ({
+        item_master_id: parseInt(item.item_master_id),
+        ordered_qty: parseFloat(item.ordered_qty),
+        unit_cost: parseFloat(item.unit_cost),
+      }));
+
+    const payload = {
+      po_number: formData.po_number.trim(),
+      supplier_id: parseInt(formData.supplier_id),
+      po_date: formData.po_date,
+      expected_delivery: formData.expected_delivery || null,
+      notes: formData.notes.trim() || null,
+      items: validItems,
+    };
+
+    createPOMutation.mutate(payload);
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+      <form onSubmit={handleSubmit}>
+        <DialogTitle>Create Purchase Order</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* PO Number */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="PO Number"
+                name="po_number"
+                value={formData.po_number}
+                onChange={handleChange}
+                error={!!errors.po_number}
+                helperText={errors.po_number}
+                required
+              />
+            </Grid>
+
+            {/* Supplier */}
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth error={!!errors.supplier_id} required>
+                <InputLabel>Supplier</InputLabel>
+                <Select
+                  name="supplier_id"
+                  value={formData.supplier_id}
+                  onChange={handleChange}
+                  label="Supplier"
+                >
+                  {suppliers.map((supplier) => (
+                    <MenuItem key={supplier.id} value={supplier.id}>
+                      {supplier.supplier_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {errors.supplier_id && <FormHelperText>{errors.supplier_id}</FormHelperText>}
+              </FormControl>
+            </Grid>
+
+            {/* PO Date */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="PO Date"
+                name="po_date"
+                type="date"
+                value={formData.po_date}
+                onChange={handleChange}
+                error={!!errors.po_date}
+                helperText={errors.po_date}
+                InputLabelProps={{ shrink: true }}
+                required
+              />
+            </Grid>
+
+            {/* Expected Delivery */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Expected Delivery"
+                name="expected_delivery"
+                type="date"
+                value={formData.expected_delivery}
+                onChange={handleChange}
+                error={!!errors.expected_delivery}
+                helperText={errors.expected_delivery}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            {/* Notes */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                multiline
+                rows={2}
+              />
+            </Grid>
+
+            {/* Items Section */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2, mb: 1 }}>
+                Items
+              </Typography>
+              {errors.items && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {errors.items}
+                </Alert>
+              )}
+            </Grid>
+
+            {items.map((item, index) => (
+              <React.Fragment key={index}>
+                <Grid item xs={12} sm={5}>
+                  <FormControl fullWidth error={!!errors[`item_${index}_item`]} size="small">
+                    <InputLabel>Item</InputLabel>
+                    <Select
+                      value={item.item_master_id}
+                      onChange={(e) => handleItemChange(index, 'item_master_id', e.target.value)}
+                      label="Item"
+                    >
+                      {availableItems.map((availItem) => (
+                        <MenuItem key={availItem.id} value={availItem.id}>
+                          {availItem.item_name} ({availItem.unit})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {errors[`item_${index}_item`] && (
+                      <FormHelperText>{errors[`item_${index}_item`]}</FormHelperText>
+                    )}
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Quantity"
+                    type="number"
+                    value={item.ordered_qty}
+                    onChange={(e) => handleItemChange(index, 'ordered_qty', e.target.value)}
+                    error={!!errors[`item_${index}_qty`]}
+                    helperText={errors[`item_${index}_qty`]}
+                    inputProps={{ min: 0, step: '0.01' }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Unit Cost"
+                    type="number"
+                    value={item.unit_cost}
+                    onChange={(e) => handleItemChange(index, 'unit_cost', e.target.value)}
+                    error={!!errors[`item_${index}_cost`]}
+                    helperText={errors[`item_${index}_cost`]}
+                    inputProps={{ min: 0, step: '0.01' }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Line Total"
+                    value={(
+                      (parseFloat(item.ordered_qty) || 0) * (parseFloat(item.unit_cost) || 0)
+                    ).toFixed(2)}
+                    InputProps={{ readOnly: true }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={1}>
+                  <IconButton
+                    color="error"
+                    onClick={() => removeItem(index)}
+                    disabled={items.length === 1}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Grid>
+              </React.Fragment>
+            ))}
+
+            <Grid item xs={12}>
+              <Button startIcon={<AddIcon />} onClick={addItem} size="small">
+                Add Item
+              </Button>
+            </Grid>
+
+            {/* Total Cost */}
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <Typography variant="h6">
+                  Total Cost: {formatCurrency(calculateTotal())}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} disabled={createPOMutation.isLoading}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={createPOMutation.isLoading}
+          >
+            {createPOMutation.isLoading ? 'Creating...' : 'Create Purchase Order'}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+}
+
 function PurchaseOrdersPage() {
   const { data, isLoading, error } = useQuery('purchaseOrders', () =>
     inventoryAPI.getPurchaseOrders({ status: 'All', days_back: 30 })
@@ -450,24 +824,10 @@ function PurchaseOrdersPage() {
       </Box>
 
       {/* Create PO Dialog */}
-      <Dialog open={openCreatePODialog} onClose={() => setOpenCreatePODialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Create Purchase Order</DialogTitle>
-        <DialogContent>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Purchase Order creation form will be implemented here. This will include:
-            <ul>
-              <li>Supplier Selection</li>
-              <li>PO Date & Expected Delivery</li>
-              <li>Items Selection (with quantities and costs)</li>
-              <li>Notes</li>
-              <li>Total Cost Calculation</li>
-            </ul>
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenCreatePODialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+      <CreatePODialog
+        open={openCreatePODialog}
+        onClose={() => setOpenCreatePODialog(false)}
+      />
 
       <Card>
         <CardContent>
