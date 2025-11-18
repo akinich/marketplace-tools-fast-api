@@ -463,7 +463,7 @@ function CreatePODialog({ open, onClose }) {
     inventoryAPI.getSuppliers
   );
   const { data: itemsData, isLoading: itemsLoading } = useQuery('po-dialog-items', () =>
-    inventoryAPI.getItems({ page: 1, limit: 1000 })
+    inventoryAPI.getItems({ page: 1, limit: 100 })
   );
 
   const suppliers = suppliersData?.suppliers || [];
@@ -1132,7 +1132,7 @@ function AddStockDialog({ open, onClose }) {
   const [errors, setErrors] = useState({});
 
   const { data: itemsData, isLoading: itemsLoading } = useQuery('addstock-dialog-items', () =>
-    inventoryAPI.getItems({ page: 1, limit: 1000 })
+    inventoryAPI.getItems({ page: 1, limit: 100 })
   );
   const { data: suppliersData, isLoading: suppliersLoading } = useQuery('addstock-dialog-suppliers', () =>
     inventoryAPI.getSuppliers()
