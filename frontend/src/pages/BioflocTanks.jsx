@@ -130,7 +130,7 @@ const TankCard = ({ tank, onEdit, onDelete }) => {
 };
 
 // Tank Form Dialog
-const TankFormDialog = ({ open, onClose, tank, onSave }) => {
+const TankFormDialog = ({ open, onClose, tank, onSave, isSubmitting, error }) => {
   const [formData, setFormData] = useState(tank || {
     tank_name: '',
     tank_code: '',
@@ -140,13 +140,47 @@ const TankFormDialog = ({ open, onClose, tank, onSave }) => {
     status: 'available',
     notes: '',
   });
+  const [validationErrors, setValidationErrors] = useState({});
 
   const handleChange = (field) => (event) => {
     setFormData({ ...formData, [field]: event.target.value });
+    // Clear validation error for this field
+    if (validationErrors[field]) {
+      setValidationErrors({ ...validationErrors, [field]: null });
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.tank_name?.trim()) {
+      errors.tank_name = 'Tank name is required';
+    }
+
+    if (!formData.tank_code?.trim()) {
+      errors.tank_code = 'Tank code is required';
+    }
+
+    if (!formData.capacity_liters || formData.capacity_liters <= 0) {
+      errors.capacity_liters = 'Valid capacity is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = () => {
-    onSave(formData);
+    if (!validateForm()) {
+      return;
+    }
+
+    // Convert capacity to number and prepare data
+    const submitData = {
+      ...formData,
+      capacity_liters: parseFloat(formData.capacity_liters),
+    };
+
+    onSave(submitData);
   };
 
   return (
@@ -154,12 +188,19 @@ const TankFormDialog = ({ open, onClose, tank, onSave }) => {
       <DialogTitle>{tank ? 'Edit Tank' : 'Create New Tank'}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 1 }}>
+              {error.response?.data?.detail || error.message || 'Failed to save tank'}
+            </Alert>
+          )}
           <TextField
             label="Tank Name"
             value={formData.tank_name}
             onChange={handleChange('tank_name')}
             required
             fullWidth
+            error={!!validationErrors.tank_name}
+            helperText={validationErrors.tank_name}
           />
           <TextField
             label="Tank Code"
@@ -168,7 +209,8 @@ const TankFormDialog = ({ open, onClose, tank, onSave }) => {
             required
             fullWidth
             disabled={!!tank}
-            helperText="Unique identifier (cannot be changed after creation)"
+            error={!!validationErrors.tank_code}
+            helperText={validationErrors.tank_code || "Unique identifier (cannot be changed after creation)"}
           />
           <TextField
             label="Capacity (Liters)"
@@ -177,6 +219,8 @@ const TankFormDialog = ({ open, onClose, tank, onSave }) => {
             onChange={handleChange('capacity_liters')}
             required
             fullWidth
+            error={!!validationErrors.capacity_liters}
+            helperText={validationErrors.capacity_liters}
           />
           <TextField
             label="Location"
@@ -222,9 +266,20 @@ const TankFormDialog = ({ open, onClose, tank, onSave }) => {
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
-          {tank ? 'Update' : 'Create'}
+        <Button onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+              {tank ? 'Updating...' : 'Creating...'}
+            </>
+          ) : (
+            tank ? 'Update' : 'Create'
+          )}
         </Button>
       </DialogActions>
     </Dialog>
@@ -261,6 +316,10 @@ export default function BioflocTanks() {
         queryClient.invalidateQueries('bioflocTanks');
         setDialogOpen(false);
         setSelectedTank(null);
+      },
+      onError: (error) => {
+        console.error('Failed to save tank:', error);
+        // Error will be displayed in the dialog
       },
     }
   );
@@ -410,9 +469,12 @@ export default function BioflocTanks() {
         onClose={() => {
           setDialogOpen(false);
           setSelectedTank(null);
+          saveMutation.reset(); // Clear any errors
         }}
         tank={selectedTank}
         onSave={handleSave}
+        isSubmitting={saveMutation.isLoading}
+        error={saveMutation.error}
       />
     </Box>
   );

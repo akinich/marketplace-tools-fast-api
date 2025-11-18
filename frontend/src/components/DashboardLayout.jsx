@@ -112,15 +112,20 @@ export default function DashboardLayout() {
     navigate('/login');
   };
 
-  const handleModuleClick = (moduleKey) => {
+  const handleModuleClick = (moduleKey, hasSubModules) => {
     if (moduleKey === 'dashboard') {
       navigate('/dashboard');
     } else {
-      // Toggle expand for modules with sub-menus
-      setExpandedModules((prev) => ({
-        ...prev,
-        [moduleKey]: !prev[moduleKey],
-      }));
+      // Navigate to module's default route
+      navigate(`/${moduleKey}`);
+
+      // Also toggle expand for modules with sub-menus
+      if (hasSubModules) {
+        setExpandedModules((prev) => ({
+          ...prev,
+          [moduleKey]: !prev[moduleKey],
+        }));
+      }
     }
   };
 
@@ -215,7 +220,7 @@ export default function DashboardLayout() {
               <ListItem disablePadding>
                 <ListItemButton
                   selected={location.pathname.startsWith(`/${module.module_key}`)}
-                  onClick={() => handleModuleClick(module.module_key)}
+                  onClick={() => handleModuleClick(module.module_key, hasSubModules)}
                 >
                   <ListItemIcon>{getModuleIcon(module.module_key)}</ListItemIcon>
                   <ListItemText primary={module.module_name} />
