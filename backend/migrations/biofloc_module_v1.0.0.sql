@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS biofloc_tanks (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID
 );
 
 -- 2. FISH BATCHES
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS biofloc_batches (
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID
 );
 
 -- Add FK constraint after biofloc_batches is created
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS biofloc_batch_tank_assignments (
     avg_weight_at_transfer_g DECIMAL(10,4),
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 4. FEEDING SESSIONS
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS biofloc_feeding_sessions (
 
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 5. SAMPLING DATA (periodic measurements)
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS biofloc_sampling (
 
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 6. MORTALITY RECORDS
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS biofloc_mortality (
 
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 7. WATER QUALITY TESTS
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS biofloc_water_tests (
 
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 8. TANK INPUTS (non-feed items: chemicals, probiotics, etc.)
@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS biofloc_tank_inputs (
     reason VARCHAR(200), -- ph_adjustment, ammonia_control, floc_boost, etc.
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 9. HARVESTS
@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS biofloc_harvests (
 
     notes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by UUID -- REFERENCES user_profiles(id)
 );
 
 -- 10. CYCLE COSTS (aggregated costs per batch)
