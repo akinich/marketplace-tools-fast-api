@@ -14,6 +14,16 @@ This guide covers the deployment of Phase 1 & 2 inventory enhancements for bette
 - ✅ Available vs Reserved quantity tracking
 - ✅ Auto-expiry background task (APScheduler)
 
+**Phase 3: Module Integration**
+- ✅ Module-specific item views (GET items by module)
+- ✅ Module consumption reports (usage analytics)
+- ✅ Item-module mapping CRUD (link items to modules)
+
+**Phase 4: Frontend Integration**
+- ✅ Frontend API client updates (11 new methods)
+- ✅ ReservationsDashboard component (full CRUD UI)
+- ✅ React/Material-UI integration
+
 ---
 
 ## Pre-Deployment Checklist
@@ -286,6 +296,234 @@ curl http://localhost:8000/health
 
 ---
 
+## Phase 3: Module Integration APIs
+
+### 7. Get Module Items
+
+**Endpoint:** `GET /api/v1/inventory/module/{module_name}/items`
+
+**Use Case:** Fetch all items used by a specific module (e.g., "biofloc")
+
+**Example:**
+```bash
+curl http://localhost:8000/api/v1/inventory/module/biofloc/items \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**Response:**
+```json
+{
+  "module_name": "biofloc",
+  "total_items": 15,
+  "items": [
+    {
+      "id": 123,
+      "sku": "FEED-3MM",
+      "name": "Feed 3mm 32% Protein",
+      "current_qty": 500.5,
+      "unit": "kg",
+      "category": "Feed",
+      "is_primary": true,
+      "custom_settings": {
+        "daily_usage_estimate": 50.0,
+        "preferred_supplier": "ABC Aqua"
+      }
+    }
+  ]
+}
+```
+
+### 8. Get Module Consumption Report
+
+**Endpoint:** `GET /api/v1/inventory/module/{module_name}/consumption?days_back=30`
+
+**Use Case:** Analyze module's inventory consumption over time
+
+**Example:**
+```bash
+curl http://localhost:8000/api/v1/inventory/module/biofloc/consumption?days_back=30 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**Response:**
+```json
+{
+  "module_name": "biofloc",
+  "days_back": 30,
+  "total_items": 8,
+  "consumption": [
+    {
+      "item_id": 123,
+      "item_name": "Feed 3mm 32% Protein",
+      "sku": "FEED-3MM",
+      "total_quantity": 1500.5,
+      "transaction_count": 45,
+      "total_cost": 7878.75,
+      "avg_daily_usage": 50.02,
+      "unit": "kg"
+    }
+  ],
+  "summary": {
+    "total_cost": 12500.00,
+    "total_transactions": 120
+  }
+}
+```
+
+### 9. Create Item-Module Mapping
+
+**Endpoint:** `POST /api/v1/inventory/items/{item_id}/modules`
+
+**Use Case:** Link an inventory item to a module with custom settings
+
+**Request:**
+```json
+{
+  "module_name": "biofloc",
+  "is_primary": true,
+  "custom_settings": {
+    "daily_usage_estimate": 50.0,
+    "preferred_supplier": "ABC Aqua",
+    "alert_threshold": 100.0
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "item_id": 123,
+  "module_name": "biofloc",
+  "is_primary": true,
+  "custom_settings": {
+    "daily_usage_estimate": 50.0,
+    "preferred_supplier": "ABC Aqua",
+    "alert_threshold": 100.0
+  },
+  "created_at": "2025-11-18T14:30:00Z"
+}
+```
+
+### 10. List Item-Module Mappings
+
+**Endpoint:** `GET /api/v1/inventory/items/{item_id}/modules`
+
+**Use Case:** See which modules use a specific item
+
+**Response:**
+```json
+{
+  "item_id": 123,
+  "item_name": "Feed 3mm 32% Protein",
+  "mappings": [
+    {
+      "module_name": "biofloc",
+      "is_primary": true,
+      "custom_settings": { "daily_usage_estimate": 50.0 }
+    },
+    {
+      "module_name": "hatchery",
+      "is_primary": false,
+      "custom_settings": { "daily_usage_estimate": 10.0 }
+    }
+  ]
+}
+```
+
+### 11. Delete Item-Module Mapping
+
+**Endpoint:** `DELETE /api/v1/inventory/items/{item_id}/modules/{module_name}`
+
+**Effect:** Removes the mapping between an item and a module
+
+---
+
+## Phase 4: Frontend Integration
+
+### ReservationsDashboard Component
+
+**Location:** `frontend/src/pages/ReservationsDashboard.jsx`
+
+**Features:**
+- View all stock reservations with filtering
+- Status filter: All, Pending, Confirmed, Cancelled, Expired
+- Confirm reservations (converts to FIFO stock deduction)
+- Cancel reservations (releases reserved stock)
+- Real-time updates with refresh button
+- Color-coded module chips (biofloc, hatchery, growout, nursery)
+- Confirmation dialogs for all actions
+
+**Integration:**
+```javascript
+import ReservationsDashboard from './pages/ReservationsDashboard';
+
+// Add to your router:
+<Route path="/inventory/reservations" element={<ReservationsDashboard />} />
+```
+
+**Usage:**
+- Users can view all pending reservations
+- Click "Confirm" to deduct stock using FIFO
+- Click "Cancel" to release the reservation
+- Filter by status to see historical data
+
+### Frontend API Client Updates
+
+**Location:** `frontend/src/api/index.js`
+
+**New Methods Added:**
+
+```javascript
+import { inventoryAPI } from './api';
+
+// Phase 1 & 2: Batch Operations
+const result = await inventoryAPI.batchDeduct({
+  deductions: [
+    { sku: "FEED-3MM", quantity: 10.5 },
+    { sku: "VIT-MIX", quantity: 0.5 }
+  ],
+  module_reference: "biofloc",
+  session_number: 1
+});
+
+const items = await inventoryAPI.bulkFetch({
+  skus: ["FEED-3MM", "FEED-2MM"],
+  include_reserved: true
+});
+
+// Reservations
+const reservation = await inventoryAPI.createReservation({
+  item_id: 123,
+  quantity: 50,
+  module_reference: "biofloc",
+  duration_hours: 24
+});
+
+const reservations = await inventoryAPI.getReservations({
+  status: "pending"
+});
+
+await inventoryAPI.confirmReservation(reservationId);
+await inventoryAPI.cancelReservation(reservationId);
+
+// Phase 3: Module Integration
+const moduleItems = await inventoryAPI.getModuleItems("biofloc");
+
+const consumption = await inventoryAPI.getModuleConsumption("biofloc", 30);
+
+await inventoryAPI.createItemModuleMapping(itemId, {
+  module_name: "biofloc",
+  is_primary: true,
+  custom_settings: { daily_usage_estimate: 50.0 }
+});
+
+const mappings = await inventoryAPI.getItemModuleMappings(itemId);
+
+await inventoryAPI.deleteItemModuleMapping(itemId, "biofloc");
+```
+
+---
+
 ## Testing Guide
 
 ### 1. Test Batch Deduction
@@ -351,6 +589,58 @@ Wait 15 minutes after creating a reservation, then check logs:
 # Check FastAPI logs for:
 # "Expiring N old reservations..."
 # "✅ Successfully expired N reservations"
+```
+
+### 5. Test Module Integration (Phase 3)
+
+```bash
+# Get items used by biofloc module
+curl http://localhost:8000/api/v1/inventory/module/biofloc/items \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Get biofloc consumption report (last 30 days)
+curl http://localhost:8000/api/v1/inventory/module/biofloc/consumption?days_back=30 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Create item-module mapping
+curl -X POST http://localhost:8000/api/v1/inventory/items/123/modules \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "module_name": "biofloc",
+    "is_primary": true,
+    "custom_settings": {
+      "daily_usage_estimate": 50.0,
+      "preferred_supplier": "ABC Aqua"
+    }
+  }'
+
+# List item mappings
+curl http://localhost:8000/api/v1/inventory/items/123/modules \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Delete item-module mapping
+curl -X DELETE http://localhost:8000/api/v1/inventory/items/123/modules/biofloc \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### 6. Test Frontend (Phase 4)
+
+```bash
+# Start the React development server
+cd frontend
+npm install  # If not already done
+npm start
+
+# Navigate to:
+# http://localhost:3000/inventory/reservations
+
+# Test UI features:
+# 1. View all reservations
+# 2. Filter by status (pending, confirmed, cancelled, expired)
+# 3. Confirm a pending reservation
+# 4. Cancel a pending reservation
+# 5. Verify real-time updates after actions
 ```
 
 ---
@@ -425,18 +715,6 @@ Then restart FastAPI server with previous code version.
 
 ---
 
-## Next Steps (Future Phases)
-
-**Phase 3: Module Integration (Future)**
-- Module-specific view endpoints
-- Item-module mapping management
-- Consumption reports by module
-
-**Phase 4: Frontend (Future)**
-- Batch operation UI
-- Reservation dashboard
-- Module filter toggle
-
 ---
 
 ## Support
@@ -451,21 +729,42 @@ For issues or questions:
 
 ## Summary
 
-✅ **Completed:**
-- Batch deduction (atomic transactions)
-- Bulk fetch (efficient retrieval)
-- Stock reservation system
-- Auto-expiry background task
-- Database migrations
-- API documentation
+✅ **Completed (All 4 Phases):**
+
+**Phase 1: Core Backend**
+- Batch deduction endpoint (atomic transactions)
+- Bulk fetch endpoint (efficient retrieval)
+- Database schema updates (module_batch_id, session_number)
+
+**Phase 2: Reservation System**
+- Stock reservation CRUD (create, list, cancel, confirm)
+- Auto-expiry background task (APScheduler every 15 min)
+- Available vs reserved quantity tracking
+
+**Phase 3: Module Integration**
+- Module-specific item views (GET items by module)
+- Module consumption reports (usage analytics)
+- Item-module mapping CRUD (link items to modules)
+
+**Phase 4: Frontend Integration**
+- Frontend API client updates (11 new methods)
+- ReservationsDashboard component (React/Material-UI)
+- Full CRUD UI for managing reservations
 
 🎯 **Benefits:**
-- 70-93% reduction in API calls for common operations
-- Atomic transactions prevent partial failures
-- Stock reservations eliminate race conditions
-- Better cross-module integration for biofloc
+- **70-93% reduction** in API calls for common operations
+- **Atomic transactions** prevent partial failures
+- **Stock reservations** eliminate race conditions
+- **Module integration** enables cross-module inventory tracking
+- **Frontend UI** provides user-friendly reservation management
 
 📊 **Performance:**
 - All new endpoints target <200ms response time
 - Background scheduler runs every 15 minutes
 - Database indices optimize reservation queries
+- React component uses efficient state management
+
+🔢 **API Endpoints Added:**
+- 11 new inventory endpoints (6 for Phase 1 & 2, 5 for Phase 3)
+- 11 new frontend API methods
+- 1 new React dashboard component
