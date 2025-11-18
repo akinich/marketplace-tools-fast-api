@@ -37,8 +37,8 @@ from uuid import UUID
 from app.services import inventory_service
 from app.schemas.inventory import (
     BatchDeductionRequest,
-    DeductionItem,
-    ModuleReference,
+    BatchDeductionItem,
+    ModuleType,
     BulkFetchRequest,
     CreateReservationRequest,
     UseStockRequest
@@ -66,7 +66,7 @@ class InventoryIntegration:
             module_name: Name of the module using inventory (default: "biofloc")
         """
         self.module_name = module_name
-        self.module_ref = ModuleReference(module_name.upper())
+        self.module_ref = ModuleType(module_name.lower())
 
     # ========================================================================
     # STOCK DEDUCTION
@@ -120,11 +120,11 @@ class InventoryIntegration:
             )
         """
         try:
-            # Convert deductions to DeductionItem objects
+            # Convert deductions to BatchDeductionItem objects
             deduction_items = []
             for item in deductions:
                 deduction_items.append(
-                    DeductionItem(
+                    BatchDeductionItem(
                         sku=item["sku"],
                         quantity=Decimal(str(item["quantity"])),
                         notes=item.get("notes")
@@ -134,7 +134,7 @@ class InventoryIntegration:
             # Create batch deduction request
             request = BatchDeductionRequest(
                 deductions=deduction_items,
-                module_reference=ModuleReference(module_reference.upper()),
+                module_reference=ModuleType(module_reference.lower()),
                 tank_id=tank_id,
                 batch_id=batch_id,
                 session_number=session_number,
@@ -369,7 +369,7 @@ class InventoryIntegration:
             request = CreateReservationRequest(
                 item_id=item["id"],
                 quantity=quantity,
-                module_reference=ModuleReference(module_reference.upper()),
+                module_reference=ModuleType(module_reference.lower()),
                 reference_id=reference_id,
                 duration_hours=duration_hours,
                 notes=notes
