@@ -73,10 +73,18 @@ CREATE TABLE IF NOT EXISTS biofloc_batches (
 );
 
 -- Add FK constraint after biofloc_batches is created
-ALTER TABLE biofloc_tanks
-ADD CONSTRAINT fk_tank_current_batch
-FOREIGN KEY (current_batch_id) REFERENCES biofloc_batches(id)
-ON DELETE SET NULL;
+-- Only add if constraint doesn't already exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_tank_current_batch'
+    ) THEN
+        ALTER TABLE biofloc_tanks
+        ADD CONSTRAINT fk_tank_current_batch
+        FOREIGN KEY (current_batch_id) REFERENCES biofloc_batches(id)
+        ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- 3. BATCH-TANK ASSIGNMENTS (history of which batch was in which tank)
 CREATE TABLE IF NOT EXISTS biofloc_batch_tank_assignments (
