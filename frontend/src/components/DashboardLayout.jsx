@@ -158,10 +158,24 @@ export default function DashboardLayout() {
       inventory_analytics: '/inventory/analytics',
     };
 
+    // Biofloc sub-modules
+    const bioflocRoutes = {
+      biofloc_dashboard: '/biofloc',
+      biofloc_tanks: '/biofloc/tanks',
+      biofloc_batches: '/biofloc/batches',
+      biofloc_feeding: '/biofloc/feeding',
+      biofloc_sampling: '/biofloc/sampling',
+      biofloc_mortality: '/biofloc/mortality',
+      biofloc_water_tests: '/biofloc/water-tests',
+      biofloc_harvests: '/biofloc/harvests',
+    };
+
     if (parentModuleKey === 'admin') {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
     } else if (parentModuleKey === 'inventory') {
       return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey.replace('inventory_', '')}`;
+    } else if (parentModuleKey === 'biofloc') {
+      return bioflocRoutes[subModuleKey] || `/biofloc/${subModuleKey.replace('biofloc_', '')}`;
     }
 
     // Default: construct route from keys
