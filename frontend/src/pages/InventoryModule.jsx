@@ -1,10 +1,18 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.4.0
- * Last Updated: 2025-11-17
+ * Version: 1.5.0
+ * Last Updated: 2025-11-18
  *
  * Changelog:
  * ----------
+ * v1.5.0 (2025-11-18):
+ *   - CRITICAL FIX: Implemented 3 previously placeholder pages
+ *   - Stock Operations: Full Add Stock and Use Stock forms with FIFO logic
+ *   - Stock Adjustments: Create adjustment form + history table with audit trail
+ *   - Transaction History: Complete transaction log with filters (item, type, period)
+ *   - All 11 inventory modules now fully functional and integrated with backend
+ *   - Fixed placeholder issue - all pages now have real functional code
+ *
  * v1.4.0 (2025-11-17):
  *   - PHASE 4: Implemented all 6 missing inventory pages
  *   - Categories Management: Full CRUD with item count
@@ -702,16 +710,263 @@ function InventoryDashboardPage() {
   );
 }
 
-// Stock Operations Page (Placeholder)
+// Add Stock Dialog Component
+function AddStockDialog({ open, onClose }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [formData, setFormData] = useState({
+    item_master_id: '',
+    quantity: '',
+    unit_cost: '',
+    purchase_date: new Date().toISOString().split('T')[0],
+    supplier_id: '',
+    batch_number: '',
+    expiry_date: '',
+    po_number: '',
+    notes: '',
+  });
+  const [errors, setErrors] = useState({});
+
+  const { data: itemsData } = useQuery('inventoryItems', () => inventoryAPI.getItems());
+  const { data: suppliersData } = useQuery('suppliers', () => inventoryAPI.getSuppliers());
+
+  const addStockMutation = useMutation((data) => inventoryAPI.addStock(data), {
+    onSuccess: () => {
+      enqueueSnackbar('Stock added successfully', { variant: 'success' });
+      queryClient.invalidateQueries('inventoryItems');
+      queryClient.invalidateQueries('inventoryDashboard');
+      handleClose();
+    },
+    onError: (error) => {
+      enqueueSnackbar(`Failed to add stock: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+    },
+  });
+
+  const handleChange = (field) => (event) => {
+    setFormData({ ...formData, [field]: event.target.value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.item_master_id) newErrors.item_master_id = 'Item is required';
+    if (!formData.quantity || Number(formData.quantity) <= 0) newErrors.quantity = 'Quantity must be greater than 0';
+    if (!formData.unit_cost || Number(formData.unit_cost) < 0) newErrors.unit_cost = 'Unit cost is required';
+    if (!formData.purchase_date) newErrors.purchase_date = 'Purchase date is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    const submitData = {
+      item_master_id: Number(formData.item_master_id),
+      quantity: Number(formData.quantity),
+      unit_cost: Number(formData.unit_cost),
+      purchase_date: formData.purchase_date,
+    };
+    if (formData.supplier_id) submitData.supplier_id = Number(formData.supplier_id);
+    if (formData.batch_number) submitData.batch_number = formData.batch_number;
+    if (formData.expiry_date) submitData.expiry_date = formData.expiry_date;
+    if (formData.po_number) submitData.po_number = formData.po_number;
+    if (formData.notes) submitData.notes = formData.notes;
+    addStockMutation.mutate(submitData);
+  };
+
+  const handleClose = () => {
+    setFormData({ item_master_id: '', quantity: '', unit_cost: '', purchase_date: new Date().toISOString().split('T')[0], supplier_id: '', batch_number: '', expiry_date: '', po_number: '', notes: '' });
+    setErrors({});
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Add Stock</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <FormControl fullWidth required error={!!errors.item_master_id}>
+            <InputLabel>Item</InputLabel>
+            <Select value={formData.item_master_id} onChange={handleChange('item_master_id')} label="Item">
+              {itemsData?.items?.map((item) => (
+                <MenuItem key={item.id} value={item.id}>{item.item_name} ({item.unit})</MenuItem>
+              ))}
+            </Select>
+            {errors.item_master_id && <FormHelperText>{errors.item_master_id}</FormHelperText>}
+          </FormControl>
+          <TextField label="Quantity" required type="number" fullWidth value={formData.quantity} onChange={handleChange('quantity')} error={!!errors.quantity} helperText={errors.quantity} inputProps={{ min: 0, step: 0.01 }} />
+          <TextField label="Unit Cost (₹)" required type="number" fullWidth value={formData.unit_cost} onChange={handleChange('unit_cost')} error={!!errors.unit_cost} helperText={errors.unit_cost} inputProps={{ min: 0, step: 0.01 }} />
+          <TextField label="Purchase Date" required type="date" fullWidth value={formData.purchase_date} onChange={handleChange('purchase_date')} error={!!errors.purchase_date} helperText={errors.purchase_date} InputLabelProps={{ shrink: true }} />
+          <FormControl fullWidth>
+            <InputLabel>Supplier</InputLabel>
+            <Select value={formData.supplier_id} onChange={handleChange('supplier_id')} label="Supplier">
+              <MenuItem value=""><em>None</em></MenuItem>
+              {suppliersData?.suppliers?.map((supplier) => (
+                <MenuItem key={supplier.id} value={supplier.id}>{supplier.supplier_name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField label="Batch Number" fullWidth value={formData.batch_number} onChange={handleChange('batch_number')} placeholder="e.g., BATCH-2024-001" />
+          <TextField label="Expiry Date" type="date" fullWidth value={formData.expiry_date} onChange={handleChange('expiry_date')} InputLabelProps={{ shrink: true }} />
+          <TextField label="PO Number" fullWidth value={formData.po_number} onChange={handleChange('po_number')} placeholder="Optional" />
+          <TextField label="Notes" fullWidth multiline rows={2} value={formData.notes} onChange={handleChange('notes')} placeholder="Additional notes..." />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={addStockMutation.isLoading}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained" disabled={addStockMutation.isLoading} startIcon={addStockMutation.isLoading ? <CircularProgress size={20} /> : <AddIcon />}>Add Stock</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Use Stock Dialog Component
+function UseStockDialog({ open, onClose }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [formData, setFormData] = useState({
+    item_master_id: '',
+    quantity: '',
+    purpose: '',
+    module_reference: '',
+    tank_id: '',
+    notes: '',
+  });
+  const [errors, setErrors] = useState({});
+
+  const { data: itemsData } = useQuery('inventoryItems', () => inventoryAPI.getItems());
+
+  const useStockMutation = useMutation((data) => inventoryAPI.useStock(data), {
+    onSuccess: (response) => {
+      enqueueSnackbar(`Stock used successfully. Cost: ${formatCurrency(response.total_cost)}`, { variant: 'success' });
+      queryClient.invalidateQueries('inventoryItems');
+      queryClient.invalidateQueries('inventoryDashboard');
+      handleClose();
+    },
+    onError: (error) => {
+      enqueueSnackbar(`Failed to use stock: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+    },
+  });
+
+  const handleChange = (field) => (event) => {
+    setFormData({ ...formData, [field]: event.target.value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.item_master_id) newErrors.item_master_id = 'Item is required';
+    if (!formData.quantity || Number(formData.quantity) <= 0) newErrors.quantity = 'Quantity must be greater than 0';
+    if (!formData.purpose.trim()) newErrors.purpose = 'Purpose is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    const submitData = {
+      item_master_id: Number(formData.item_master_id),
+      quantity: Number(formData.quantity),
+      purpose: formData.purpose.trim(),
+    };
+    if (formData.module_reference) submitData.module_reference = formData.module_reference;
+    if (formData.tank_id) submitData.tank_id = Number(formData.tank_id);
+    if (formData.notes) submitData.notes = formData.notes;
+    useStockMutation.mutate(submitData);
+  };
+
+  const handleClose = () => {
+    setFormData({ item_master_id: '', quantity: '', purpose: '', module_reference: '', tank_id: '', notes: '' });
+    setErrors({});
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Use Stock (FIFO)</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <FormControl fullWidth required error={!!errors.item_master_id}>
+            <InputLabel>Item</InputLabel>
+            <Select value={formData.item_master_id} onChange={handleChange('item_master_id')} label="Item">
+              {itemsData?.items?.map((item) => (
+                <MenuItem key={item.id} value={item.id}>{item.item_name} (Available: {Number(item.current_qty).toFixed(2)} {item.unit})</MenuItem>
+              ))}
+            </Select>
+            {errors.item_master_id && <FormHelperText>{errors.item_master_id}</FormHelperText>}
+          </FormControl>
+          <TextField label="Quantity to Use" required type="number" fullWidth value={formData.quantity} onChange={handleChange('quantity')} error={!!errors.quantity} helperText={errors.quantity} inputProps={{ min: 0, step: 0.01 }} />
+          <TextField label="Purpose" required fullWidth value={formData.purpose} onChange={handleChange('purpose')} error={!!errors.purpose} helperText={errors.purpose || 'Why is this stock being used?'} placeholder="e.g., Tank 1 feeding, Production use" />
+          <TextField label="Module Reference" fullWidth value={formData.module_reference} onChange={handleChange('module_reference')} placeholder="e.g., biofloc, processing" />
+          <TextField label="Tank ID" type="number" fullWidth value={formData.tank_id} onChange={handleChange('tank_id')} placeholder="Optional" />
+          <TextField label="Notes" fullWidth multiline rows={2} value={formData.notes} onChange={handleChange('notes')} placeholder="Additional notes..." />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={useStockMutation.isLoading}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained" color="warning" disabled={useStockMutation.isLoading} startIcon={useStockMutation.isLoading ? <CircularProgress size={20} /> : <TrendingDownIcon />}>Use Stock</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Stock Operations Page
 function StockOperationsPage() {
+  const [addStockOpen, setAddStockOpen] = useState(false);
+  const [useStockOpen, setUseStockOpen] = useState(false);
+
   return (
     <Box>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
         Stock Operations
       </Typography>
-      <Alert severity="info">
-        Add Stock and Use Stock operations will be available here.
-      </Alert>
+      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+        Add new stock batches or use existing stock (FIFO)
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                📦 Add Stock
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Record new stock purchases or additions to inventory
+              </Typography>
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddStockOpen(true)} sx={{ mt: 2 }}>
+                Add Stock
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                📤 Use Stock
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Deduct stock from inventory using FIFO (First In, First Out) method
+              </Typography>
+              <Button variant="contained" color="warning" startIcon={<TrendingDownIcon />} onClick={() => setUseStockOpen(true)} sx={{ mt: 2 }}>
+                Use Stock
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Alert severity="info">
+            <Typography variant="body2">
+              <strong>FIFO Method:</strong> When using stock, the system automatically uses the oldest batches first (First In, First Out) to ensure proper inventory rotation and accurate costing.
+            </Typography>
+          </Alert>
+        </Grid>
+      </Grid>
+
+      <AddStockDialog open={addStockOpen} onClose={() => setAddStockOpen(false)} />
+      <UseStockDialog open={useStockOpen} onClose={() => setUseStockOpen(false)} />
     </Box>
   );
 }
@@ -999,41 +1254,244 @@ function CurrentStockPage() {
   );
 }
 
+// Create Adjustment Dialog Component
+function CreateAdjustmentDialog({ open, onClose }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [formData, setFormData] = useState({
+    item_master_id: '',
+    adjustment_type: 'increase',
+    quantity_change: '',
+    reason: '',
+    notes: '',
+  });
+  const [errors, setErrors] = useState({});
+
+  const { data: itemsData } = useQuery('inventoryItems', () => inventoryAPI.getItems());
+
+  const adjustStockMutation = useMutation((data) => inventoryAPI.adjustStock(data), {
+    onSuccess: () => {
+      enqueueSnackbar('Stock adjustment recorded successfully', { variant: 'success' });
+      queryClient.invalidateQueries('inventoryItems');
+      queryClient.invalidateQueries('stockAdjustments');
+      queryClient.invalidateQueries('inventoryDashboard');
+      handleClose();
+    },
+    onError: (error) => {
+      enqueueSnackbar(`Failed to adjust stock: ${error.response?.data?.detail || error.message}`, { variant: 'error' });
+    },
+  });
+
+  const handleChange = (field) => (event) => {
+    setFormData({ ...formData, [field]: event.target.value });
+    if (errors[field]) setErrors({ ...errors, [field]: null });
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!formData.item_master_id) newErrors.item_master_id = 'Item is required';
+    if (!formData.quantity_change || Number(formData.quantity_change) === 0) newErrors.quantity_change = 'Quantity must be non-zero';
+    if (!formData.reason.trim()) newErrors.reason = 'Reason is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (!validate()) return;
+    const submitData = {
+      item_master_id: Number(formData.item_master_id),
+      adjustment_type: formData.adjustment_type,
+      quantity_change: Number(formData.quantity_change),
+      reason: formData.reason.trim(),
+    };
+    if (formData.notes) submitData.notes = formData.notes;
+    adjustStockMutation.mutate(submitData);
+  };
+
+  const handleClose = () => {
+    setFormData({ item_master_id: '', adjustment_type: 'increase', quantity_change: '', reason: '', notes: '' });
+    setErrors({});
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Create Stock Adjustment</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <FormControl fullWidth required error={!!errors.item_master_id}>
+            <InputLabel>Item</InputLabel>
+            <Select value={formData.item_master_id} onChange={handleChange('item_master_id')} label="Item">
+              {itemsData?.items?.map((item) => (
+                <MenuItem key={item.id} value={item.id}>{item.item_name} (Current: {Number(item.current_qty).toFixed(2)} {item.unit})</MenuItem>
+              ))}
+            </Select>
+            {errors.item_master_id && <FormHelperText>{errors.item_master_id}</FormHelperText>}
+          </FormControl>
+
+          <FormControl fullWidth required>
+            <InputLabel>Adjustment Type</InputLabel>
+            <Select value={formData.adjustment_type} onChange={handleChange('adjustment_type')} label="Adjustment Type">
+              <MenuItem value="increase">Increase (Add to stock)</MenuItem>
+              <MenuItem value="decrease">Decrease (Remove from stock)</MenuItem>
+              <MenuItem value="recount">Recount (Set exact quantity)</MenuItem>
+            </Select>
+            <FormHelperText>
+              {formData.adjustment_type === 'recount' ? 'Enter the actual counted quantity' : 'Enter the change amount'}
+            </FormHelperText>
+          </FormControl>
+
+          <TextField
+            label={formData.adjustment_type === 'recount' ? 'Actual Quantity' : 'Quantity Change'}
+            required
+            type="number"
+            fullWidth
+            value={formData.quantity_change}
+            onChange={handleChange('quantity_change')}
+            error={!!errors.quantity_change}
+            helperText={errors.quantity_change}
+            inputProps={{ step: 0.01 }}
+          />
+
+          <TextField
+            label="Reason"
+            required
+            fullWidth
+            value={formData.reason}
+            onChange={handleChange('reason')}
+            error={!!errors.reason}
+            helperText={errors.reason || 'Why is this adjustment needed?'}
+            placeholder="e.g., Damage, Loss, Physical count correction"
+          />
+
+          <TextField
+            label="Notes"
+            fullWidth
+            multiline
+            rows={2}
+            value={formData.notes}
+            onChange={handleChange('notes')}
+            placeholder="Additional details..."
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={adjustStockMutation.isLoading}>Cancel</Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={adjustStockMutation.isLoading}
+          startIcon={adjustStockMutation.isLoading ? <CircularProgress size={20} /> : <EditIcon />}
+        >
+          Record Adjustment
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // Stock Adjustments Page
 function StockAdjustmentsPage() {
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const { data, isLoading, error } = useQuery('stockAdjustments', () => inventoryAPI.getStockAdjustments({ days_back: 30 }));
+
   return (
     <Box>
-      <Typography variant="h5" fontWeight="bold" gutterBottom>
-        Stock Adjustments
-      </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-        Record inventory adjustments and corrections
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h5" fontWeight="bold">
+            Stock Adjustments
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Record inventory adjustments and corrections
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreateDialog(true)}>
+          New Adjustment
+        </Button>
+      </Box>
 
-      <Card>
-        <CardContent>
-          <Alert severity="info">
-            <Typography variant="body2" gutterBottom>
-              <strong>Stock Adjustments Feature</strong>
-            </Typography>
-            <Typography variant="body2">
-              This page will allow you to:
-            </Typography>
-            <ul>
-              <li>Record manual stock adjustments (damage, loss, found items)</li>
-              <li>Select adjustment type (addition, subtraction, count correction)</li>
-              <li>Add notes and reasons for adjustments</li>
-              <li>View adjustment history with audit trail</li>
-            </ul>
-          </Alert>
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error">Failed to load adjustments: {error.message}</Alert>
+      ) : (
+        <Card>
+          <CardContent>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Item</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell align="right">Change</TableCell>
+                    <TableCell align="right">Previous</TableCell>
+                    <TableCell align="right">New</TableCell>
+                    <TableCell>Reason</TableCell>
+                    <TableCell>Adjusted By</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data?.adjustments?.map((adj) => (
+                    <TableRow key={adj.id}>
+                      <TableCell>{new Date(adj.adjustment_date).toLocaleString()}</TableCell>
+                      <TableCell>{adj.item_name}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={adj.adjustment_type}
+                          color={adj.adjustment_type === 'increase' ? 'success' : adj.adjustment_type === 'decrease' ? 'error' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography color={Number(adj.quantity_change) > 0 ? 'success.main' : 'error.main'} fontWeight="bold">
+                          {Number(adj.quantity_change) > 0 ? '+' : ''}{Number(adj.quantity_change).toFixed(2)} {adj.unit}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">{Number(adj.previous_qty).toFixed(2)}</TableCell>
+                      <TableCell align="right">{Number(adj.new_qty).toFixed(2)}</TableCell>
+                      <TableCell>{adj.reason}</TableCell>
+                      <TableCell>{adj.adjusted_by_name || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {data?.adjustments?.length === 0 && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                No adjustments recorded in the last 30 days
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <CreateAdjustmentDialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} />
     </Box>
   );
 }
 
 // Transaction History Page
 function TransactionHistoryPage() {
+  const [filters, setFilters] = useState({
+    item_id: '',
+    transaction_type: '',
+    days_back: 7,
+  });
+  const { data, isLoading, error } = useQuery(
+    ['transactions', filters],
+    () => inventoryAPI.getTransactions({ ...filters, limit: 100 }),
+    { keepPreviousData: true }
+  );
+  const { data: itemsData } = useQuery('inventoryItems', () => inventoryAPI.getItems());
+
+  const handleFilterChange = (field) => (event) => {
+    setFilters({ ...filters, [field]: event.target.value });
+  };
+
   return (
     <Box>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
@@ -1043,26 +1501,113 @@ function TransactionHistoryPage() {
         Complete audit trail of all inventory movements
       </Typography>
 
-      <Card>
+      <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Alert severity="info">
-            <Typography variant="body2" gutterBottom>
-              <strong>Transaction History Feature</strong>
-            </Typography>
-            <Typography variant="body2">
-              This page will show:
-            </Typography>
-            <ul>
-              <li>All stock additions (purchases, adjustments)</li>
-              <li>All stock deductions (usage, waste, sales)</li>
-              <li>Transaction date, time, and user</li>
-              <li>Before/after quantities</li>
-              <li>Transaction notes and reasons</li>
-              <li>Filters by date range, item, transaction type</li>
-            </ul>
-          </Alert>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Item</InputLabel>
+                <Select value={filters.item_id} onChange={handleFilterChange('item_id')} label="Item">
+                  <MenuItem value="">All Items</MenuItem>
+                  {itemsData?.items?.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>{item.item_name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Transaction Type</InputLabel>
+                <Select value={filters.transaction_type} onChange={handleFilterChange('transaction_type')} label="Transaction Type">
+                  <MenuItem value="">All Types</MenuItem>
+                  <MenuItem value="add">Add Stock</MenuItem>
+                  <MenuItem value="use">Use Stock</MenuItem>
+                  <MenuItem value="adjustment">Adjustment</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Time Period</InputLabel>
+                <Select value={filters.days_back} onChange={handleFilterChange('days_back')} label="Time Period">
+                  <MenuItem value={7}>Last 7 days</MenuItem>
+                  <MenuItem value={30}>Last 30 days</MenuItem>
+                  <MenuItem value={90}>Last 90 days</MenuItem>
+                  <MenuItem value={365}>Last year</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
+
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error">Failed to load transactions: {error.message}</Alert>
+      ) : (
+        <Card>
+          <CardContent>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Date/Time</TableCell>
+                    <TableCell>Item</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell align="right">Change</TableCell>
+                    <TableCell align="right">New Balance</TableCell>
+                    <TableCell align="right">Cost</TableCell>
+                    <TableCell>User</TableCell>
+                    <TableCell>Notes</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data?.transactions?.map((txn) => {
+                    const isPositive = Number(txn.quantity_change) > 0;
+                    return (
+                      <TableRow key={txn.id}>
+                        <TableCell>{new Date(txn.transaction_date).toLocaleString()}</TableCell>
+                        <TableCell>{txn.item_name}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={txn.transaction_type}
+                            color={txn.transaction_type === 'add' ? 'success' : txn.transaction_type === 'use' ? 'error' : 'default'}
+                            size="small"
+                            icon={isPositive ? <TrendingUpIcon /> : <TrendingDownIcon />}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography color={isPositive ? 'success.main' : 'error.main'} fontWeight="bold">
+                            {isPositive ? '+' : ''}{Number(txn.quantity_change).toFixed(2)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">{Number(txn.new_balance).toFixed(2)}</TableCell>
+                        <TableCell align="right">
+                          {txn.total_cost ? formatCurrency(txn.total_cost) : '-'}
+                        </TableCell>
+                        <TableCell>{txn.username || '-'}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                            {txn.notes || '-'}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {data?.transactions?.length === 0 && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                No transactions found for the selected filters
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 }
