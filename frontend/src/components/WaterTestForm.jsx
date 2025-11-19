@@ -1,11 +1,17 @@
 /**
  * ============================================================================
- * Biofloc Operational Forms - Water Quality Test
+ * Biofloc Operational Forms - Multi-Tank Water Quality Test
  * ============================================================================
- * Version: 1.0.0
- * Last Updated: 2025-11-18
+ * Version: 2.0.0
+ * Last Updated: 2025-11-19
  *
  * Form for recording water quality test parameters.
+ * Supports multiple tanks in one test session.
+ *
+ * CHANGES in v2.0.0:
+ * - Added multi-tank support: record water tests for multiple tanks at once
+ * - Test date and time shared across all tanks
+ * - Each tank has individual parameter readings
  * ============================================================================
  */
 
@@ -23,31 +29,53 @@ import {
   Autocomplete,
   CircularProgress,
   Divider,
+  Paper,
+  IconButton,
+  Chip,
 } from '@mui/material';
-import { Save as SaveIcon, Opacity as WaterIcon } from '@mui/icons-material';
+import {
+  Save as SaveIcon,
+  Opacity as WaterIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material';
 
 import { bioflocAPI } from '../api';
 
 export default function WaterTestForm({ onSuccess }) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    tank_id: null,
+
+  // Session-level data (shared)
+  const [sessionData, setSessionData] = useState({
     test_date: new Date().toISOString().split('T')[0],
     test_time: new Date().toTimeString().slice(0, 5),
-    temperature_c: '',
-    ph: '',
-    dissolved_oxygen_mgl: '',
-    salinity_ppt: '',
-    ammonia_nh3_mgl: '',
-    nitrite_no2_mgl: '',
-    nitrate_no3_mgl: '',
-    alkalinity_mgl: '',
-    hardness_mgl: '',
-    turbidity_ntu: '',
-    tds_mgl: '',
-    floc_volume_mll: '',
-    notes: '',
   });
+
+  // Tank test entries (array of tanks being tested)
+  const [tankEntries, setTankEntries] = useState([
+    {
+      tank_id: null,
+      tank_obj: null,
+      parameters: {
+        temperature_c: '',
+        ph: '',
+        dissolved_oxygen_mgl: '',
+        salinity_ppt: '',
+        ammonia_nh3_mgl: '',
+        nitrite_no2_mgl: '',
+        nitrate_no3_mgl: '',
+        alkalinity_mgl: '',
+        hardness_mgl: '',
+        turbidity_ntu: '',
+        tds_mgl: '',
+        floc_volume_mll: '',
+        notes: '',
+      }
+    }
+  ]);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitResults, setSubmitResults] = useState({ success: [], errors: [] });
 
   // Fetch tanks
   const { data: tanksData, isLoading: tanksLoading } = useQuery(
@@ -55,19 +83,21 @@ export default function WaterTestForm({ onSuccess }) {
     () => bioflocAPI.getTanks({ limit: 100 })
   );
 
-  // Submit mutation
-  const mutation = useMutation(
-    (data) => bioflocAPI.recordWaterTest(data),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('bioflocWaterTests');
-        queryClient.invalidateQueries('bioflocDashboard');
-        if (onSuccess) onSuccess();
-        // Reset form
-        setFormData({
-          tank_id: null,
-          test_date: new Date().toISOString().split('T')[0],
-          test_time: new Date().toTimeString().slice(0, 5),
+  const tanks = tanksData?.tanks || [];
+
+  // Session-level handlers
+  const handleSessionChange = (field) => (event) => {
+    setSessionData({ ...sessionData, [field]: event.target.value });
+  };
+
+  // Tank entry handlers
+  const addTankEntry = () => {
+    setTankEntries([
+      ...tankEntries,
+      {
+        tank_id: null,
+        tank_obj: null,
+        parameters: {
           temperature_c: '',
           ph: '',
           dissolved_oxygen_mgl: '',
@@ -81,51 +111,119 @@ export default function WaterTestForm({ onSuccess }) {
           tds_mgl: '',
           floc_volume_mll: '',
           notes: '',
+        }
+      }
+    ]);
+  };
+
+  const removeTankEntry = (index) => {
+    if (tankEntries.length > 1) {
+      setTankEntries(tankEntries.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleTankChange = (index, value) => {
+    const newEntries = [...tankEntries];
+    newEntries[index].tank_id = value?.id || null;
+    newEntries[index].tank_obj = value;
+    setTankEntries(newEntries);
+  };
+
+  const handleParameterChange = (tankIndex, field, value) => {
+    const newEntries = [...tankEntries];
+    newEntries[tankIndex].parameters[field] = value;
+    setTankEntries(newEntries);
+  };
+
+  // Submit handler
+  const handleSubmit = async () => {
+    setSubmitResults({ success: [], errors: [] });
+    setIsSubmitting(true);
+
+    const successfulSubmissions = [];
+    const failedSubmissions = [];
+
+    try {
+      // Submit each tank's water test
+      for (let i = 0; i < tankEntries.length; i++) {
+        const entry = tankEntries[i];
+
+        if (!entry.tank_id) {
+          failedSubmissions.push({
+            tank: `Tank ${i + 1}`,
+            error: 'No tank selected'
+          });
+          continue;
+        }
+
+        // Build payload (only include non-empty parameters)
+        const payload = {
+          tank_id: entry.tank_id,
+          test_date: sessionData.test_date,
+          test_time: sessionData.test_time,
+        };
+
+        // Add parameters if provided
+        Object.keys(entry.parameters).forEach(key => {
+          if (entry.parameters[key] !== '') {
+            payload[key] = key === 'notes' ? entry.parameters[key] : parseFloat(entry.parameters[key]);
+          }
         });
-      },
+
+        try {
+          await bioflocAPI.recordWaterTest(payload);
+          successfulSubmissions.push(entry.tank_obj?.tank_code || `Tank ${i + 1}`);
+        } catch (error) {
+          failedSubmissions.push({
+            tank: entry.tank_obj?.tank_code || `Tank ${i + 1}`,
+            error: error.response?.data?.detail || error.message
+          });
+        }
+      }
+
+      // Update results
+      setSubmitResults({
+        success: successfulSubmissions,
+        errors: failedSubmissions
+      });
+
+      // If all succeeded, reset form
+      if (failedSubmissions.length === 0) {
+        queryClient.invalidateQueries('bioflocWaterTests');
+        queryClient.invalidateQueries('bioflocDashboard');
+        if (onSuccess) onSuccess();
+
+        // Reset form
+        setSessionData({
+          test_date: new Date().toISOString().split('T')[0],
+          test_time: new Date().toTimeString().slice(0, 5),
+        });
+        setTankEntries([
+          {
+            tank_id: null,
+            tank_obj: null,
+            parameters: {
+              temperature_c: '',
+              ph: '',
+              dissolved_oxygen_mgl: '',
+              salinity_ppt: '',
+              ammonia_nh3_mgl: '',
+              nitrite_no2_mgl: '',
+              nitrate_no3_mgl: '',
+              alkalinity_mgl: '',
+              hardness_mgl: '',
+              turbidity_ntu: '',
+              tds_mgl: '',
+              floc_volume_mll: '',
+              notes: '',
+            }
+          }
+        ]);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-  );
-
-  const handleChange = (field) => (event) => {
-    setFormData({ ...formData, [field]: event.target.value });
   };
-
-  const handleTankChange = (event, value) => {
-    setFormData({ ...formData, tank_id: value?.id || null });
-  };
-
-  const handleSubmit = () => {
-    if (!formData.tank_id) {
-      alert('Please select a tank');
-      return;
-    }
-
-    // Build payload with only non-empty values
-    const payload = {
-      tank_id: formData.tank_id,
-      test_date: formData.test_date,
-      test_time: formData.test_time || undefined,
-    };
-
-    // Add optional parameters
-    if (formData.temperature_c) payload.temperature_c = parseFloat(formData.temperature_c);
-    if (formData.ph) payload.ph = parseFloat(formData.ph);
-    if (formData.dissolved_oxygen_mgl) payload.dissolved_oxygen_mgl = parseFloat(formData.dissolved_oxygen_mgl);
-    if (formData.salinity_ppt) payload.salinity_ppt = parseFloat(formData.salinity_ppt);
-    if (formData.ammonia_nh3_mgl) payload.ammonia_nh3_mgl = parseFloat(formData.ammonia_nh3_mgl);
-    if (formData.nitrite_no2_mgl) payload.nitrite_no2_mgl = parseFloat(formData.nitrite_no2_mgl);
-    if (formData.nitrate_no3_mgl) payload.nitrate_no3_mgl = parseFloat(formData.nitrate_no3_mgl);
-    if (formData.alkalinity_mgl) payload.alkalinity_mgl = parseFloat(formData.alkalinity_mgl);
-    if (formData.hardness_mgl) payload.hardness_mgl = parseFloat(formData.hardness_mgl);
-    if (formData.turbidity_ntu) payload.turbidity_ntu = parseFloat(formData.turbidity_ntu);
-    if (formData.tds_mgl) payload.tds_mgl = parseFloat(formData.tds_mgl);
-    if (formData.floc_volume_mll) payload.floc_volume_mll = parseFloat(formData.floc_volume_mll);
-    if (formData.notes) payload.notes = formData.notes;
-
-    mutation.mutate(payload);
-  };
-
-  const tanks = tanksData?.tanks || [];
 
   if (tanksLoading) {
     return (
@@ -136,257 +234,300 @@ export default function WaterTestForm({ onSuccess }) {
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <WaterIcon color="primary" />
-          <Typography variant="h6" fontWeight="bold">
-            Record Water Quality Test
+    <Box>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <WaterIcon color="info" />
+            <Typography variant="h6" fontWeight="bold">
+              Multi-Tank Water Quality Test
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Record water quality parameters for multiple tanks in one test session.
           </Typography>
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Record water quality parameters. All measurements are optional - enter only what you tested.
-        </Typography>
 
-        {mutation.isError && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            Failed to record water test: {mutation.error.message}
-          </Alert>
-        )}
+          {/* Session-level data */}
+          <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'info.50' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Test Session Details (Applied to All Tanks)
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Test Date"
+                  type="date"
+                  value={sessionData.test_date}
+                  onChange={handleSessionChange('test_date')}
+                  required
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Test Time"
+                  type="time"
+                  value={sessionData.test_time}
+                  onChange={handleSessionChange('test_time')}
+                  required
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </Grid>
+          </Paper>
 
-        {mutation.isSuccess && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            Water test recorded successfully!
-          </Alert>
-        )}
+          {/* Results display */}
+          {submitResults.success.length > 0 && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Successfully recorded water tests for: {submitResults.success.join(', ')}
+            </Alert>
+          )}
+          {submitResults.errors.length > 0 && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="bold">Errors:</Typography>
+              {submitResults.errors.map((err, idx) => (
+                <Typography key={idx} variant="body2">
+                  • {err.tank}: {err.error}
+                </Typography>
+              ))}
+            </Alert>
+          )}
 
-        <Grid container spacing={2}>
-          {/* Tank Selection */}
-          <Grid item xs={12}>
-            <Autocomplete
-              options={tanks}
-              getOptionLabel={(option) =>
-                `${option.tank_name} (${option.tank_code})${option.current_batch_code ? ` - Batch: ${option.current_batch_code}` : ''}`
-              }
-              onChange={handleTankChange}
-              renderInput={(params) => (
-                <TextField {...params} label="Select Tank" required />
-              )}
-            />
-          </Grid>
-
-          {/* Date & Time */}
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Test Date"
-              type="date"
-              value={formData.test_date}
-              onChange={handleChange('test_date')}
-              required
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Test Time"
-              type="time"
-              value={formData.test_time}
-              onChange={handleChange('test_time')}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-
-          {/* Core Parameters */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                CORE PARAMETERS
+          {/* Tank entries */}
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Tanks Being Tested ({tankEntries.length})
               </Typography>
-            </Divider>
-          </Grid>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={addTankEntry}
+              >
+                Add Tank
+              </Button>
+            </Box>
 
-          <Grid item xs={12} md={3}>
-            <TextField
-              label="Temperature (°C)"
-              type="number"
-              value={formData.temperature_c}
-              onChange={handleChange('temperature_c')}
-              fullWidth
-              inputProps={{ step: "0.1" }}
-            />
-          </Grid>
+            {tankEntries.map((entry, tankIndex) => (
+              <Paper key={tankIndex} variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold">
+                    Tank #{tankIndex + 1}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => removeTankEntry(tankIndex)}
+                    disabled={tankEntries.length === 1}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
 
-          <Grid item xs={12} md={3}>
-            <TextField
-              label="pH"
-              type="number"
-              value={formData.ph}
-              onChange={handleChange('ph')}
-              fullWidth
-              inputProps={{ step: "0.1", min: 0, max: 14 }}
-            />
-          </Grid>
+                {/* Tank selection */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                  <Grid item xs={12}>
+                    <Autocomplete
+                      options={tanks}
+                      getOptionLabel={(option) =>
+                        `${option.tank_code} - ${option.batch_code || 'No batch'} (${option.status})`
+                      }
+                      value={entry.tank_obj}
+                      onChange={(e, value) => handleTankChange(tankIndex, value)}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Select Tank" required size="small" />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
 
-          <Grid item xs={12} md={3}>
-            <TextField
-              label="Dissolved Oxygen (mg/L)"
-              type="number"
-              value={formData.dissolved_oxygen_mgl}
-              onChange={handleChange('dissolved_oxygen_mgl')}
-              fullWidth
-              inputProps={{ step: "0.1" }}
-            />
-          </Grid>
+                {/* Water quality parameters */}
+                <Divider sx={{ my: 2 }}>
+                  <Chip label="Core Parameters" size="small" />
+                </Divider>
 
-          <Grid item xs={12} md={3}>
-            <TextField
-              label="Salinity (ppt)"
-              type="number"
-              value={formData.salinity_ppt}
-              onChange={handleChange('salinity_ppt')}
-              fullWidth
-              inputProps={{ step: "0.1" }}
-            />
-          </Grid>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Temperature (°C)"
+                      type="number"
+                      value={entry.parameters.temperature_c}
+                      onChange={(e) => handleParameterChange(tankIndex, 'temperature_c', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1" }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="pH"
+                      type="number"
+                      value={entry.parameters.ph}
+                      onChange={(e) => handleParameterChange(tankIndex, 'ph', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1", min: 0, max: 14 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Dissolved Oxygen (mg/L)"
+                      type="number"
+                      value={entry.parameters.dissolved_oxygen_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'dissolved_oxygen_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Salinity (ppt)"
+                      type="number"
+                      value={entry.parameters.salinity_ppt}
+                      onChange={(e) => handleParameterChange(tankIndex, 'salinity_ppt', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1", min: 0 }}
+                    />
+                  </Grid>
+                </Grid>
 
-          {/* Nitrogen Cycle */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                NITROGEN CYCLE
-              </Typography>
-            </Divider>
-          </Grid>
+                <Divider sx={{ my: 2 }}>
+                  <Chip label="Nitrogen Cycle" size="small" />
+                </Divider>
 
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Ammonia NH3 (mg/L)"
-              type="number"
-              value={formData.ammonia_nh3_mgl}
-              onChange={handleChange('ammonia_nh3_mgl')}
-              fullWidth
-              inputProps={{ step: "0.01" }}
-            />
-          </Grid>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Ammonia NH3 (mg/L)"
+                      type="number"
+                      value={entry.parameters.ammonia_nh3_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'ammonia_nh3_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.01", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Nitrite NO2 (mg/L)"
+                      type="number"
+                      value={entry.parameters.nitrite_no2_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'nitrite_no2_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.01", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Nitrate NO3 (mg/L)"
+                      type="number"
+                      value={entry.parameters.nitrate_no3_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'nitrate_no3_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1", min: 0 }}
+                    />
+                  </Grid>
+                </Grid>
 
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Nitrite NO2 (mg/L)"
-              type="number"
-              value={formData.nitrite_no2_mgl}
-              onChange={handleChange('nitrite_no2_mgl')}
-              fullWidth
-              inputProps={{ step: "0.01" }}
-            />
-          </Grid>
+                <Divider sx={{ my: 2 }}>
+                  <Chip label="Other Parameters" size="small" />
+                </Divider>
 
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Nitrate NO3 (mg/L)"
-              type="number"
-              value={formData.nitrate_no3_mgl}
-              onChange={handleChange('nitrate_no3_mgl')}
-              fullWidth
-              inputProps={{ step: "0.01" }}
-            />
-          </Grid>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Alkalinity (mg/L)"
+                      type="number"
+                      value={entry.parameters.alkalinity_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'alkalinity_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "1", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Hardness (mg/L)"
+                      type="number"
+                      value={entry.parameters.hardness_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'hardness_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "1", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Turbidity (NTU)"
+                      type="number"
+                      value={entry.parameters.turbidity_ntu}
+                      onChange={(e) => handleParameterChange(tankIndex, 'turbidity_ntu', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="TDS (mg/L)"
+                      type="number"
+                      value={entry.parameters.tds_mgl}
+                      onChange={(e) => handleParameterChange(tankIndex, 'tds_mgl', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "1", min: 0 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Floc Volume (ml/L)"
+                      type="number"
+                      value={entry.parameters.floc_volume_mll}
+                      onChange={(e) => handleParameterChange(tankIndex, 'floc_volume_mll', e.target.value)}
+                      fullWidth
+                      size="small"
+                      inputProps={{ step: "0.1", min: 0 }}
+                      helperText="Biofloc specific"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Notes"
+                      value={entry.parameters.notes}
+                      onChange={(e) => handleParameterChange(tankIndex, 'notes', e.target.value)}
+                      fullWidth
+                      size="small"
+                      placeholder="Tank-specific notes"
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            ))}
+          </Box>
 
-          {/* Other Parameters */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                OTHER PARAMETERS
-              </Typography>
-            </Divider>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Alkalinity (mg/L)"
-              type="number"
-              value={formData.alkalinity_mgl}
-              onChange={handleChange('alkalinity_mgl')}
-              fullWidth
-              inputProps={{ step: "1" }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Hardness (mg/L)"
-              type="number"
-              value={formData.hardness_mgl}
-              onChange={handleChange('hardness_mgl')}
-              fullWidth
-              inputProps={{ step: "1" }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField
-              label="Turbidity (NTU)"
-              type="number"
-              value={formData.turbidity_ntu}
-              onChange={handleChange('turbidity_ntu')}
-              fullWidth
-              inputProps={{ step: "0.1" }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="TDS - Total Dissolved Solids (mg/L)"
-              type="number"
-              value={formData.tds_mgl}
-              onChange={handleChange('tds_mgl')}
-              fullWidth
-              inputProps={{ step: "1" }}
-            />
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Floc Volume (ml/L)"
-              type="number"
-              value={formData.floc_volume_mll}
-              onChange={handleChange('floc_volume_mll')}
-              fullWidth
-              inputProps={{ step: "0.1" }}
-              helperText="Imhoff cone measurement"
-            />
-          </Grid>
-
-          {/* Notes */}
-          <Grid item xs={12}>
-            <TextField
-              label="Notes"
-              value={formData.notes}
-              onChange={handleChange('notes')}
-              multiline
-              rows={2}
-              fullWidth
-              placeholder="Any observations or remarks"
-            />
-          </Grid>
-
-          {/* Submit Button */}
-          <Grid item xs={12}>
-            <Button
-              variant="contained"
-              fullWidth
-              size="large"
-              startIcon={<SaveIcon />}
-              onClick={handleSubmit}
-              disabled={mutation.isLoading}
-            >
-              {mutation.isLoading ? 'Recording...' : 'Record Water Test'}
-            </Button>
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
+          {/* Submit button */}
+          <Button
+            variant="contained"
+            color="info"
+            fullWidth
+            size="large"
+            startIcon={<SaveIcon />}
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Recording Tests...' : `Record Water Tests for ${tankEntries.length} Tank(s)`}
+          </Button>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
