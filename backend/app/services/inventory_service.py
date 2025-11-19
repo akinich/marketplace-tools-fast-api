@@ -799,7 +799,7 @@ async def get_purchase_orders_list(
             po.status,
             po.total_cost,
             COUNT(poi.id) as items_count,
-            po.created_by,
+            po.created_by::text as created_by,
             up.full_name as created_by_name,
             po.created_at
         FROM purchase_orders po
@@ -1197,7 +1197,23 @@ async def get_transactions_list(
     offset = (page - 1) * limit
     transactions_query = f"""
         SELECT
-            it.*,
+            it.id,
+            it.item_master_id,
+            it.batch_id,
+            it.transaction_type,
+            it.quantity_change,
+            it.new_balance,
+            it.unit_cost,
+            it.total_cost,
+            it.po_number,
+            it.module_reference,
+            it.tank_id,
+            it.user_id::text as user_id,
+            it.username,
+            it.notes,
+            it.transaction_date,
+            COALESCE(it.module_batch_id::text, NULL) as module_batch_id,
+            it.session_number,
             im.item_name,
             ib.batch_number
         FROM inventory_transactions it
