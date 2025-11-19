@@ -96,9 +96,17 @@ export default function TankInputsForm({ onSuccess }) {
   );
 
   // Fetch inventory items for autocomplete (optional SKU)
+  // Make this optional - if inventory module not available, just skip
   const { data: inventoryData } = useQuery(
     'inventoryItemsAll',
-    () => inventoryAPI.getItems({ is_active: true, limit: 200 })
+    () => inventoryAPI.getItems({ is_active: true, limit: 200 }),
+    {
+      retry: false,
+      onError: (error) => {
+        // Silently fail - inventory integration is optional
+        console.log('Inventory integration not available, SKU autocomplete disabled');
+      }
+    }
   );
 
   const tanks = tanksData?.tanks || [];

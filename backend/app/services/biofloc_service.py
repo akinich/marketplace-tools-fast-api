@@ -297,7 +297,8 @@ async def get_batches_list(
         SELECT
             b.*,
             t.id as current_tank_id,
-            t.tank_name as current_tank_name
+            t.tank_name as current_tank_name,
+            t.tank_code as current_tank_code
         FROM biofloc_batches b
         LEFT JOIN biofloc_batch_tank_assignments a ON a.batch_id = b.id AND a.end_date IS NULL
         LEFT JOIN biofloc_tanks t ON t.id = a.tank_id
@@ -318,7 +319,8 @@ async def get_batch(batch_id: UUID) -> Dict:
         SELECT
             b.*,
             t.id as current_tank_id,
-            t.tank_name as current_tank_name
+            t.tank_name as current_tank_name,
+            t.tank_code as current_tank_code
         FROM biofloc_batches b
         LEFT JOIN biofloc_batch_tank_assignments a ON a.batch_id = b.id AND a.end_date IS NULL
         LEFT JOIN biofloc_tanks t ON t.id = a.tank_id

@@ -76,10 +76,17 @@ export default function FeedingForm({ onSuccess }) {
     () => bioflocAPI.getTanks({ status: 'in_use' })
   );
 
-  // Fetch inventory items (Fish Feed category)
+  // Fetch inventory items (Fish Feed category) - optional integration
   const { data: inventoryData, isLoading: inventoryLoading } = useQuery(
     'inventoryFeedItems',
-    () => inventoryAPI.getItems({ category: 'Fish Feed', is_active: true })
+    () => inventoryAPI.getItems({ category: 'Fish Feed', is_active: true }),
+    {
+      retry: false,
+      onError: (error) => {
+        // Silently fail - inventory integration is optional
+        console.log('Inventory integration not available, feed item autocomplete disabled');
+      }
+    }
   );
 
   const tanks = tanksData?.tanks || [];
