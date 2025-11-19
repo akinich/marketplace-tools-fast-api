@@ -28,13 +28,12 @@ IMPORTANT: Run this in your Supabase Dashboard > SQL Editor
 
 -- Update all users in auth.users to have confirmed emails
 -- This is safe to run multiple times (idempotent)
+-- Note: confirmed_at is a generated column and will be set automatically
 UPDATE auth.users
 SET
-    email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
-    confirmed_at = COALESCE(confirmed_at, NOW())
+    email_confirmed_at = COALESCE(email_confirmed_at, NOW())
 WHERE
-    email_confirmed_at IS NULL
-    OR confirmed_at IS NULL;
+    email_confirmed_at IS NULL;
 
 -- Verify the update
 SELECT
