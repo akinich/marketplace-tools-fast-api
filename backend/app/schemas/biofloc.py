@@ -2,13 +2,22 @@
 ================================================================================
 Farm Management System - Biofloc Module Schemas
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 1.1.0
+Last Updated: 2025-11-19
 
 Description:
     Pydantic schemas for the biofloc aquaculture management module.
     Covers tanks, batches, feeding, sampling, mortality, water tests,
-    harvests, and reporting.
+    harvests, tank inputs, grading, and reporting.
+
+CHANGELOG:
+v1.1.0 (2025-11-19):
+- Added grading schemas: GradingRequest, GradingResponse, SizeGroupCreate,
+  BatchGradingResult
+- Support for batch splitting with proportional cost allocation
+
+v1.0.0 (2025-11-18):
+- Initial release with core biofloc schemas
 
 ================================================================================
 """

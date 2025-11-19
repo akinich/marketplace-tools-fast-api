@@ -2,13 +2,23 @@
 ================================================================================
 Farm Management System - Biofloc Service Layer
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 1.1.0
+Last Updated: 2025-11-19
 
 Description:
     Business logic for biofloc aquaculture management module.
     Handles tanks, batches, feeding, sampling, mortality, water tests,
-    harvests, and reporting.
+    harvests, tank inputs, grading, and reporting.
+
+CHANGELOG:
+v1.1.0 (2025-11-19):
+- Added record_grading() for batch grading with size splitting (Option B)
+- Implements proportional feed cost allocation based on biomass
+- Creates child batches with inherited historical data
+- Full parent-child batch relationship tracking
+
+v1.0.0 (2025-11-18):
+- Initial release with core biofloc service logic
 
 ================================================================================
 """

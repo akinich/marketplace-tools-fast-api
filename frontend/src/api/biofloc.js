@@ -2,12 +2,21 @@
  * ============================================================================
  * Biofloc Module - API Client
  * ============================================================================
- * Version: 1.0.0
- * Last Updated: 2025-11-18
+ * Version: 1.1.0
+ * Last Updated: 2025-11-19
  *
  * API client for biofloc aquaculture management module.
  * Provides methods for tanks, batches, feeding, sampling, mortality,
- * water tests, harvests, and reporting.
+ * water tests, harvests, tank inputs, and grading.
+ *
+ * CHANGELOG:
+ * v1.1.0 (2025-11-19):
+ * - Added recordGrading() for batch grading with size splitting
+ * - Updated transferBatch() to support new payload format
+ * - Added support for grading transfers (Option B)
+ *
+ * v1.0.0 (2025-11-18):
+ * - Initial release with core biofloc operations
  * ============================================================================
  */
 

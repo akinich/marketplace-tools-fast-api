@@ -2,12 +2,20 @@
 ================================================================================
 Farm Management System - Biofloc Module Routes
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 1.1.0
+Last Updated: 2025-11-19
 
 Description:
     REST API endpoints for biofloc aquaculture management module.
     All endpoints require biofloc module access.
+
+CHANGELOG:
+v1.1.0 (2025-11-19):
+- Added POST /batches/grading endpoint for batch grading with size splitting
+- Supports Option B grading with historical data inheritance
+
+v1.0.0 (2025-11-18):
+- Initial release with core biofloc endpoints
 
 ================================================================================
 """
