@@ -430,6 +430,7 @@ async def get_expiry_alerts(
 )
 async def get_transactions(
     item_id: Optional[int] = Query(None, description="Filter by item ID"),
+    transaction_type: Optional[str] = Query(None, description="Filter by transaction type"),
     days_back: int = Query(30, ge=1, le=365, description="Days back to fetch"),
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=500),
@@ -437,7 +438,7 @@ async def get_transactions(
 ):
     """Get transaction history"""
     result = await inventory_service.get_transactions_list(
-        item_id=item_id, days_back=days_back, page=page, limit=limit
+        item_id=item_id, transaction_type=transaction_type, days_back=days_back, page=page, limit=limit
     )
     return result
 
