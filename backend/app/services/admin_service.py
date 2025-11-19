@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Admin Service Layer
 ================================================================================
-Version: 1.5.0
-Last Updated: 2025-11-17
+Version: 1.6.0
+Last Updated: 2025-11-19
 
 Changelog:
 ----------
+v1.6.0 (2025-11-19):
+  - CRITICAL FIX: User creation now uses Supabase Admin API
+  - Ensures emails are marked as confirmed for password reset functionality
+  - Fixes issue where new users couldn't receive password reset emails
+  - Previous version directly inserted into auth.users without email confirmation
+
 v1.5.0 (2025-11-17):
   - Added cascading disable for parent modules
   - When parent module disabled, all sub-modules automatically disabled
@@ -177,7 +183,6 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
         # Generate temporary password
         temp_password = generate_temporary_password()
         password_hash_value = hash_password(temp_password)
-        user_id = str(uuid.uuid4())
 
         # Check if email already exists
         existing_user = await fetch_one(
@@ -201,12 +206,22 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
                 detail=f"Role ID {request.role_id} does not exist"
             )
 
-        # Insert into auth.users
-        await execute_query(
-            "INSERT INTO auth.users (id, email) VALUES ($1, $2)",
-            user_id,
-            request.email
-        )
+        # Use Supabase Admin API to create user with confirmed email
+        # This ensures password reset emails will be sent properly
+        from app.utils.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+
+        # Create user via Supabase Admin API
+        user_response = supabase.auth.admin.create_user({
+            "email": request.email,
+            "password": temp_password,
+            "email_confirm": True,  # Mark email as confirmed
+            "user_metadata": {
+                "full_name": request.full_name
+            }
+        })
+
+        user_id = user_response.user.id
 
         # Create user profile with password_hash
         await execute_query(
