@@ -2,13 +2,22 @@
 ================================================================================
 Farm Management System - Biofloc Module Schemas
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 1.1.0
+Last Updated: 2025-11-19
 
 Description:
     Pydantic schemas for the biofloc aquaculture management module.
     Covers tanks, batches, feeding, sampling, mortality, water tests,
-    harvests, and reporting.
+    harvests, tank inputs, grading, and reporting.
+
+CHANGELOG:
+v1.1.0 (2025-11-19):
+- Added grading schemas: GradingRequest, GradingResponse, SizeGroupCreate,
+  BatchGradingResult
+- Support for batch splitting with proportional cost allocation
+
+v1.0.0 (2025-11-18):
+- Initial release with core biofloc schemas
 
 ================================================================================
 """
@@ -436,6 +445,50 @@ class HarvestListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+# ============================================================================
+# GRADING & BATCH SPLITTING SCHEMAS
+# ============================================================================
+
+class SizeGroupCreate(BaseModel):
+    """Represents one size group in a grading operation"""
+    size_label: str = Field(..., min_length=1, max_length=10)  # A, B, C, etc.
+    fish_count: int = Field(..., gt=0)
+    avg_weight_g: Decimal = Field(..., gt=0)
+    destination_tank_id: UUID
+
+class GradingRequest(BaseModel):
+    """Request to grade a batch and split into size groups (Option B with historical data)"""
+    source_batch_id: UUID
+    source_tank_id: UUID
+    grading_date: date
+    size_groups: List[SizeGroupCreate] = Field(..., min_items=2, max_items=3)
+    notes: Optional[str] = None
+
+class BatchGradingResult(BaseModel):
+    """Result of creating one child batch from grading"""
+    batch_id: UUID
+    batch_code: str
+    size_label: str
+    fish_count: int
+    avg_weight_g: Decimal
+    destination_tank_id: UUID
+    destination_tank_code: str
+
+class GradingResponse(BaseModel):
+    """Response after grading operation"""
+    id: UUID
+    source_batch_id: UUID
+    source_batch_code: str
+    grading_date: date
+    total_fish_graded: int
+    size_groups_created: int
+    child_batches: List[BatchGradingResult]
+    notes: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 # ============================================================================
 # CYCLE COSTS SCHEMAS

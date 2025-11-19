@@ -2,12 +2,20 @@
 ================================================================================
 Farm Management System - Biofloc Module Routes
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 1.1.0
+Last Updated: 2025-11-19
 
 Description:
     REST API endpoints for biofloc aquaculture management module.
     All endpoints require biofloc module access.
+
+CHANGELOG:
+v1.1.0 (2025-11-19):
+- Added POST /batches/grading endpoint for batch grading with size splitting
+- Supports Option B grading with historical data inheritance
+
+v1.0.0 (2025-11-18):
+- Initial release with core biofloc endpoints
 
 ================================================================================
 """
@@ -146,6 +154,19 @@ async def transfer_batch(
         request,
         UUID(current_user.id)
     )
+
+
+@router.post("/batches/grading", response_model=GradingResponse, status_code=status.HTTP_201_CREATED)
+async def record_grading(
+    request: GradingRequest,
+    current_user: CurrentUser = Depends(require_module_access("biofloc"))
+):
+    """
+    Grade a batch and split into size groups (Option B with historical data).
+    Creates child batches (e.g., Batch-001-A, Batch-001-B) and assigns to destination tanks.
+    Inherits proportional feed costs based on biomass at grading.
+    """
+    return await biofloc_service.record_grading(request, UUID(current_user.id))
 
 
 @router.get("/batches/{batch_id}/performance", response_model=BatchPerformanceReport)
