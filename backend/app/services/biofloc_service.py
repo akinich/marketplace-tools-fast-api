@@ -16,6 +16,20 @@ v1.0.0 (2025-11-18):
   - Initial biofloc service implementation
   - Tank, batch, feeding, sampling, mortality, water test operations
   - Inventory integration for feeding sessions
+Description:
+    Business logic for biofloc aquaculture management module.
+    Handles tanks, batches, feeding, sampling, mortality, water tests,
+    harvests, tank inputs, grading, and reporting.
+
+CHANGELOG:
+v1.1.0 (2025-11-19):
+- Added record_grading() for batch grading with size splitting (Option B)
+- Implements proportional feed cost allocation based on biomass
+- Creates child batches with inherited historical data
+- Full parent-child batch relationship tracking
+
+v1.0.0 (2025-11-18):
+- Initial release with core biofloc service logic
 
 ================================================================================
 """
@@ -1534,3 +1548,284 @@ async def get_batch_performance_report(batch_id: UUID) -> Dict:
         "profit_per_kg": float(costs.get("profit_per_kg") or 0),
         "roi_percentage": float(roi_percentage)
     }
+
+
+# ============================================================================
+# GRADING & BATCH SPLITTING
+# ============================================================================
+
+async def record_grading(request: GradingRequest, created_by_id: UUID) -> GradingResponse:
+    """
+    Grade a batch and split into size groups (Option B with historical data).
+
+    Creates child batches (e.g., Batch-001-A, Batch-001-B, Batch-001-C) with:
+    - Proportional feed cost allocation based on biomass
+    - Inherited stocking date from parent
+    - Initial weight set to weight at grading
+    - Parent-child relationship tracking
+    """
+
+    # 1. Fetch source batch with full details
+    source_batch = await fetch_one(
+        """
+        SELECT b.*, t.tank_code as current_tank_code
+        FROM biofloc_batches b
+        LEFT JOIN biofloc_tanks t ON b.current_tank_id = t.id
+        WHERE b.id = $1
+        """,
+        request.source_batch_id
+    )
+
+    if not source_batch:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source batch not found"
+        )
+
+    if source_batch["status"] != "active":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Can only grade active batches. Current status: {source_batch['status']}"
+        )
+
+    # 2. Fetch current cycle costs for proportional allocation
+    cycle_costs = await fetch_one(
+        """
+        SELECT fingerling_cost, feed_cost, chemical_cost, labor_cost,
+               utilities_cost, other_cost, total_cost
+        FROM biofloc_cycle_costs
+        WHERE batch_id = $1
+        """,
+        request.source_batch_id
+    )
+
+    if not cycle_costs:
+        # Initialize if not exists
+        cycle_costs = {
+            "fingerling_cost": Decimal("0"),
+            "feed_cost": Decimal("0"),
+            "chemical_cost": Decimal("0"),
+            "labor_cost": Decimal("0"),
+            "utilities_cost": Decimal("0"),
+            "other_cost": Decimal("0"),
+            "total_cost": Decimal("0")
+        }
+
+    # 3. Validate total fish count matches
+    total_graded = sum(sg.fish_count for sg in request.size_groups)
+    if total_graded != source_batch["current_count"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Total graded fish ({total_graded}) must equal source batch count ({source_batch['current_count']})"
+        )
+
+    # 4. Calculate biomass per size group and total
+    size_group_biomass = []
+    total_biomass_kg = Decimal("0")
+
+    for sg in request.size_groups:
+        biomass_kg = (Decimal(str(sg.fish_count)) * Decimal(str(sg.avg_weight_g))) / Decimal("1000")
+        size_group_biomass.append({
+            "size_label": sg.size_label,
+            "fish_count": sg.fish_count,
+            "avg_weight_g": sg.avg_weight_g,
+            "biomass_kg": biomass_kg,
+            "destination_tank_id": sg.destination_tank_id
+        })
+        total_biomass_kg += biomass_kg
+
+    if total_biomass_kg == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Total biomass cannot be zero"
+        )
+
+    # 5. Calculate cost allocation ratios based on biomass
+    for sg_bio in size_group_biomass:
+        sg_bio["biomass_percentage"] = (sg_bio["biomass_kg"] / total_biomass_kg) * Decimal("100")
+        sg_bio["allocated_fingerling_cost"] = (sg_bio["biomass_kg"] / total_biomass_kg) * cycle_costs["fingerling_cost"]
+        sg_bio["allocated_feed_cost"] = (sg_bio["biomass_kg"] / total_biomass_kg) * cycle_costs["feed_cost"]
+        sg_bio["allocated_chemical_cost"] = (sg_bio["biomass_kg"] / total_biomass_kg) * cycle_costs["chemical_cost"]
+        sg_bio["allocated_labor_cost"] = (sg_bio["biomass_kg"] / total_biomass_kg) * cycle_costs["labor_cost"]
+        sg_bio["allocated_utilities_cost"] = (sg_bio["biomass_kg"] / total_biomass_kg) * cycle_costs["utilities_cost"]
+        sg_bio["allocated_other_cost"] = (sg_bio["biomass_kg"] / total_biomass_kg) * cycle_costs["other_cost"]
+
+    # 6. Verify all destination tanks exist
+    for sg_bio in size_group_biomass:
+        tank = await fetch_one(
+            "SELECT id, tank_code, status FROM biofloc_tanks WHERE id = $1",
+            sg_bio["destination_tank_id"]
+        )
+        if not tank:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Destination tank for size {sg_bio['size_label']} not found"
+            )
+        sg_bio["destination_tank_code"] = tank["tank_code"]
+
+    # 7. Begin transaction to create child batches
+    child_batches = []
+
+    async with DatabaseTransaction() as conn:
+        # Create grading record
+        grading_record_id = await execute_query_tx(
+            """
+            INSERT INTO biofloc_grading_records (
+                source_batch_id, source_batch_code, source_tank_id,
+                grading_date, total_fish_graded, size_groups_count,
+                notes, created_by
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id
+            """,
+            request.source_batch_id,
+            source_batch["batch_code"],
+            request.source_tank_id,
+            request.grading_date,
+            total_graded,
+            len(request.size_groups),
+            request.notes,
+            created_by_id,
+            conn=conn
+        )
+
+        # Create child batch for each size group
+        for sg_bio in size_group_biomass:
+            # Generate child batch code: Batch-001-A, Batch-001-B, etc.
+            child_batch_code = f"{source_batch['batch_code']}-{sg_bio['size_label']}"
+
+            # Create child batch
+            child_batch_id = await execute_query_tx(
+                """
+                INSERT INTO biofloc_batches (
+                    batch_code, species, source, stocking_date,
+                    initial_count, initial_avg_weight_g,
+                    parent_batch_id, parent_batch_code, grading_date,
+                    notes, created_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id
+                """,
+                child_batch_code,
+                source_batch["species"],
+                f"Graded from {source_batch['batch_code']} - Size {sg_bio['size_label']}",
+                source_batch["stocking_date"],  # Inherit original stocking date
+                sg_bio["fish_count"],
+                sg_bio["avg_weight_g"],  # Initial weight = weight at grading
+                request.source_batch_id,
+                source_batch["batch_code"],
+                request.grading_date,
+                f"Size group {sg_bio['size_label']} from grading on {request.grading_date}",
+                created_by_id,
+                conn=conn
+            )
+
+            # Create tank assignment for child batch
+            await execute_query_tx(
+                """
+                INSERT INTO biofloc_batch_tank_assignments (
+                    batch_id, tank_id, start_date, transfer_reason,
+                    fish_count_at_transfer, avg_weight_at_transfer_g,
+                    created_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                """,
+                child_batch_id,
+                sg_bio["destination_tank_id"],
+                request.grading_date,
+                f"graded_size_{sg_bio['size_label']}",
+                sg_bio["fish_count"],
+                sg_bio["avg_weight_g"],
+                created_by_id,
+                conn=conn
+            )
+
+            # Initialize cycle costs with proportional allocation
+            await execute_query_tx(
+                """
+                INSERT INTO biofloc_cycle_costs (
+                    batch_id, fingerling_cost, feed_cost, chemical_cost,
+                    labor_cost, utilities_cost, other_cost
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                """,
+                child_batch_id,
+                sg_bio["allocated_fingerling_cost"],
+                sg_bio["allocated_feed_cost"],
+                sg_bio["allocated_chemical_cost"],
+                sg_bio["allocated_labor_cost"],
+                sg_bio["allocated_utilities_cost"],
+                sg_bio["allocated_other_cost"],
+                conn=conn
+            )
+
+            # Create grading size group record
+            await execute_query_tx(
+                """
+                INSERT INTO biofloc_grading_size_groups (
+                    grading_record_id, size_label, child_batch_id, child_batch_code,
+                    fish_count, avg_weight_g, biomass_kg,
+                    destination_tank_id, destination_tank_code,
+                    allocated_feed_cost, biomass_percentage
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                """,
+                grading_record_id,
+                sg_bio["size_label"],
+                child_batch_id,
+                child_batch_code,
+                sg_bio["fish_count"],
+                sg_bio["avg_weight_g"],
+                sg_bio["biomass_kg"],
+                sg_bio["destination_tank_id"],
+                sg_bio["destination_tank_code"],
+                sg_bio["allocated_feed_cost"],
+                sg_bio["biomass_percentage"],
+                conn=conn
+            )
+
+            child_batches.append({
+                "batch_id": child_batch_id,
+                "batch_code": child_batch_code,
+                "size_label": sg_bio["size_label"],
+                "fish_count": sg_bio["fish_count"],
+                "avg_weight_g": float(sg_bio["avg_weight_g"]),
+                "destination_tank_id": sg_bio["destination_tank_id"],
+                "destination_tank_code": sg_bio["destination_tank_code"]
+            })
+
+        # Mark source batch as graded
+        await execute_query_tx(
+            """
+            UPDATE biofloc_batches
+            SET status = 'graded', updated_at = NOW()
+            WHERE id = $1
+            """,
+            request.source_batch_id,
+            conn=conn
+        )
+
+        # End all active tank assignments for source batch
+        await execute_query_tx(
+            """
+            UPDATE biofloc_batch_tank_assignments
+            SET end_date = $1
+            WHERE batch_id = $2 AND end_date IS NULL
+            """,
+            request.grading_date,
+            request.source_batch_id,
+            conn=conn
+        )
+
+    # 8. Return grading response
+    return GradingResponse(
+        id=grading_record_id,
+        source_batch_id=request.source_batch_id,
+        source_batch_code=source_batch["batch_code"],
+        grading_date=request.grading_date,
+        total_fish_graded=total_graded,
+        size_groups_created=len(request.size_groups),
+        child_batches=child_batches,
+        notes=request.notes,
+        created_at=datetime.now()
+    )
