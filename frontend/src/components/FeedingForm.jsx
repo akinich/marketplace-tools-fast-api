@@ -72,52 +72,14 @@ export default function FeedingForm({ onSuccess }) {
     () => bioflocAPI.getTanks({ status: 'in_use' })
   );
 
-  // Fetch inventory items (feed category)
+  // Fetch inventory items (Fish Feed category)
   const { data: inventoryData, isLoading: inventoryLoading } = useQuery(
     'inventoryFeedItems',
-    () => inventoryAPI.getItems({ category: 'Feed', is_active: true }),
-    {
-      onSuccess: (data) => {
-        console.log('Feed items query result:', data);
-        console.log('Number of feed items found:', data?.items?.length || 0);
-        if (data?.items) {
-          console.log('Feed items:', data.items.map(i => ({
-            name: i.item_name,
-            sku: i.sku,
-            category: i.category,
-            qty: i.current_qty,
-            active: i.is_active
-          })));
-        }
-      },
-      onError: (error) => {
-        console.error('Error fetching feed items:', error);
-      }
-    }
-  );
-
-  // Fallback: fetch ALL items if no feed items found (for debugging/flexibility)
-  const { data: allItemsData } = useQuery(
-    'inventoryAllItems',
-    () => inventoryAPI.getItems({ is_active: true, limit: 100 }),
-    {
-      enabled: (inventoryData?.items?.length || 0) === 0 && !inventoryLoading,
-      onSuccess: (data) => {
-        console.log('Fallback: All inventory items:', data?.items?.length || 0);
-        if (data?.items) {
-          const categories = [...new Set(data.items.map(i => i.category))];
-          console.log('Available categories:', categories);
-        }
-      }
-    }
+    () => inventoryAPI.getItems({ category: 'Fish Feed', is_active: true })
   );
 
   const tanks = tanksData?.tanks || [];
-
-  // Use feed items if available, otherwise use all items as fallback
-  const feedSkus = inventoryData?.items?.length > 0
-    ? inventoryData.items
-    : (allItemsData?.items || []);
+  const feedSkus = inventoryData?.items || [];
 
   // Session-level handlers
   const handleSessionChange = (field) => (event) => {
