@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Admin Panel Routes
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-17
+Version: 1.1.0
+Last Updated: 2025-11-19
 
 Changelog:
 ----------
+v1.1.0 (2025-11-19):
+  - Added hard_delete query parameter to DELETE /users/{user_id} endpoint
+  - Supports both soft delete (default) and hard delete operations
+  - Hard delete permanently removes user from database
+
 v1.0.0 (2025-11-17):
   - Initial admin panel endpoints
   - User management (CRUD)
@@ -91,15 +96,17 @@ async def update_user(
     "/users/{user_id}",
     response_model=DeleteUserResponse,
     summary="Delete User",
-    description="Delete/deactivate user (Admin only)",
+    description="Delete user (soft delete by default, hard delete optional - Admin only)",
 )
 async def delete_user(
     user_id: str,
+    hard_delete: bool = Query(False, description="If true, permanently delete user from database"),
     admin: CurrentUser = Depends(require_admin),
 ):
-    """Delete user (soft delete - deactivate)"""
-    await admin_service.delete_user(user_id, admin.id)
-    return DeleteUserResponse(message="User deleted successfully")
+    """Delete user (soft delete by default - deactivate, or hard delete if specified)"""
+    await admin_service.delete_user(user_id, admin.id, hard_delete=hard_delete)
+    message = "User permanently deleted" if hard_delete else "User deactivated successfully"
+    return DeleteUserResponse(message=message)
 
 
 # ============================================================================
