@@ -169,10 +169,15 @@ export default function DashboardLayout() {
       biofloc_tanks: '/biofloc/tanks',
       biofloc_batches: '/biofloc/batches',
       biofloc_feeding: '/biofloc/feeding',
+      biofloc_feeding_history: '/biofloc/feeding-history',
       biofloc_sampling: '/biofloc/sampling',
       biofloc_mortality: '/biofloc/mortality',
       biofloc_water_tests: '/biofloc/water-tests',
+      biofloc_water_test_history: '/biofloc/water-test-history',
       biofloc_harvests: '/biofloc/harvests',
+      biofloc_transfer: '/biofloc/transfer',
+      biofloc_tank_inputs: '/biofloc/tank-inputs',
+      biofloc_tank_inputs_history: '/biofloc/tank-inputs-history',
     };
 
     if (parentModuleKey === 'admin') {

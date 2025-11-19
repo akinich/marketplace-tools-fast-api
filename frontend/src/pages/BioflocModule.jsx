@@ -36,6 +36,7 @@ import BioflocTanks from './BioflocTanks';
 import BioflocBatches from './BioflocBatches';
 import BioflocFeedingHistory from './BioflocFeedingHistory';
 import BioflocWaterTestHistory from './BioflocWaterTestHistory';
+import BioflocTankInputsHistory from './BioflocTankInputsHistory';
 
 // Import operational forms
 import FeedingForm from '../components/FeedingForm';
@@ -44,6 +45,7 @@ import MortalityForm from '../components/MortalityForm';
 import WaterTestForm from '../components/WaterTestForm';
 import HarvestForm from '../components/HarvestForm';
 import BatchTransferForm from '../components/BatchTransferForm';
+import TankInputsForm from '../components/TankInputsForm';
 
 export default function BioflocModule() {
   return (
@@ -63,6 +65,8 @@ export default function BioflocModule() {
       <Route path="mortality" element={<MortalityForm />} />
       <Route path="water-tests" element={<WaterTestForm />} />
       <Route path="water-test-history" element={<BioflocWaterTestHistory />} />
+      <Route path="tank-inputs" element={<TankInputsForm />} />
+      <Route path="tank-inputs-history" element={<BioflocTankInputsHistory />} />
       <Route path="harvests" element={<HarvestForm />} />
       <Route path="transfer" element={<BatchTransferForm />} />
 
