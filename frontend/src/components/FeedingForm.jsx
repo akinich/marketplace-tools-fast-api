@@ -72,10 +72,10 @@ export default function FeedingForm({ onSuccess }) {
     () => bioflocAPI.getTanks({ status: 'in_use' })
   );
 
-  // Fetch inventory items (feed category)
+  // Fetch inventory items (Fish Feed category)
   const { data: inventoryData, isLoading: inventoryLoading } = useQuery(
     'inventoryFeedItems',
-    () => inventoryAPI.getItems({ category: 'Feed', is_active: true })
+    () => inventoryAPI.getItems({ category: 'Fish Feed', is_active: true })
   );
 
   const tanks = tanksData?.tanks || [];
