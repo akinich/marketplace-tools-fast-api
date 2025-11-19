@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Inventory Module Routes
 ================================================================================
-Version: 1.2.0
-Last Updated: 2025-11-18
+Version: 1.3.0
+Last Updated: 2025-11-19
 
 Changelog:
 ----------
+v1.3.0 (2025-11-19):
+  - Added transaction_type query parameter to GET /transactions endpoint
+  - Allows filtering transaction history by transaction type
+  - Fixes 422 validation error when frontend sends transaction_type
+
 v1.2.0 (2025-11-18):
   - Added batch deduction endpoint (POST /stock/use-batch)
   - Added bulk fetch endpoint (POST /items/bulk-fetch)

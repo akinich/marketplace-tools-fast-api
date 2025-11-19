@@ -2,10 +2,21 @@
  * ============================================================================
  * Biofloc Batches Management Page
  * ============================================================================
- * Version: 1.0.0
- * Last Updated: 2025-11-18
+ * Version: 1.1.0
+ * Last Updated: 2025-11-19
  *
- * Batch management page with lifecycle tracking and performance metrics.
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-19):
+ *   - CRITICAL FIX: Added safeToFixed() helper to prevent .toFixed() crashes
+ *   - Fixed TypeError when backend returns string values instead of numbers
+ *   - Applied safe number formatting to all .toFixed() calls
+ *   - Added Number() conversion in reduce operations for safe accumulation
+ *
+ * v1.0.0 (2025-11-18):
+ *   - Initial batch management page with lifecycle tracking
+ *   - Batch CRUD operations with validation
+ *   - Performance metrics display
  * ============================================================================
  */
 
@@ -353,7 +364,6 @@ const BatchFormDialog = ({ open, onClose, onSave, tanks, isSubmitting, error }) 
 
 // Main Component
 export default function BioflocBatches() {
-  console.log('BioflocBatches - VERSION: v1.1-FIXED-480');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);

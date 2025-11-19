@@ -2,11 +2,20 @@
  * ============================================================================
  * Biofloc Dashboard Page
  * ============================================================================
- * Version: 1.0.0
- * Last Updated: 2025-11-18
+ * Version: 1.1.0
+ * Last Updated: 2025-11-19
  *
- * Main dashboard for biofloc aquaculture management module.
- * Displays key metrics, alerts, and quick access to operations.
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-19):
+ *   - CRITICAL FIX: Added safeToFixed() helper to prevent .toFixed() crashes
+ *   - Fixed TypeError when backend returns string values instead of numbers
+ *   - Applied safe number formatting to biomass and utilization displays
+ *
+ * v1.0.0 (2025-11-18):
+ *   - Initial biofloc dashboard with key metrics
+ *   - Dashboard summary statistics
+ *   - Quick access to operations
  * ============================================================================
  */
 
@@ -91,7 +100,6 @@ const AlertCard = ({ title, count, severity, icon: Icon }) => (
 );
 
 export default function BioflocDashboard() {
-  console.log('BioflocDashboard - VERSION: v1.1-FIXED-175');
   const navigate = useNavigate();
 
   const { data, isLoading, error } = useQuery(

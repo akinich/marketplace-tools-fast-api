@@ -1,11 +1,19 @@
 # ============================================================================
 # Farm Management System - Backend Dependencies
 # ============================================================================
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2025-11-17
 #
 # Changelog:
 # ----------
+# v1.2.0 (2025-11-19):
+#   - CRITICAL: Updated supabase from 2.7.4 to 2.24.0 (latest)
+#   - Fixes deprecated packages: supafunc -> supabase_functions
+#   - Updated pydantic from 2.5.0 to 2.11.7 (required by realtime 2.24.0)
+#   - Updated pydantic-settings from 2.1.0 to 2.6.0
+#   - Updated httpx from 0.27.0 to 0.27.2
+#   - Resolves pip dependency resolution conflicts
+#
 # v1.1.0 (2025-11-18):
 #   - Added APScheduler for background tasks (inventory reservation auto-expiry)
 #
