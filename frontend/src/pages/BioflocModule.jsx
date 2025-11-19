@@ -34,6 +34,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import BioflocDashboard from './BioflocDashboard';
 import BioflocTanks from './BioflocTanks';
 import BioflocBatches from './BioflocBatches';
+import BioflocBatchDetail from './BioflocBatchDetail';
 import BioflocFeedingHistory from './BioflocFeedingHistory';
 import BioflocWaterTestHistory from './BioflocWaterTestHistory';
 import BioflocTankInputsHistory from './BioflocTankInputsHistory';
@@ -56,6 +57,7 @@ export default function BioflocModule() {
       {/* Main pages */}
       <Route path="dashboard" element={<BioflocDashboard />} />
       <Route path="tanks" element={<BioflocTanks />} />
+      <Route path="batches/:batchId" element={<BioflocBatchDetail />} />
       <Route path="batches" element={<BioflocBatches />} />
 
       {/* Operational forms */}
