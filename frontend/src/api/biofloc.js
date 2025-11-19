@@ -65,8 +65,24 @@ export const bioflocAPI = {
     return response.data;
   },
 
-  transferBatch: async (batchId, data) => {
-    const response = await apiClient.post(`/biofloc/batches/${batchId}/transfer`, data);
+  transferBatch: async (data) => {
+    // Support both old format (batchId, data) and new format (just data with batch_id)
+    const batchId = data.batch_id;
+    const payload = {
+      to_tank_id: data.to_tank_id,
+      transfer_date: data.transfer_date,
+      transfer_reason: data.transfer_reason || 'manual',
+      fish_count: data.fish_count,
+      avg_weight_g: data.avg_weight_g,
+      notes: data.notes,
+    };
+    if (data.from_tank_id) payload.from_tank_id = data.from_tank_id;
+    const response = await apiClient.post(`/biofloc/batches/${batchId}/transfer`, payload);
+    return response.data;
+  },
+
+  recordGrading: async (data) => {
+    const response = await apiClient.post('/biofloc/batches/grading', data);
     return response.data;
   },
 

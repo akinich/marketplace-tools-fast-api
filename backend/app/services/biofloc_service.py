@@ -1524,3 +1524,27 @@ async def get_batch_performance_report(batch_id: UUID) -> Dict:
         "profit_per_kg": float(costs.get("profit_per_kg") or 0),
         "roi_percentage": float(roi_percentage)
     }
+
+
+# ============================================================================
+# GRADING & BATCH SPLITTING
+# ============================================================================
+
+async def record_grading(request: GradingRequest, created_by_id: UUID) -> GradingResponse:
+    """
+    Grade a batch and split into size groups (Option B with historical data).
+
+    TODO: Full implementation requires:
+    1. Create grading_records table in database migration
+    2. Implement proportional feed cost allocation based on biomass
+    3. Create child batches with inherited historical data
+    4. Update batch_tank_assignments
+    5. Mark source batch as 'graded' status
+
+    For now, this is a placeholder that raises NotImplementedError.
+    The frontend form is ready and will work once this is implemented.
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="Grading functionality is not yet implemented. Database schema and service logic pending."
+    )

@@ -148,6 +148,19 @@ async def transfer_batch(
     )
 
 
+@router.post("/batches/grading", response_model=GradingResponse, status_code=status.HTTP_201_CREATED)
+async def record_grading(
+    request: GradingRequest,
+    current_user: CurrentUser = Depends(require_module_access("biofloc"))
+):
+    """
+    Grade a batch and split into size groups (Option B with historical data).
+    Creates child batches (e.g., Batch-001-A, Batch-001-B) and assigns to destination tanks.
+    Inherits proportional feed costs based on biomass at grading.
+    """
+    return await biofloc_service.record_grading(request, UUID(current_user.id))
+
+
 @router.get("/batches/{batch_id}/performance", response_model=BatchPerformanceReport)
 async def get_batch_performance(
     batch_id: UUID,
