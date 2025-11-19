@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.5.0
+Version: 1.5.1
 Last Updated: 2025-11-19
 
 Changelog:
 ----------
+v1.5.1 (2025-11-19):
+  - CRITICAL FIX: Convert tank_id string to UUID in batch_deduct_stock INSERT
+  - Fixes "invalid input for query argument $8" asyncpg error
+  - Fixes "Inventory deduction failed" in biofloc feeding module
+
 v1.5.0 (2025-11-19):
   - CRITICAL FIX: Cast UUID fields to text in purchase orders query
   - CRITICAL FIX: Cast UUID fields to text in transactions query
@@ -1476,7 +1481,7 @@ async def batch_deduct_stock(
                             batch_unit_cost,
                             cost_from_batch,
                             request.module_reference.value,
-                            request.tank_id,
+                            UUID(request.tank_id) if request.tank_id else None,  # Convert string to UUID
                             user_id,
                             username,
                             notes,
