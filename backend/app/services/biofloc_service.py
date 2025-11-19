@@ -2,13 +2,20 @@
 ================================================================================
 Farm Management System - Biofloc Service Layer
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 1.1.0
+Last Updated: 2025-11-19
 
-Description:
-    Business logic for biofloc aquaculture management module.
-    Handles tanks, batches, feeding, sampling, mortality, water tests,
-    harvests, and reporting.
+Changelog:
+----------
+v1.1.0 (2025-11-19):
+  - CRITICAL FIX: Added current_batch_count to getTanks query
+  - Fixes feeding form showing "No batch (0 fish)" when batch exists
+  - Tank listings now include batch fish count for proper display
+
+v1.0.0 (2025-11-18):
+  - Initial biofloc service implementation
+  - Tank, batch, feeding, sampling, mortality, water test operations
+  - Inventory integration for feeding sessions
 
 ================================================================================
 """
@@ -69,7 +76,8 @@ async def get_tanks_list(
             t.id, t.tank_name, t.tank_code, t.capacity_liters, t.location,
             t.tank_type, t.status, t.current_batch_id, t.is_active,
             t.created_at, t.updated_at,
-            b.batch_code as current_batch_code
+            b.batch_code as current_batch_code,
+            b.current_count as current_batch_count
         FROM biofloc_tanks t
         LEFT JOIN biofloc_batches b ON b.id = t.current_batch_id
         {where_clause}

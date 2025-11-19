@@ -10,9 +10,11 @@ Changelog:
 v1.5.0 (2025-11-19):
   - CRITICAL FIX: Cast UUID fields to text in purchase orders query
   - CRITICAL FIX: Cast UUID fields to text in transactions query
+  - CRITICAL FIX: batch_deduct_stock now searches by SKU OR item_name
   - Added transaction_type filter parameter to get_transactions_list()
   - Made category filtering case-insensitive in get_items_list()
   - Fixes ResponseValidationError in purchase orders and transactions endpoints
+  - Fixes "Inventory deduction failed" error when items have no SKU
 
 v1.4.0 (2025-11-18):
   - Added batch_deduct_stock() for atomic multi-item deduction
@@ -1343,7 +1345,7 @@ async def batch_deduct_stock(
         try:
             for deduction_item in request.deductions:
                 try:
-                    # Resolve item by ID or SKU
+                    # Resolve item by ID, SKU, or item_name
                     if deduction_item.item_id:
                         item = await fetch_one_tx(
                             "SELECT id, item_name, sku FROM item_master WHERE id = $1 AND is_active = TRUE",
@@ -1351,8 +1353,9 @@ async def batch_deduct_stock(
                             conn=conn,
                         )
                     else:
+                        # Try SKU first, then item_name
                         item = await fetch_one_tx(
-                            "SELECT id, item_name, sku FROM item_master WHERE sku = $1 AND is_active = TRUE",
+                            "SELECT id, item_name, sku FROM item_master WHERE (sku = $1 OR item_name = $1) AND is_active = TRUE",
                             deduction_item.sku,
                             conn=conn,
                         )

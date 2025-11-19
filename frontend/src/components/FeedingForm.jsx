@@ -2,16 +2,20 @@
  * ============================================================================
  * Biofloc Operational Forms - Multi-Tank Feeding Session
  * ============================================================================
- * Version: 2.0.0
+ * Version: 2.1.0
  * Last Updated: 2025-11-19
  *
- * Form for recording feeding sessions with inventory integration.
- * Supports multiple tanks and multiple feed items per session.
+ * Changelog:
+ * ----------
+ * v2.1.0 (2025-11-19):
+ *   - CRITICAL FIX: Changed dropdown to show item_name first instead of SKU
+ *   - Fixed onChange to send item_name as fallback if SKU is not set
+ *   - Display format now: "Item Name - SKU: XXX (stock available)"
  *
- * CHANGES in v2.0.0:
- * - Added multi-tank support: record feeding for multiple tanks in one session
- * - Each tank can have different feed items and quantities
- * - Session-level data (date, time, session number) shared across all tanks
+ * v2.0.0 (2025-11-19):
+ *   - Added multi-tank support: record feeding for multiple tanks in one session
+ *   - Each tank can have different feed items and quantities
+ *   - Session-level data (date, time, session number) shared across all tanks
  * ============================================================================
  */
 
@@ -386,7 +390,7 @@ export default function FeedingForm({ onSuccess }) {
                       <Autocomplete
                         options={feedSkus}
                         getOptionLabel={(option) =>
-                          `${option.sku || option.item_name} (${option.current_qty} ${option.unit} available)`
+                          `${option.item_name} - SKU: ${option.sku || 'N/A'} (${option.current_qty} ${option.unit} available)`
                         }
                         value={feedSkus.find(f => f.sku === item.sku || f.item_name === item.sku) || null}
                         onChange={(e, value) =>
