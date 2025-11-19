@@ -37,6 +37,12 @@ import {
 
 import { bioflocAPI } from '../api';
 
+// Safe number formatting helper
+const safeToFixed = (value, decimals = 0) => {
+  const num = Number(value);
+  return (isNaN(num) || !isFinite(num) ? 0 : num).toFixed(decimals);
+};
+
 // Stat Card Component
 const StatCard = ({ title, value, subtitle, icon: Icon, color, onClick }) => (
   <Card sx={{ cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
@@ -173,7 +179,7 @@ export default function BioflocDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Biomass"
-            value={`${(data?.total_biomass_kg || 0).toFixed(1)} kg`}
+            value={`${safeToFixed(data?.total_biomass_kg, 1)} kg`}
             subtitle="Current stock weight"
             icon={GrowthIcon}
             color="#7b1fa2"
@@ -214,7 +220,7 @@ export default function BioflocDashboard() {
                   />
                 </Box>
                 <Typography variant="h6" fontWeight="bold">
-                  {(tankUtilization || 0).toFixed(0)}%
+                  {safeToFixed(tankUtilization, 0)}%
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
