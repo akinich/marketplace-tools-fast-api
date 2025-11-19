@@ -87,7 +87,7 @@ async def get_items_list(
     param_count = 1
 
     if category:
-        where_conditions.append(f"im.category = ${param_count}")
+        where_conditions.append(f"LOWER(im.category) = LOWER(${param_count})")
         params.append(category)
         param_count += 1
 
@@ -1172,6 +1172,7 @@ async def get_expiry_alerts(days: int = 30) -> List[Dict]:
 
 async def get_transactions_list(
     item_id: Optional[int] = None,
+    transaction_type: Optional[str] = None,
     days_back: int = 30,
     page: int = 1,
     limit: int = 100,
@@ -1184,6 +1185,11 @@ async def get_transactions_list(
     if item_id:
         where_conditions.append(f"it.item_master_id = ${param_count}")
         params.append(item_id)
+        param_count += 1
+
+    if transaction_type:
+        where_conditions.append(f"it.transaction_type = ${param_count}")
+        params.append(transaction_type)
         param_count += 1
 
     where_clause = f"WHERE {' AND '.join(where_conditions)}"

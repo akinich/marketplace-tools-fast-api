@@ -34,8 +34,8 @@ supabase==2.24.0
 python-jose[cryptography]==3.3.0
 bcrypt==4.1.2
 python-dotenv==1.0.0
-pydantic[email]==2.5.0
-pydantic-settings==2.1.0
+pydantic[email]==2.11.7  # Updated to satisfy realtime 2.24.0 requirement (>=2.11.7)
+pydantic-settings==2.6.0  # Updated for pydantic 2.11.7 compatibility
 
 # Data Processing & Export
 pandas==2.1.3
