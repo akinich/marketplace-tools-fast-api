@@ -45,6 +45,12 @@ import {
 
 import { bioflocAPI } from '../api';
 
+// Safe number formatting helper
+const safeToFixed = (value, decimals = 0) => {
+  const num = Number(value);
+  return (isNaN(num) || !isFinite(num) ? 0 : num).toFixed(decimals);
+};
+
 // Batch Card Component
 const BatchCard = ({ batch, onView }) => {
   const statusColor = {
@@ -104,7 +110,7 @@ const BatchCard = ({ batch, onView }) => {
                 {batch.current_count?.toLocaleString()} / {batch.initial_count?.toLocaleString()}
               </Typography>
               <Typography variant="body2" fontWeight="bold" color={survivalRate > 90 ? 'success.main' : survivalRate > 70 ? 'warning.main' : 'error.main'}>
-                {(survivalRate || 0).toFixed(1)}%
+                {safeToFixed(survivalRate, 1)}%
               </Typography>
             </Box>
             <LinearProgress
@@ -130,21 +136,21 @@ const BatchCard = ({ batch, onView }) => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">Avg Weight:</Typography>
             <Typography variant="body2" fontWeight="bold">
-              {(batch.current_avg_weight_g || batch.initial_avg_weight_g || 0).toFixed(2)} g
+              {safeToFixed(batch.current_avg_weight_g || batch.initial_avg_weight_g, 2)} g
             </Typography>
           </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">Total Biomass:</Typography>
             <Typography variant="body2" fontWeight="bold">
-              {(batch.current_total_biomass_kg || batch.initial_total_biomass_kg || 0).toFixed(1)} kg
+              {safeToFixed(batch.current_total_biomass_kg || batch.initial_total_biomass_kg, 1)} kg
             </Typography>
           </Box>
 
           {batch.fcr && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" color="text.secondary">FCR:</Typography>
-              <Chip label={(batch.fcr || 0).toFixed(2)} size="small" color={batch.fcr < 1.5 ? 'success' : 'warning'} />
+              <Chip label={safeToFixed(batch.fcr, 2)} size="small" color={Number(batch.fcr) < 1.5 ? 'success' : 'warning'} />
             </Box>
           )}
 
@@ -478,7 +484,7 @@ export default function BioflocBatches() {
             <CardContent>
               <Typography color="textSecondary" variant="overline">Total Biomass</Typography>
               <Typography variant="h4" fontWeight="bold">
-                {(batches?.reduce((sum, b) => sum + (b.current_total_biomass_kg || 0), 0) || 0).toFixed(1)} kg
+                {safeToFixed(batches?.reduce((sum, b) => sum + Number(b.current_total_biomass_kg || 0), 0), 1)} kg
               </Typography>
             </CardContent>
           </Card>
@@ -489,13 +495,15 @@ export default function BioflocBatches() {
               <Typography color="textSecondary" variant="overline">Avg Survival</Typography>
               <Typography variant="h4" fontWeight="bold" color="success.main">
                 {(batches?.length || 0) > 0
-                  ? (batches.reduce((sum, b) => {
-                      const survivalRate = (b.current_count && b.initial_count && b.initial_count > 0)
-                        ? (b.current_count / b.initial_count * 100)
+                  ? safeToFixed(batches.reduce((sum, b) => {
+                      const current = Number(b.current_count) || 0;
+                      const initial = Number(b.initial_count) || 0;
+                      const survivalRate = (current && initial && initial > 0)
+                        ? (current / initial * 100)
                         : 0;
                       return sum + survivalRate;
-                    }, 0) / batches.length).toFixed(1)
-                  : 0}%
+                    }, 0) / batches.length, 1)
+                  : '0.0'}%
               </Typography>
             </CardContent>
           </Card>
