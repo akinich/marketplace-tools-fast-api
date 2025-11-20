@@ -2,8 +2,8 @@
 ================================================================================
 Farm Management System - Biofloc Service Layer
 ================================================================================
-Version: 1.1.0
-Last Updated: 2025-11-19
+Version: 1.2.0
+Last Updated: 2025-11-20
 
 Description:
     Business logic for biofloc aquaculture management module.
@@ -12,6 +12,13 @@ Description:
 
 Changelog:
 ----------
+v1.2.0 (2025-11-20):
+  - FIX: Use json.dumps() for proper JSON serialization in record_feeding_session
+  - FIX: Parse feed_items JSON string to list in get_feeding_sessions response
+  - FIX: Convert None values to empty strings in feed_items for valid JSON
+  - Prevents "Token None is invalid" error when inserting to JSONB columns
+  - Prevents "Input should be a valid list" validation error in feeding history
+
 v1.1.0 (2025-11-19):
   - CRITICAL FIX: Added current_batch_count to getTanks query
   - Fixes feeding form showing "No batch (0 fish)" when batch exists
@@ -31,6 +38,7 @@ v1.0.0 (2025-11-18):
 
 import logging
 import math
+import json
 from typing import Optional, List, Dict
 from decimal import Decimal
 from datetime import date, datetime
@@ -553,8 +561,8 @@ async def record_feeding_session(
         feed_items_json.append({
             "sku": item.sku,
             "quantity_kg": float(item.quantity_kg),
-            "notes": item.notes,
-            "transaction_id": str(inv_result["transaction_ids"][i]) if i < len(inv_result["transaction_ids"]) else None
+            "notes": item.notes or "",  # Convert None to empty string for JSON
+            "transaction_id": str(inv_result["transaction_ids"][i]) if i < len(inv_result["transaction_ids"]) else ""
         })
 
     # Create feeding session record
@@ -572,7 +580,7 @@ async def record_feeding_session(
         request.feeding_date,
         request.session_number,
         request.feed_time,
-        str(feed_items_json).replace("'", '"'),  # Convert to JSON string
+        json.dumps(feed_items_json),  # Proper JSON serialization
         total_feed,
         inv_result["total_cost"],
         request.notes,
@@ -591,6 +599,16 @@ async def record_feeding_session(
         """,
         session_id
     )
+
+    # Parse feed_items JSON string to list
+    if session:
+        session_dict = dict(session)
+        if isinstance(session_dict.get("feed_items"), str):
+            try:
+                session_dict["feed_items"] = json.loads(session_dict["feed_items"])
+            except json.JSONDecodeError:
+                session_dict["feed_items"] = []
+        return session_dict
 
     return session
 
@@ -639,7 +657,10 @@ async def get_feeding_sessions(
     offset = (page - 1) * limit
     sessions_query = f"""
         SELECT
-            f.*, t.tank_name, b.batch_code
+            f.id, f.tank_id, f.batch_id, f.feeding_date, f.session_number,
+            f.feed_time, f.feed_items, f.total_feed_kg, f.total_cost,
+            f.notes, f.created_by, f.created_at, f.updated_at,
+            t.tank_name, b.batch_code
         FROM biofloc_feeding_sessions f
         JOIN biofloc_tanks t ON t.id = f.tank_id
         JOIN biofloc_batches b ON b.id = f.batch_id
@@ -650,7 +671,19 @@ async def get_feeding_sessions(
     params.extend([limit, offset])
     sessions = await fetch_all(sessions_query, *params)
 
-    return {"feedings": sessions, "total": total, "page": page, "limit": limit}
+    # Parse feed_items JSON string to list for each session
+    processed_sessions = []
+    for session in sessions:
+        session_dict = dict(session)
+        # Parse feed_items if it's a string
+        if isinstance(session_dict.get("feed_items"), str):
+            try:
+                session_dict["feed_items"] = json.loads(session_dict["feed_items"])
+            except json.JSONDecodeError:
+                session_dict["feed_items"] = []
+        processed_sessions.append(session_dict)
+
+    return {"feedings": processed_sessions, "total": total, "page": page, "limit": limit}
 
 
 # ============================================================================
