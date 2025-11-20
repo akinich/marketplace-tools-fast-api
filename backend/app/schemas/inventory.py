@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Inventory Module Schemas
 ================================================================================
-Version: 1.2.0
-Last Updated: 2025-11-18
+Version: 1.2.1
+Last Updated: 2025-11-20
 
 Changelog:
 ----------
+v1.2.1 (2025-11-20):
+  - CRITICAL FIX: Changed TransactionItem.tank_id from int to str (UUID as string)
+  - Fixes ResponseValidationError when returning transactions with UUID tank_id
+  - Aligns with database schema change (tank_id column changed to UUID)
+
 v1.2.0 (2025-11-18):
   - Added ModuleType enum for cross-module integration
   - Added batch deduction schemas (BatchDeductionItem, BatchDeductionRequest, BatchDeductionResponse)
@@ -334,7 +339,7 @@ class TransactionItem(BaseModel):
     total_cost: Optional[Decimal]
     po_number: Optional[str]
     module_reference: Optional[str]
-    tank_id: Optional[int]
+    tank_id: Optional[str]  # Changed from int to str (UUID as string)
     user_id: Optional[str]
     username: Optional[str]
     notes: Optional[str]
