@@ -15,6 +15,7 @@ import DashboardHome from './pages/DashboardHome';
 import AdminPanel from './pages/AdminPanel';
 import InventoryModule from './pages/InventoryModule';
 import BioflocModule from './pages/BioflocModule';
+import TicketsModule from './pages/TicketsModule';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -48,6 +49,7 @@ function App() {
         <Route path="admin/*" element={<AdminPanel />} />
         <Route path="inventory/*" element={<InventoryModule />} />
         <Route path="biofloc/*" element={<BioflocModule />} />
+        <Route path="tickets/*" element={<TicketsModule />} />
       </Route>
 
       {/* Fallback */}
