@@ -98,7 +98,7 @@ async def get_tickets_list(
             t.priority,
             t.created_by_id::text,
             up_created.full_name as created_by_name,
-            up_created.email as created_by_email,
+            au_created.email as created_by_email,
             t.closed_by_id::text,
             up_closed.full_name as closed_by_name,
             t.closed_at,
@@ -110,7 +110,9 @@ async def get_tickets_list(
             ) as comment_count
         FROM tickets t
         LEFT JOIN user_profiles up_created ON t.created_by_id = up_created.id
+        LEFT JOIN auth.users au_created ON au_created.id = up_created.id
         LEFT JOIN user_profiles up_closed ON t.closed_by_id = up_closed.id
+        LEFT JOIN auth.users au_closed ON au_closed.id = up_closed.id
         {where_clause}
         ORDER BY t.created_at DESC
         LIMIT ${param_count} OFFSET ${param_count + 1}
@@ -141,7 +143,7 @@ async def get_ticket_by_id(ticket_id: int) -> Dict:
             t.priority,
             t.created_by_id::text,
             up_created.full_name as created_by_name,
-            up_created.email as created_by_email,
+            au_created.email as created_by_email,
             t.closed_by_id::text,
             up_closed.full_name as closed_by_name,
             t.closed_at,
@@ -149,7 +151,9 @@ async def get_ticket_by_id(ticket_id: int) -> Dict:
             t.updated_at
         FROM tickets t
         LEFT JOIN user_profiles up_created ON t.created_by_id = up_created.id
+        LEFT JOIN auth.users au_created ON au_created.id = up_created.id
         LEFT JOIN user_profiles up_closed ON t.closed_by_id = up_closed.id
+        LEFT JOIN auth.users au_closed ON au_closed.id = up_closed.id
         WHERE t.id = $1
     """
 
@@ -168,12 +172,13 @@ async def get_ticket_by_id(ticket_id: int) -> Dict:
             tc.ticket_id,
             tc.user_id::text,
             up.full_name as user_name,
-            up.email as user_email,
+            au.email as user_email,
             tc.comment,
             tc.created_at,
             tc.updated_at
         FROM ticket_comments tc
         LEFT JOIN user_profiles up ON tc.user_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         WHERE tc.ticket_id = $1
         ORDER BY tc.created_at ASC
     """
@@ -489,12 +494,13 @@ async def add_comment(
             tc.ticket_id,
             tc.user_id::text,
             up.full_name as user_name,
-            up.email as user_email,
+            au.email as user_email,
             tc.comment,
             tc.created_at,
             tc.updated_at
         FROM ticket_comments tc
         LEFT JOIN user_profiles up ON tc.user_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         WHERE tc.id = $1
         """,
         comment_id
@@ -559,12 +565,13 @@ async def update_comment(
             tc.ticket_id,
             tc.user_id::text,
             up.full_name as user_name,
-            up.email as user_email,
+            au.email as user_email,
             tc.comment,
             tc.created_at,
             tc.updated_at
         FROM ticket_comments tc
         LEFT JOIN user_profiles up ON tc.user_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         WHERE tc.id = $1
         """,
         comment_id
