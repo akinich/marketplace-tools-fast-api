@@ -192,7 +192,7 @@ class FeedingSessionCreate(BaseModel):
 class FeedingSessionResponse(BaseModel):
     id: UUID
     tank_id: UUID
-    tank_name: str
+    tank_code: str
     batch_id: UUID
     batch_code: str
     feeding_date: date

@@ -67,7 +67,7 @@ export default function BioflocFeedingHistory() {
 
   const tanks = tanksData?.tanks || [];
   const batches = batchesData?.batches || [];
-  const sessions = data?.feeding_sessions || [];
+  const sessions = data?.feedings || [];
 
   const handleFilterChange = (field, value) => {
     setFilters({ ...filters, [field]: value });
