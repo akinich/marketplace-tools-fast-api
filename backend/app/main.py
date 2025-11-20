@@ -242,7 +242,7 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs
+from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram
 
 # Mount routers
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
@@ -252,6 +252,7 @@ app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", 
 app.include_router(biofloc.router, tags=["Biofloc"])
 app.include_router(tickets.router, prefix=f"{settings.API_PREFIX}/tickets", tags=["Tickets"])
 app.include_router(development.router, prefix=f"{settings.API_PREFIX}/development", tags=["Development"])
+app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram Notifications"])
 app.include_router(docs.router, prefix=f"{settings.API_PREFIX}", tags=["Documentation"])
 
 
