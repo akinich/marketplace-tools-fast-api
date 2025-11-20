@@ -73,7 +73,7 @@ import useAuthStore from '../store/authStore';
 import { dashboardAPI } from '../api';
 
 const DRAWER_WIDTH = 260;
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const SESSION_TIMEOUT = 2 * 60 * 1000; // 30 minutes in milliseconds
 const WARNING_TIME = 60 * 1000; // Show warning 1 minute before timeout
 
 export default function DashboardLayout() {
