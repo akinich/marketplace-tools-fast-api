@@ -661,7 +661,7 @@ async def get_feeding_sessions(
         SELECT
             f.id, f.tank_id, f.batch_id, f.feeding_date, f.session_number,
             f.feed_time, f.feed_items, f.total_feed_kg, f.total_cost,
-            f.notes, f.created_by, f.created_at, f.updated_at,
+            f.notes, f.created_by, f.created_at,
             t.tank_name, b.batch_code
         FROM biofloc_feeding_sessions f
         JOIN biofloc_tanks t ON t.id = f.tank_id
