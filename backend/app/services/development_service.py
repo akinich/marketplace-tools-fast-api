@@ -75,7 +75,7 @@ async def get_features_list(
             f.target_date,
             f.created_by_id::text,
             up.full_name as created_by_name,
-            up.email as created_by_email,
+            au.email as created_by_email,
             f.created_at,
             f.updated_at,
             COALESCE((SELECT COUNT(*) FROM feature_steps fs WHERE fs.feature_id = f.id), 0) as step_count,
@@ -83,6 +83,7 @@ async def get_features_list(
             COALESCE((SELECT COUNT(*) FROM feature_comments fc WHERE fc.feature_id = f.id), 0) as comment_count
         FROM features f
         LEFT JOIN user_profiles up ON f.created_by_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         {where_clause}
         ORDER BY
             CASE f.priority
@@ -117,11 +118,12 @@ async def get_feature_by_id(feature_id: int) -> Dict:
             f.target_date,
             f.created_by_id::text,
             up.full_name as created_by_name,
-            up.email as created_by_email,
+            au.email as created_by_email,
             f.created_at,
             f.updated_at
         FROM features f
         LEFT JOIN user_profiles up ON f.created_by_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         WHERE f.id = $1
     """
 
@@ -152,12 +154,13 @@ async def get_feature_by_id(feature_id: int) -> Dict:
             fc.feature_id,
             fc.user_id::text,
             up.full_name as user_name,
-            up.email as user_email,
+            au.email as user_email,
             fc.comment,
             fc.created_at,
             fc.updated_at
         FROM feature_comments fc
         LEFT JOIN user_profiles up ON fc.user_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         WHERE fc.feature_id = $1
         ORDER BY fc.created_at ASC
         """,
@@ -439,12 +442,13 @@ async def add_comment(feature_id: int, request: CreateCommentRequest, user_id: s
             fc.feature_id,
             fc.user_id::text,
             up.full_name as user_name,
-            up.email as user_email,
+            au.email as user_email,
             fc.comment,
             fc.created_at,
             fc.updated_at
         FROM feature_comments fc
         LEFT JOIN user_profiles up ON fc.user_id = up.id
+        LEFT JOIN auth.users au ON au.id = up.id
         WHERE fc.id = $1
         """,
         comment_id
