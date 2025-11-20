@@ -292,12 +292,76 @@ export const inventoryAPI = {
   },
 };
 
+// ============================================================================
+// TICKETS API
+// ============================================================================
+export const ticketsAPI = {
+  // Tickets
+  getTickets: async (params = {}) => {
+    const response = await apiClient.get('/tickets', { params });
+    return response.data;
+  },
+
+  getMyTickets: async (params = {}) => {
+    const response = await apiClient.get('/tickets/my', { params });
+    return response.data;
+  },
+
+  getTicketStats: async () => {
+    const response = await apiClient.get('/tickets/stats');
+    return response.data;
+  },
+
+  getTicket: async (ticketId) => {
+    const response = await apiClient.get(`/tickets/${ticketId}`);
+    return response.data;
+  },
+
+  createTicket: async (data) => {
+    const response = await apiClient.post('/tickets', data);
+    return response.data;
+  },
+
+  updateTicket: async (ticketId, data) => {
+    const response = await apiClient.put(`/tickets/${ticketId}`, data);
+    return response.data;
+  },
+
+  // Admin Operations
+  adminUpdateTicket: async (ticketId, data) => {
+    const response = await apiClient.put(`/tickets/${ticketId}/admin`, data);
+    return response.data;
+  },
+
+  closeTicket: async (ticketId, comment = null) => {
+    const response = await apiClient.post(`/tickets/${ticketId}/close`, { comment });
+    return response.data;
+  },
+
+  // Comments
+  addComment: async (ticketId, data) => {
+    const response = await apiClient.post(`/tickets/${ticketId}/comments`, data);
+    return response.data;
+  },
+
+  updateComment: async (commentId, data) => {
+    const response = await apiClient.put(`/tickets/comments/${commentId}`, data);
+    return response.data;
+  },
+
+  deleteComment: async (commentId) => {
+    const response = await apiClient.delete(`/tickets/comments/${commentId}`);
+    return response.data;
+  },
+};
+
 // Export all APIs
-export { authAPI, bioflocAPI, apiClient };
+export { authAPI, bioflocAPI, ticketsAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
   admin: adminAPI,
   inventory: inventoryAPI,
   biofloc: bioflocAPI,
+  tickets: ticketsAPI,
 };

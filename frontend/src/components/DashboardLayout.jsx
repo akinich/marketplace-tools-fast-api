@@ -61,6 +61,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Inventory as InventoryIcon,
   Science as BioflocIcon,
+  ConfirmationNumber as TicketsIcon,
   AccountCircle,
   Logout,
   ExpandLess,
@@ -233,6 +234,7 @@ export default function DashboardLayout() {
       admin: <AdminIcon />,
       inventory: <InventoryIcon />,
       biofloc: <BioflocIcon />,
+      tickets: <TicketsIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
