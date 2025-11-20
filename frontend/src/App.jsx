@@ -17,6 +17,7 @@ import InventoryModule from './pages/InventoryModule';
 import BioflocModule from './pages/BioflocModule';
 import TicketsModule from './pages/TicketsModule';
 import DevelopmentModule from './pages/DevelopmentModule';
+import DocsModule from './pages/DocsModule';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -52,6 +53,7 @@ function App() {
         <Route path="biofloc/*" element={<BioflocModule />} />
         <Route path="tickets/*" element={<TicketsModule />} />
         <Route path="development/*" element={<DevelopmentModule />} />
+        <Route path="docs/*" element={<DocsModule />} />
       </Route>
 
       {/* Fallback */}
