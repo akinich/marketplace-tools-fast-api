@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - Admin Service Layer
 ================================================================================
-Version: 1.6.0
+Version: 1.7.0
 Last Updated: 2025-11-19
 
 Changelog:
 ----------
+v1.7.0 (2025-11-19):
+  - Added hard delete functionality for users
+  - delete_user() now supports hard_delete parameter
+  - Hard delete permanently removes user from Supabase auth (cascades to user_profiles)
+  - Improved create_user() validation to detect soft-deleted users
+  - Better error messages when trying to create user with deactivated email
+
 v1.6.0 (2025-11-19):
   - CRITICAL FIX: User creation now uses Supabase Admin API
   - Ensures emails are marked as confirmed for password reset functionality
@@ -186,14 +193,25 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
 
         # Check if email already exists
         existing_user = await fetch_one(
-            "SELECT id FROM auth.users WHERE email = $1",
+            """
+            SELECT au.id, up.is_active
+            FROM auth.users au
+            LEFT JOIN user_profiles up ON up.id = au.id
+            WHERE au.email = $1
+            """,
             request.email
         )
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User with email {request.email} already exists"
-            )
+            if existing_user.get('is_active') is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User with email {request.email} is deactivated. Please reactivate the user or permanently delete them first using hard_delete=true"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"User with email {request.email} already exists"
+                )
 
         # Check if role exists
         role_exists = await fetch_one(
@@ -392,13 +410,14 @@ async def update_user(
     return {"user": updated_user}
 
 
-async def delete_user(user_id: str, deleted_by_id: str) -> None:
+async def delete_user(user_id: str, deleted_by_id: str, hard_delete: bool = False) -> None:
     """
-    Delete user (soft delete - deactivate).
+    Delete user (soft delete by default, hard delete optional).
 
     Args:
         user_id: User UUID to delete
         deleted_by_id: Admin user ID performing deletion
+        hard_delete: If True, permanently delete user from database
 
     Raises:
         HTTPException: If user not found or is admin deleting themselves
@@ -420,11 +439,28 @@ async def delete_user(user_id: str, deleted_by_id: str) -> None:
             detail="Cannot delete your own account",
         )
 
-    # Soft delete (deactivate)
-    await execute_query(
-        "UPDATE user_profiles SET is_active = FALSE, updated_at = NOW() WHERE id = $1",
-        user_id,
-    )
+    if hard_delete:
+        # Hard delete - permanently remove user from Supabase
+        try:
+            from app.utils.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
+
+            # Delete from Supabase auth (will cascade to user_profiles due to ON DELETE CASCADE)
+            supabase.auth.admin.delete_user(user_id)
+
+            logger.info(f"User permanently deleted: {user['email']} (ID: {user_id})")
+        except Exception as e:
+            logger.error(f"Hard delete user error: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to permanently delete user: {str(e)}",
+            )
+    else:
+        # Soft delete (deactivate)
+        await execute_query(
+            "UPDATE user_profiles SET is_active = FALSE, updated_at = NOW() WHERE id = $1",
+            user_id,
+        )
 
     # Log activity
     admin = await fetch_one(
@@ -435,10 +471,10 @@ async def delete_user(user_id: str, deleted_by_id: str) -> None:
         user_id=deleted_by_id,
         user_email=admin["email"],
         user_role=admin["role_name"],
-        action_type="delete_user",
-        description=f"Deleted user: {user['email']}",
+        action_type="hard_delete_user" if hard_delete else "delete_user",
+        description=f"{'Permanently deleted' if hard_delete else 'Deactivated'} user: {user['email']}",
         module_key="admin",
-        metadata={"deleted_user_id": str(user_id)},
+        metadata={"deleted_user_id": str(user_id), "hard_delete": hard_delete},
     )
 
 
