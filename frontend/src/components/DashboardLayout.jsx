@@ -62,6 +62,7 @@ import {
   Inventory as InventoryIcon,
   Science as BioflocIcon,
   ConfirmationNumber as TicketsIcon,
+  Code as DevelopmentIcon,
   AccountCircle,
   Logout,
   ExpandLess,
@@ -235,6 +236,7 @@ export default function DashboardLayout() {
       inventory: <InventoryIcon />,
       biofloc: <BioflocIcon />,
       tickets: <TicketsIcon />,
+      development: <DevelopmentIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
