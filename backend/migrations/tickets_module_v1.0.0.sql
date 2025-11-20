@@ -1,5 +1,24 @@
--- Tickets Module Migration v1.0.0
--- Create tickets table and ticket_comments table
+-- ============================================================================
+-- Tickets Module Migration
+-- ============================================================================
+-- Version: 1.0.0
+-- Created: 2025-11-20
+--
+-- Changelog:
+-- ----------
+-- v1.0.0 (2025-11-20):
+--   - Initial ticket system database schema
+--   - Created tickets table with status, priority, and type fields
+--   - Created ticket_comments table for discussion threads
+--   - Added foreign key relationships to user_profiles
+--   - Created indexes for performance optimization
+--   - Added module registration in modules table
+--   - Created triggers for automatic updated_at timestamp management
+--
+-- Description:
+--   Sets up the complete database schema for the ticket system module,
+--   including tables, indexes, constraints, and triggers.
+-- ============================================================================
 
 -- Create tickets table
 CREATE TABLE IF NOT EXISTS tickets (

@@ -1,6 +1,28 @@
 """
-Ticket System Schemas
-Pydantic models for ticket request/response validation
+================================================================================
+Farm Management System - Ticket System Schemas
+================================================================================
+Version: 1.0.1
+Last Updated: 2025-11-20
+
+Changelog:
+----------
+v1.0.1 (2025-11-20):
+  - No schema changes - version bump to match service layer fix
+
+v1.0.0 (2025-11-20):
+  - Initial ticket system schemas
+  - Ticket type, status, and priority enums
+  - Request/response models for tickets and comments
+  - Pagination support for ticket lists
+  - Statistics response models
+
+Description:
+  Pydantic models for ticket request/response validation and serialization.
+  Includes enums, request schemas, response schemas, and nested models for
+  comments and user information.
+
+================================================================================
 """
 
 from pydantic import BaseModel, Field

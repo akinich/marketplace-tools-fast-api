@@ -2,8 +2,20 @@
 ================================================================================
 Farm Management System - Ticket Routes
 ================================================================================
-Version: 1.0.0
+Version: 1.0.1
 Last Updated: 2025-11-20
+
+Changelog:
+----------
+v1.0.1 (2025-11-20):
+  - No changes to routes - version bump to match service layer fix
+
+v1.0.0 (2025-11-20):
+  - Initial ticket system routes implementation
+  - Ticket CRUD operations with filtering and pagination
+  - Admin-specific endpoints for priority and status management
+  - Comment system for ticket discussions
+  - Ticket statistics endpoint
 
 Description:
   API endpoints for ticket system - allows users to raise issues, feature
