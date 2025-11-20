@@ -1,6 +1,16 @@
 /**
  * API Services Export
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Last Updated: 2025-11-20
+ *
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-20):
+ *   - Added telegramAPI for Telegram bot notification management
+ *   - Added endpoints for settings, status, testing, and user linking
+ *
+ * v1.0.0 (2025-11-17):
+ *   - Initial API services export
  */
 
 import apiClient from './client';
@@ -423,8 +433,52 @@ export const developmentAPI = {
   },
 };
 
+// ============================================================================
+// TELEGRAM NOTIFICATIONS API
+// ============================================================================
+export const telegramAPI = {
+  // Settings Management (Admin)
+  getSettings: async () => {
+    const response = await apiClient.get('/telegram/settings');
+    return response.data;
+  },
+
+  updateSettings: async (data) => {
+    const response = await apiClient.put('/telegram/settings', data);
+    return response.data;
+  },
+
+  // Bot Health Status (Admin)
+  getStatus: async () => {
+    const response = await apiClient.get('/telegram/status');
+    return response.data;
+  },
+
+  // Test Notification (Admin)
+  sendTest: async (data) => {
+    const response = await apiClient.post('/telegram/test', data);
+    return response.data;
+  },
+
+  // User Linking
+  createLinkCode: async () => {
+    const response = await apiClient.post('/telegram/link/create');
+    return response.data;
+  },
+
+  getLinkStatus: async () => {
+    const response = await apiClient.get('/telegram/link/status');
+    return response.data;
+  },
+
+  unlinkTelegram: async () => {
+    const response = await apiClient.post('/telegram/link/unlink');
+    return response.data;
+  },
+};
+
 // Export all APIs
-export { authAPI, bioflocAPI, apiClient };
+export { authAPI, bioflocAPI, apiClient, telegramAPI };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
@@ -433,4 +487,5 @@ export default {
   biofloc: bioflocAPI,
   tickets: ticketsAPI,
   development: developmentAPI,
+  telegram: telegramAPI,
 };

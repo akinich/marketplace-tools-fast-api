@@ -1,10 +1,15 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.6.0
+ * Version: 1.7.0
  * Last Updated: 2025-11-20
  *
  * Changelog:
  * ----------
+ * v1.7.0 (2025-11-20):
+ *   - Added Telegram Notifications settings route (/admin/telegram)
+ *   - Integrated TelegramSettings component for bot configuration
+ *   - Allows admins to access Telegram notification management
+ *
  * v1.6.0 (2025-11-20):
  *   - Added Permanently Delete option with checkbox in delete dialog
  *   - Hard delete completely removes user from database
@@ -103,6 +108,7 @@ import Switch from '@mui/material/Switch';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { adminAPI } from '../api';
 import { useSnackbar } from 'notistack';
+import TelegramSettings from './TelegramSettings';
 
 // Create User Dialog Component
 function CreateUserDialog({ open, onClose }) {
@@ -1313,6 +1319,7 @@ export default function AdminPanel() {
       <Route path="users" element={<UserManagementPage />} />
       <Route path="modules" element={<ModuleManagementPage />} />
       <Route path="activity" element={<ActivityLogsPage />} />
+      <Route path="telegram" element={<TelegramSettings />} />
     </Routes>
   );
 }

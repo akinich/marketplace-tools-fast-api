@@ -1,0 +1,648 @@
+/**
+ * Telegram Notifications Settings Page
+ * Version: 1.0.0
+ * Last Updated: 2025-11-20
+ *
+ * Changelog:
+ * ----------
+ * v1.0.0 (2025-11-20):
+ *   - Initial Telegram notifications settings page
+ *   - Bot status indicator with health check
+ *   - Channel ID configuration for tickets, POs, and inventory
+ *   - Toggle switches for each notification type
+ *   - Test notification functionality per channel
+ *   - Real-time settings updates with validation
+ *   - User account linking interface (for future personal DMs)
+ *   - Material-UI components matching AdminPanel style
+ *
+ * Description:
+ *   Admin interface for managing Telegram bot notifications. Allows configuration
+ *   of channel IDs, enabling/disabling notifications per module, testing bot
+ *   connectivity, and managing user account linking.
+ */
+
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Button,
+  CircularProgress,
+  Alert,
+  Grid,
+  Divider,
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Paper,
+} from '@mui/material';
+import {
+  Telegram as TelegramIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Send as SendIcon,
+  Refresh as RefreshIcon,
+  Link as LinkIcon,
+  LinkOff as LinkOffIcon,
+  ContentCopy as ContentCopyIcon,
+} from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { telegramAPI } from '../api';
+import { useSnackbar } from 'notistack';
+
+function TelegramSettings() {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [settings, setSettings] = useState({
+    tickets_channel_id: null,
+    po_channel_id: null,
+    inventory_channel_id: null,
+    enable_ticket_notifications: true,
+    enable_po_notifications: true,
+    enable_inventory_notifications: true,
+    enable_personal_notifications: false,
+  });
+
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [testChannelType, setTestChannelType] = useState('');
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkCode, setLinkCode] = useState(null);
+
+  // ========================================================================
+  // FETCH SETTINGS
+  // ========================================================================
+
+  const { data: settingsData, isLoading: loadingSettings, error: settingsError } = useQuery(
+    'telegramSettings',
+    () => telegramAPI.getSettings(),
+    {
+      onSuccess: (data) => {
+        setSettings(data);
+      },
+      staleTime: 30 * 1000, // 30 seconds
+    }
+  );
+
+  // ========================================================================
+  // FETCH BOT STATUS
+  // ========================================================================
+
+  const { data: statusData, isLoading: loadingStatus, refetch: refetchStatus } = useQuery(
+    'telegramStatus',
+    () => telegramAPI.getStatus(),
+    {
+      staleTime: 10 * 1000, // 10 seconds
+      refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    }
+  );
+
+  // ========================================================================
+  // FETCH USER LINK STATUS
+  // ========================================================================
+
+  const { data: linkStatusData, refetch: refetchLinkStatus } = useQuery(
+    'telegramLinkStatus',
+    () => telegramAPI.getLinkStatus(),
+    {
+      staleTime: 30 * 1000,
+    }
+  );
+
+  // ========================================================================
+  // MUTATIONS
+  // ========================================================================
+
+  const updateSettingsMutation = useMutation(
+    (data) => telegramAPI.updateSettings(data),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Settings updated successfully!', { variant: 'success' });
+        queryClient.invalidateQueries('telegramSettings');
+        queryClient.invalidateQueries('telegramStatus');
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to update settings: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const testNotificationMutation = useMutation(
+    (data) => telegramAPI.sendTest(data),
+    {
+      onSuccess: (data) => {
+        enqueueSnackbar(
+          `Test notification sent to ${data.channel_type} channel!`,
+          { variant: 'success' }
+        );
+        setTestDialogOpen(false);
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to send test: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const createLinkCodeMutation = useMutation(
+    () => telegramAPI.createLinkCode(),
+    {
+      onSuccess: (data) => {
+        setLinkCode(data);
+        setLinkDialogOpen(true);
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to create link code: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const unlinkMutation = useMutation(
+    () => telegramAPI.unlinkTelegram(),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Telegram account unlinked successfully!', { variant: 'success' });
+        refetchLinkStatus();
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to unlink: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  // ========================================================================
+  // HANDLERS
+  // ========================================================================
+
+  const handleSettingChange = (field) => (event) => {
+    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    setSettings({
+      ...settings,
+      [field]: value,
+    });
+  };
+
+  const handleSaveSettings = () => {
+    // Filter out unchanged values and null values for optional fields
+    const updates = {};
+
+    if (settings.tickets_channel_id !== null && settings.tickets_channel_id !== '') {
+      updates.tickets_channel_id = parseInt(settings.tickets_channel_id);
+    }
+    if (settings.po_channel_id !== null && settings.po_channel_id !== '') {
+      updates.po_channel_id = parseInt(settings.po_channel_id);
+    }
+    if (settings.inventory_channel_id !== null && settings.inventory_channel_id !== '') {
+      updates.inventory_channel_id = parseInt(settings.inventory_channel_id);
+    }
+
+    updates.enable_ticket_notifications = settings.enable_ticket_notifications;
+    updates.enable_po_notifications = settings.enable_po_notifications;
+    updates.enable_inventory_notifications = settings.enable_inventory_notifications;
+    updates.enable_personal_notifications = settings.enable_personal_notifications;
+
+    updateSettingsMutation.mutate(updates);
+  };
+
+  const handleTestNotification = (channelType) => {
+    setTestChannelType(channelType);
+    setTestDialogOpen(true);
+  };
+
+  const handleConfirmTest = () => {
+    testNotificationMutation.mutate({ channel_type: testChannelType });
+  };
+
+  const handleCopyLinkCode = () => {
+    if (linkCode?.link_code) {
+      navigator.clipboard.writeText(linkCode.link_code);
+      enqueueSnackbar('Link code copied to clipboard!', { variant: 'success' });
+    }
+  };
+
+  // ========================================================================
+  // RENDER
+  // ========================================================================
+
+  if (loadingSettings) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (settingsError) {
+    return (
+      <Alert severity="error">
+        Failed to load settings: {settingsError.message}
+      </Alert>
+    );
+  }
+
+  const botStatus = statusData?.status || 'inactive';
+  const isHealthy = botStatus === 'active';
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <TelegramIcon sx={{ fontSize: 40, color: '#0088cc' }} />
+        <Box>
+          <Typography variant="h4" fontWeight="bold">
+            Telegram Notifications
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Configure Telegram bot for real-time notifications
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* BOT STATUS CARD */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Bot Status
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {isHealthy ? (
+                  <CheckCircleIcon sx={{ color: 'success.main' }} />
+                ) : (
+                  <ErrorIcon sx={{ color: 'error.main' }} />
+                )}
+                <Chip
+                  label={isHealthy ? 'Connected' : 'Disconnected'}
+                  color={isHealthy ? 'success' : 'error'}
+                  size="small"
+                />
+                {statusData?.bot_username && (
+                  <Typography variant="body2" color="text.secondary">
+                    @{statusData.bot_username}
+                  </Typography>
+                )}
+              </Box>
+              {statusData?.message && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  {statusData.message}
+                </Typography>
+              )}
+            </Box>
+            <IconButton onClick={() => refetchStatus()} disabled={loadingStatus}>
+              <RefreshIcon />
+            </IconButton>
+          </Box>
+
+          {!isHealthy && settingsData?.last_error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {settingsData.last_error}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* CHANNEL CONFIGURATION */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Channel Configuration
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Enter your Telegram channel IDs (negative numbers for channels/groups)
+          </Typography>
+
+          <Grid container spacing={3}>
+            {/* Tickets Channel */}
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  🎫 Tickets Channel
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Channel ID"
+                  type="number"
+                  value={settings.tickets_channel_id || ''}
+                  onChange={handleSettingChange('tickets_channel_id')}
+                  placeholder="-1001234567890"
+                  sx={{ mb: 2 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.enable_ticket_notifications}
+                      onChange={handleSettingChange('enable_ticket_notifications')}
+                      color="primary"
+                    />
+                  }
+                  label="Enable Notifications"
+                />
+                <Box sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<SendIcon />}
+                    onClick={() => handleTestNotification('tickets')}
+                    disabled={!settings.tickets_channel_id}
+                  >
+                    Test
+                  </Button>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* Purchase Orders Channel */}
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  📦 Purchase Orders Channel
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Channel ID"
+                  type="number"
+                  value={settings.po_channel_id || ''}
+                  onChange={handleSettingChange('po_channel_id')}
+                  placeholder="-1001234567891"
+                  sx={{ mb: 2 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.enable_po_notifications}
+                      onChange={handleSettingChange('enable_po_notifications')}
+                      color="primary"
+                    />
+                  }
+                  label="Enable Notifications"
+                />
+                <Box sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<SendIcon />}
+                    onClick={() => handleTestNotification('po')}
+                    disabled={!settings.po_channel_id}
+                  >
+                    Test
+                  </Button>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* Inventory Channel */}
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  📊 Inventory Channel
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Channel ID"
+                  type="number"
+                  value={settings.inventory_channel_id || ''}
+                  onChange={handleSettingChange('inventory_channel_id')}
+                  placeholder="-1001234567892"
+                  sx={{ mb: 2 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={settings.enable_inventory_notifications}
+                      onChange={handleSettingChange('enable_inventory_notifications')}
+                      color="primary"
+                    />
+                  }
+                  label="Enable Notifications"
+                />
+                <Box sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<SendIcon />}
+                    onClick={() => handleTestNotification('inventory')}
+                    disabled={!settings.inventory_channel_id}
+                  >
+                    Test
+                  </Button>
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              onClick={handleSaveSettings}
+              disabled={updateSettingsMutation.isLoading}
+              startIcon={updateSettingsMutation.isLoading ? <CircularProgress size={20} /> : null}
+            >
+              Save Settings
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* PERSONAL NOTIFICATIONS (FUTURE FEATURE) */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Personal Notifications
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Link your Telegram account to receive personal direct messages (optional)
+          </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            {linkStatusData?.is_linked ? (
+              <>
+                <Chip
+                  icon={<LinkIcon />}
+                  label="Telegram Linked"
+                  color="success"
+                  variant="outlined"
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<LinkOffIcon />}
+                  onClick={() => unlinkMutation.mutate()}
+                  disabled={unlinkMutation.isLoading}
+                >
+                  Unlink
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outlined"
+                startIcon={<LinkIcon />}
+                onClick={() => createLinkCodeMutation.mutate()}
+                disabled={createLinkCodeMutation.isLoading}
+              >
+                Link Telegram Account
+              </Button>
+            )}
+          </Box>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={settings.enable_personal_notifications}
+                onChange={handleSettingChange('enable_personal_notifications')}
+                color="primary"
+                disabled={!linkStatusData?.is_linked}
+              />
+            }
+            label="Enable Personal DMs (requires account linking)"
+          />
+
+          {!linkStatusData?.is_linked && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Personal notifications are currently disabled. Link your Telegram account to enable.
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* SETUP INSTRUCTIONS */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Setup Instructions
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+
+          <Typography variant="subtitle2" gutterBottom>
+            1. Create Telegram Bot
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            • Open Telegram and search for @BotFather
+            <br />
+            • Send /newbot and follow instructions
+            <br />
+            • Copy the bot token and add it to your .env file
+          </Typography>
+
+          <Typography variant="subtitle2" gutterBottom>
+            2. Create Channels
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            • Create 3 Telegram channels (or use existing ones)
+            <br />
+            • Add your bot as an admin to each channel
+            <br />
+            • Forward a message from each channel to @userinfobot to get the channel ID
+          </Typography>
+
+          <Typography variant="subtitle2" gutterBottom>
+            3. Configure Settings
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Enter the channel IDs above (they should be negative numbers)
+            <br />
+            • Enable notifications for each module
+            <br />
+            • Click "Test" to verify the bot can send messages
+            <br />
+            • Save your settings
+          </Typography>
+        </CardContent>
+      </Card>
+
+      {/* TEST CONFIRMATION DIALOG */}
+      <Dialog open={testDialogOpen} onClose={() => setTestDialogOpen(false)}>
+        <DialogTitle>Send Test Notification</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This will send a test message to the <strong>{testChannelType}</strong> channel.
+            <br />
+            Make sure your bot is added as an admin to the channel.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTestDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleConfirmTest}
+            variant="contained"
+            disabled={testNotificationMutation.isLoading}
+            startIcon={testNotificationMutation.isLoading ? <CircularProgress size={20} /> : <SendIcon />}
+          >
+            Send Test
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* LINK CODE DIALOG */}
+      <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Link Your Telegram Account</DialogTitle>
+        <DialogContent>
+          {linkCode && (
+            <Box>
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Link code generated successfully!
+              </Alert>
+
+              <Typography variant="body2" gutterBottom>
+                1. Open Telegram and search for your bot
+              </Typography>
+              <Typography variant="body2" gutterBottom sx={{ mb: 2 }}>
+                2. Send this command to the bot:
+              </Typography>
+
+              <Paper sx={{ p: 2, bgcolor: 'grey.100', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontFamily: 'monospace', flex: 1 }}
+                >
+                  /start {linkCode.link_code}
+                </Typography>
+                <IconButton onClick={handleCopyLinkCode} size="small">
+                  <ContentCopyIcon />
+                </IconButton>
+              </Paper>
+
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                <Typography variant="caption">
+                  This code expires in 15 minutes: {new Date(linkCode.expires_at).toLocaleTimeString()}
+                </Typography>
+              </Alert>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setLinkDialogOpen(false);
+            setLinkCode(null);
+            refetchLinkStatus();
+          }} variant="contained">
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
+
+export default TelegramSettings;
