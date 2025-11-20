@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.5.1
-Last Updated: 2025-11-19
+Version: 1.5.2
+Last Updated: 2025-11-20
 
 Changelog:
 ----------
+v1.5.2 (2025-11-20):
+  - CRITICAL FIX: Cast tank_id to text in get_transactions_list query
+  - Fixes ResponseValidationError when returning transactions with UUID tank_id
+  - Aligns with database schema change (tank_id column changed to UUID)
+
 v1.5.1 (2025-11-19):
   - CRITICAL FIX: Convert tank_id string to UUID in batch_deduct_stock INSERT
   - Fixes "invalid input for query argument $8" asyncpg error
@@ -1227,7 +1232,7 @@ async def get_transactions_list(
             it.total_cost,
             it.po_number,
             it.module_reference,
-            it.tank_id,
+            it.tank_id::text as tank_id,
             it.user_id::text as user_id,
             it.username,
             it.notes,
