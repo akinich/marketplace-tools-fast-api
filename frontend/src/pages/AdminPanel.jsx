@@ -1,10 +1,17 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.5.0
- * Last Updated: 2025-11-19
+ * Version: 1.6.0
+ * Last Updated: 2025-11-20
  *
  * Changelog:
  * ----------
+ * v1.6.0 (2025-11-20):
+ *   - Added Permanently Delete option with checkbox in delete dialog
+ *   - Hard delete completely removes user from database
+ *   - Fixed permissions dialog to load existing user permissions correctly
+ *   - Permissions now show as checked when user already has access
+ *   - Updated delete dialog UI with clear warnings for permanent deletion
+ *
  * v1.5.0 (2025-11-19):
  *   - Added Edit User functionality with dialog
  *   - Added Delete User confirmation dialog
@@ -426,32 +433,45 @@ function EditUserDialog({ open, onClose, user }) {
 function DeleteUserConfirmDialog({ open, onClose, user }) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
+  const [hardDelete, setHardDelete] = useState(false);
 
-  const deleteUserMutation = useMutation(() => adminAPI.deleteUser(user?.id), {
-    onSuccess: () => {
-      enqueueSnackbar('User deleted (deactivated) successfully!', { variant: 'success' });
-      queryClient.invalidateQueries('adminUsers');
-      onClose();
-    },
-    onError: (error) => {
-      enqueueSnackbar(
-        `Failed to delete user: ${error.response?.data?.detail || error.message}`,
-        { variant: 'error' }
-      );
-    },
-  });
+  const deleteUserMutation = useMutation(
+    () => adminAPI.deleteUser(user?.id, hardDelete),
+    {
+      onSuccess: () => {
+        const message = hardDelete
+          ? 'User permanently deleted!'
+          : 'User deactivated successfully!';
+        enqueueSnackbar(message, { variant: 'success' });
+        queryClient.invalidateQueries('adminUsers');
+        setHardDelete(false);
+        onClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to delete user: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
 
   const handleConfirm = () => {
     deleteUserMutation.mutate();
   };
 
+  const handleClose = () => {
+    setHardDelete(false);
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>Confirm Delete User</DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 1 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            You are about to delete (deactivate) the following user:
+            You are about to delete the following user:
           </Alert>
 
           <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
@@ -465,20 +485,43 @@ function DeleteUserConfirmDialog({ open, onClose, user }) {
             </Typography>
           </Box>
 
-          <Alert severity="info" sx={{ mt: 2 }}>
+          <Box sx={{ mt: 2, p: 2, bgcolor: hardDelete ? 'error.light' : 'grey.100', borderRadius: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={hardDelete}
+                  onChange={(e) => setHardDelete(e.target.checked)}
+                  color="error"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" fontWeight="bold" color={hardDelete ? 'error.dark' : 'text.primary'}>
+                    Permanently delete user
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    This will completely remove the user from the database. Cannot be undone.
+                  </Typography>
+                </Box>
+              }
+            />
+          </Box>
+
+          <Alert severity={hardDelete ? 'error' : 'info'} sx={{ mt: 2 }}>
             <Typography variant="body2">
-              This is a soft delete - the user will be deactivated but not permanently removed from
-              the database. The user will no longer be able to log in.
+              {hardDelete
+                ? 'WARNING: This will permanently remove the user from the database. This action cannot be undone. The email address can be reused for a new account.'
+                : 'This is a soft delete - the user will be deactivated but not permanently removed. The user will no longer be able to log in.'}
             </Typography>
           </Alert>
 
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Are you sure you want to delete this user?
+            Are you sure you want to {hardDelete ? 'permanently delete' : 'deactivate'} this user?
           </Typography>
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={deleteUserMutation.isLoading}>
+        <Button onClick={handleClose} disabled={deleteUserMutation.isLoading}>
           Cancel
         </Button>
         <Button
@@ -490,7 +533,7 @@ function DeleteUserConfirmDialog({ open, onClose, user }) {
             deleteUserMutation.isLoading ? <CircularProgress size={20} /> : <DeleteIcon />
           }
         >
-          Delete User
+          {hardDelete ? 'Permanently Delete' : 'Deactivate User'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -738,8 +781,12 @@ function PermissionsDialog({ open, onClose, user }) {
   const [expandedParents, setExpandedParents] = useState({});
 
   React.useEffect(() => {
-    if (permissionsData?.modules) {
-      setSelectedModules(permissionsData.modules.map((m) => m.module_id));
+    if (permissionsData?.permissions) {
+      // Filter to only include modules where can_access is true
+      const grantedModules = permissionsData.permissions
+        .filter((p) => p.can_access)
+        .map((p) => p.module_id);
+      setSelectedModules(grantedModules);
     }
   }, [permissionsData]);
 
