@@ -1,10 +1,16 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.2.0
- * Last Updated: 2025-11-17
+ * Version: 1.3.0
+ * Last Updated: 2025-11-20
  *
  * Changelog:
  * ----------
+ * v1.3.0 (2025-11-20):
+ *   - Added 30-minute inactivity timeout with auto-logout
+ *   - Tracks user activity (mouse, keyboard, scroll, touch)
+ *   - Shows warning dialog before logout
+ *   - Resets timer on any user activity
+ *
  * v1.2.0 (2025-11-17):
  *   - Implemented fully hierarchical module navigation
  *   - Dynamically loads sub-modules from API (parent_module_id)
@@ -24,7 +30,7 @@
  *   - Expandable/collapsible submenus
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -43,6 +49,11 @@ import {
   Menu,
   MenuItem,
   Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -54,6 +65,7 @@ import {
   Logout,
   ExpandLess,
   ExpandMore,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
@@ -61,6 +73,8 @@ import useAuthStore from '../store/authStore';
 import { dashboardAPI } from '../api';
 
 const DRAWER_WIDTH = 260;
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const WARNING_TIME = 60 * 1000; // Show warning 1 minute before timeout
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
@@ -72,6 +86,90 @@ export default function DashboardLayout() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [allModules, setAllModules] = useState([]);
   const [expandedModules, setExpandedModules] = useState({});
+
+  // Session timeout state
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  const [timeoutCountdown, setTimeoutCountdown] = useState(60);
+  const timeoutRef = useRef(null);
+  const warningTimeoutRef = useRef(null);
+  const countdownRef = useRef(null);
+
+  // Handle session timeout logout
+  const handleSessionTimeout = useCallback(async () => {
+    setShowTimeoutWarning(false);
+    await logout();
+    enqueueSnackbar('Session expired due to inactivity', { variant: 'warning' });
+    navigate('/login');
+  }, [logout, navigate, enqueueSnackbar]);
+
+  // Reset the inactivity timer
+  const resetTimer = useCallback(() => {
+    // Clear existing timers
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+
+    // Hide warning if shown
+    setShowTimeoutWarning(false);
+    setTimeoutCountdown(60);
+
+    // Set warning timer (1 minute before timeout)
+    warningTimeoutRef.current = setTimeout(() => {
+      setShowTimeoutWarning(true);
+      setTimeoutCountdown(60);
+
+      // Start countdown
+      countdownRef.current = setInterval(() => {
+        setTimeoutCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }, SESSION_TIMEOUT - WARNING_TIME);
+
+    // Set logout timer
+    timeoutRef.current = setTimeout(() => {
+      handleSessionTimeout();
+    }, SESSION_TIMEOUT);
+  }, [handleSessionTimeout]);
+
+  // Continue session (user clicked "Stay Logged In")
+  const handleContinueSession = () => {
+    resetTimer();
+    enqueueSnackbar('Session extended', { variant: 'success' });
+  };
+
+  // Set up activity listeners
+  useEffect(() => {
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+
+    const handleActivity = () => {
+      if (!showTimeoutWarning) {
+        resetTimer();
+      }
+    };
+
+    // Add event listeners
+    activityEvents.forEach((event) => {
+      document.addEventListener(event, handleActivity);
+    });
+
+    // Initialize timer
+    resetTimer();
+
+    // Cleanup
+    return () => {
+      activityEvents.forEach((event) => {
+        document.removeEventListener(event, handleActivity);
+      });
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [resetTimer, showTimeoutWarning]);
 
   // Fetch user accessible modules
   useEffect(() => {
@@ -355,6 +453,38 @@ export default function DashboardLayout() {
         <Toolbar />
         <Outlet />
       </Box>
+
+      {/* Session Timeout Warning Dialog */}
+      <Dialog
+        open={showTimeoutWarning}
+        onClose={() => {}} // Prevent closing by clicking outside
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningIcon color="warning" />
+          Session Timeout Warning
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            Your session will expire due to inactivity.
+          </Typography>
+          <Typography variant="h4" color="error" align="center" sx={{ my: 2 }}>
+            {timeoutCountdown}s
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Click "Stay Logged In" to continue your session, or you will be automatically logged out.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSessionTimeout} color="inherit">
+            Logout Now
+          </Button>
+          <Button onClick={handleContinueSession} variant="contained" color="primary">
+            Stay Logged In
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
