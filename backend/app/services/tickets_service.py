@@ -21,6 +21,7 @@ Features:
 from typing import Optional, List, Dict
 from fastapi import HTTPException, status
 from datetime import datetime
+from uuid import UUID
 import logging
 
 from app.database import (
@@ -75,7 +76,7 @@ async def get_tickets_list(
 
     if created_by_id:
         where_conditions.append(f"t.created_by_id = ${param_count}")
-        params.append(created_by_id)
+        params.append(UUID(created_by_id))
         param_count += 1
 
     where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
@@ -207,7 +208,7 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
         request.description,
         request.ticket_type.value,
         TicketStatus.OPEN.value,
-        user_id
+        UUID(user_id)
     )
 
     logger.info(f"Ticket {ticket_id} created by user {user_id}")
@@ -342,7 +343,7 @@ async def admin_update_ticket(
         # If closing, set closed_by and closed_at
         if request.status == TicketStatus.CLOSED:
             update_fields.append(f"closed_by_id = ${param_count}")
-            params.append(admin_id)
+            params.append(UUID(admin_id))
             param_count += 1
             update_fields.append(f"closed_at = ${param_count}")
             params.append(datetime.utcnow())
@@ -411,7 +412,7 @@ async def close_ticket(
             WHERE id = $4
             """,
             TicketStatus.CLOSED.value,
-            admin_id,
+            UUID(admin_id),
             datetime.utcnow(),
             ticket_id,
             conn=conn
@@ -425,7 +426,7 @@ async def close_ticket(
                 VALUES ($1, $2, $3)
                 """,
                 ticket_id,
-                admin_id,
+                UUID(admin_id),
                 f"[Closing comment] {comment}",
                 conn=conn
             )
@@ -474,7 +475,7 @@ async def add_comment(
         RETURNING id
         """,
         ticket_id,
-        user_id,
+        UUID(user_id),
         request.comment
     )
 
