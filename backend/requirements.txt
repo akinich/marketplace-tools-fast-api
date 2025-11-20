@@ -57,6 +57,9 @@ aiofiles==23.2.1
 # Background Tasks & Scheduling
 APScheduler==3.10.4
 
+# Telegram Bot
+python-telegram-bot==20.8
+
 # Documentation
 markdown==3.5.1
 

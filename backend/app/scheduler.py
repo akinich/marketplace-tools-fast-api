@@ -2,8 +2,8 @@
 ================================================================================
 Farm Management System - Background Task Scheduler
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-18
+Version: 2.0.0
+Last Updated: 2025-11-20
 
 Purpose:
 --------
@@ -12,8 +12,8 @@ APScheduler-based background task management for recurring operations.
 Tasks:
 ------
 1. Auto-expire old inventory reservations (every 15 minutes)
-2. (Future) Stock level alerts
-3. (Future) Expiry notifications
+2. Low stock first alerts (every hour)
+3. Low stock daily summary (daily at 9 AM)
 
 ================================================================================
 """
@@ -21,9 +21,11 @@ Tasks:
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
-from app.database import fetch_one, execute_query
+from app.database import fetch_one, fetch_all, execute_query
+from app.services import telegram_service
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,75 @@ async def expire_inventory_reservations():
         logger.error(f"❌ Error expiring reservations: {e}", exc_info=True)
 
 
+async def check_low_stock_first_alerts():
+    """
+    Check for items that have dropped below reorder threshold and send first alert.
+    Runs every hour.
+    """
+    try:
+        logger.debug("Checking for low stock items (first alerts)...")
+
+        # Get items below reorder threshold that haven't been alerted yet
+        low_stock_items = await fetch_all(
+            """
+            SELECT
+                im.id,
+                im.item_name,
+                im.category,
+                im.unit,
+                im.current_qty,
+                im.reorder_threshold,
+                (im.reorder_threshold - im.current_qty) as deficit,
+                s.supplier_name as default_supplier_name
+            FROM item_master im
+            LEFT JOIN suppliers s ON s.id = im.default_supplier_id
+            WHERE im.is_active = TRUE
+              AND im.current_qty <= im.reorder_threshold
+              AND NOT EXISTS (
+                  SELECT 1 FROM low_stock_notifications lsn
+                  WHERE lsn.item_master_id = im.id
+                    AND lsn.is_resolved = FALSE
+                    AND lsn.notification_type = 'first_alert'
+              )
+            ORDER BY (im.reorder_threshold - im.current_qty) DESC
+            """
+        )
+
+        if low_stock_items:
+            logger.info(f"Found {len(low_stock_items)} new low stock items")
+
+            # Send first alert for each item
+            for item in low_stock_items:
+                await telegram_service.notify_low_stock_first_alert(dict(item))
+
+            logger.info(f"✅ Sent first alerts for {len(low_stock_items)} items")
+        else:
+            logger.debug("No new low stock items to alert")
+
+    except Exception as e:
+        logger.error(f"❌ Error checking low stock alerts: {e}", exc_info=True)
+
+
+async def send_low_stock_daily_summary():
+    """
+    Send daily summary of all low stock items.
+    Runs daily at 9 AM.
+    """
+    try:
+        logger.info("Sending daily low stock summary...")
+
+        # Send the summary (service handles checking if there are items)
+        success = await telegram_service.notify_low_stock_daily_summary()
+
+        if success:
+            logger.info("✅ Daily low stock summary sent successfully")
+        else:
+            logger.info("No low stock items for daily summary")
+
+    except Exception as e:
+        logger.error(f"❌ Error sending daily low stock summary: {e}", exc_info=True)
+
+
 def start_scheduler():
     """
     Start the background scheduler with all scheduled tasks.
@@ -82,10 +153,32 @@ def start_scheduler():
             max_instances=1,  # Prevent overlapping runs
         )
 
+        # Task 2: Check for low stock first alerts every hour
+        scheduler.add_job(
+            check_low_stock_first_alerts,
+            trigger=IntervalTrigger(hours=1),
+            id="low_stock_first_alerts",
+            name="Check for low stock first alerts",
+            replace_existing=True,
+            max_instances=1,
+        )
+
+        # Task 3: Send daily low stock summary at 9 AM
+        scheduler.add_job(
+            send_low_stock_daily_summary,
+            trigger=CronTrigger(hour=9, minute=0),
+            id="low_stock_daily_summary",
+            name="Send daily low stock summary",
+            replace_existing=True,
+            max_instances=1,
+        )
+
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
         logger.info("   - Expire reservations: Every 15 minutes")
+        logger.info("   - Low stock first alerts: Every hour")
+        logger.info("   - Low stock daily summary: Daily at 9:00 AM")
 
     except Exception as e:
         logger.error(f"❌ Failed to start scheduler: {e}", exc_info=True)

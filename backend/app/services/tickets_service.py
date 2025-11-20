@@ -42,6 +42,7 @@ from typing import Optional, List, Dict
 from fastapi import HTTPException, status
 from datetime import datetime
 from uuid import UUID
+import asyncio
 import logging
 
 from app.database import (
@@ -53,6 +54,7 @@ from app.schemas.tickets import (
     CreateTicketRequest, UpdateTicketRequest, AdminUpdateTicketRequest,
     CreateCommentRequest, UpdateCommentRequest
 )
+from app.services import telegram_service
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +241,12 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
     logger.info(f"Ticket {ticket_id} created by user {user_id}")
 
     # Return the created ticket
-    return await get_ticket_by_id(ticket_id)
+    ticket = await get_ticket_by_id(ticket_id)
+
+    # Send Telegram notification (non-blocking)
+    asyncio.create_task(telegram_service.notify_ticket_created(ticket))
+
+    return ticket
 
 
 async def update_ticket(
@@ -328,13 +335,13 @@ async def admin_update_ticket(
     """
     Admin update for ticket - can change status and priority.
     """
-    # Check if ticket exists
-    ticket = await fetch_one(
-        "SELECT id, status FROM tickets WHERE id = $1",
+    # Check if ticket exists and get old values
+    old_ticket = await fetch_one(
+        "SELECT id, status, priority FROM tickets WHERE id = $1",
         ticket_id
     )
 
-    if not ticket:
+    if not old_ticket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ticket with id {ticket_id} not found"
@@ -398,7 +405,38 @@ async def admin_update_ticket(
 
     logger.info(f"Ticket {ticket_id} admin-updated by {admin_id}")
 
-    return await get_ticket_by_id(ticket_id)
+    # Get updated ticket
+    updated_ticket = await get_ticket_by_id(ticket_id)
+
+    # Send Telegram notifications (non-blocking)
+    # Track which fields were updated
+    updated_fields = []
+    if request.title is not None:
+        updated_fields.append("title")
+    if request.description is not None:
+        updated_fields.append("description")
+    if request.ticket_type is not None:
+        updated_fields.append("type")
+    if request.status is not None:
+        updated_fields.append("status")
+    if request.priority is not None:
+        updated_fields.append("priority")
+
+    # General update notification
+    if updated_fields:
+        asyncio.create_task(telegram_service.notify_ticket_updated(updated_ticket, updated_fields))
+
+    # Special notification for priority change
+    if request.priority is not None and old_ticket["priority"] != request.priority.value:
+        asyncio.create_task(
+            telegram_service.notify_ticket_priority_changed(
+                updated_ticket,
+                old_ticket["priority"],
+                request.priority.value
+            )
+        )
+
+    return updated_ticket
 
 
 async def close_ticket(
@@ -458,7 +496,18 @@ async def close_ticket(
 
     logger.info(f"Ticket {ticket_id} closed by admin {admin_id}")
 
-    return await get_ticket_by_id(ticket_id)
+    # Get closed ticket with admin info
+    closed_ticket = await get_ticket_by_id(ticket_id)
+
+    # Send Telegram notification (non-blocking)
+    asyncio.create_task(
+        telegram_service.notify_ticket_closed(
+            closed_ticket,
+            closed_ticket.get("closed_by_name", "Unknown")
+        )
+    )
+
+    return closed_ticket
 
 
 # ============================================================================
@@ -524,6 +573,18 @@ async def add_comment(
         WHERE tc.id = $1
         """,
         comment_id
+    )
+
+    # Get ticket info for notification
+    ticket_info = await get_ticket_by_id(ticket_id)
+
+    # Send Telegram notification (non-blocking)
+    asyncio.create_task(
+        telegram_service.notify_ticket_comment(
+            ticket_info,
+            request.comment,
+            comment["user_name"]
+        )
     )
 
     return comment

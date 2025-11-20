@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str = Field(..., description="Supabase service role key")
 
     # ========================================================================
+    # TELEGRAM BOT CONFIGURATION
+    # ========================================================================
+    TELEGRAM_BOT_TOKEN: str = Field(default="", description="Telegram bot token for notifications")
+
+    # ========================================================================
     # JWT AUTHENTICATION
     # ========================================================================
     JWT_SECRET_KEY: str = Field(..., description="Secret key for JWT encoding")

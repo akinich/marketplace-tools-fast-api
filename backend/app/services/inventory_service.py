@@ -78,12 +78,14 @@ from decimal import Decimal
 from datetime import date, datetime, timedelta
 import logging
 import math
+import asyncio
 
 from app.database import (
     get_db, fetch_one, fetch_all, execute_query, DatabaseTransaction,
     fetch_one_tx, fetch_all_tx, execute_query_tx
 )
 from app.services.auth_service import log_activity
+from app.services import telegram_service
 from app.schemas.inventory import *
 
 logger = logging.getLogger(__name__)
@@ -916,11 +918,24 @@ async def create_purchase_order(request: CreatePORequest, user_id: str) -> Dict:
         po_id,
     )
 
+    # Format PO data for notification
+    po_dict = dict(po)
+    po_dict["item_count"] = po_dict.get("items_count", 0)
+
+    # Send Telegram notification (non-blocking)
+    asyncio.create_task(telegram_service.notify_po_created(po_dict))
+
     return po
 
 
 async def update_purchase_order_status(po_id: int, request: UpdatePORequest) -> Dict:
     """Update purchase order"""
+    # Get old PO status for notification
+    old_po = await fetch_one(
+        "SELECT status FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
     # Build update
     update_fields = []
     params = []
@@ -966,6 +981,16 @@ async def update_purchase_order_status(po_id: int, request: UpdatePORequest) -> 
         """,
         po_id,
     )
+
+    # Send Telegram notification if status changed (non-blocking)
+    if request.status is not None and old_po and old_po["status"] != request.status:
+        asyncio.create_task(
+            telegram_service.notify_po_status_changed(
+                dict(po),
+                old_po["status"],
+                request.status
+            )
+        )
 
     return po
 
