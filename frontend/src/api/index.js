@@ -356,7 +356,7 @@ export const ticketsAPI = {
 };
 
 // Export all APIs
-export { authAPI, bioflocAPI, ticketsAPI, apiClient };
+export { authAPI, bioflocAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
