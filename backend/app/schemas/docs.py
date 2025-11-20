@@ -1,5 +1,29 @@
 """
+================================================================================
 Documentation Schema Models
+================================================================================
+Version: 1.0.0
+Created: 2025-11-20
+Last Updated: 2025-11-20
+
+Description:
+  Pydantic models for documentation API request/response schemas.
+  Defines data structures for doc listings, content, search results, and TOC.
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial implementation
+  - DocSummary: Summary of available documentation
+  - DocContent: Full document content with metadata
+  - DocSearchResult: Search result with context
+  - DocSearchResponse: Search response wrapper
+  - DocCategory: Category with associated docs
+  - TOCEntry: Table of contents entry
+  - DocListResponse: List of all docs response
+  - DocCategoriesResponse: Categorized docs response
+
+================================================================================
 """
 from pydantic import BaseModel, Field
 from typing import List, Optional

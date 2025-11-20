@@ -3,12 +3,23 @@
  * Documentation Module
  * ============================================================================
  * Version: 1.0.0
+ * Created: 2025-11-20
  * Last Updated: 2025-11-20
  *
- * Main module component that handles routing for documentation pages:
- * - Browse: List all documentation with categories
- * - View: Read specific documentation
- * - Search: Search across all documentation
+ * Description:
+ *   Main module component that handles routing for documentation pages.
+ *   Provides access to in-app help guides written in simple language.
+ *
+ * Routes:
+ *   - /docs or /docs/browse - List all documentation with categories
+ *   - /docs/:docId - View specific documentation
+ *
+ * Changelog:
+ * ----------
+ * v1.0.0 (2025-11-20):
+ *   - Initial implementation
+ *   - Route handling for browse and view pages
+ *   - Fallback to /docs on invalid routes
  * ============================================================================
  */
 

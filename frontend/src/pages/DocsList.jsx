@@ -1,6 +1,32 @@
 /**
+ * ============================================================================
  * Documentation List Page
- * Browse all available documentation organized by categories
+ * ============================================================================
+ * Version: 1.0.0
+ * Created: 2025-11-20
+ * Last Updated: 2025-11-20
+ *
+ * Description:
+ *   Browse all available documentation organized by categories. Includes
+ *   real-time search functionality across all docs.
+ *
+ * Features:
+ *   - Display docs organized by category (General, Modules)
+ *   - Real-time search with debouncing
+ *   - Click any doc to navigate to viewer
+ *   - Search results with context highlighting
+ *   - Mobile responsive cards
+ *   - Loading and error states
+ *
+ * Changelog:
+ * ----------
+ * v1.0.0 (2025-11-20):
+ *   - Initial implementation
+ *   - Category-based organization
+ *   - Search across all documentation
+ *   - Material-UI components
+ *   - Responsive design
+ * ============================================================================
  */
 
 import React, { useState, useEffect } from 'react';

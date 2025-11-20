@@ -1,6 +1,31 @@
 /**
+ * ============================================================================
  * Documentation API Client
+ * ============================================================================
  * Version: 1.0.0
+ * Created: 2025-11-20
+ * Last Updated: 2025-11-20
+ *
+ * Description:
+ *   API client for documentation endpoints. Handles fetching doc lists,
+ *   content, search, and table of contents.
+ *
+ * Methods:
+ *   - getDocsList() - Get list of all available documentation
+ *   - getCategories() - Get documentation organized by categories
+ *   - getDocument(docId, format) - Get specific document content
+ *   - searchDocs(query, limit) - Search across all documentation
+ *   - getTableOfContents(docId) - Get TOC for a document
+ *
+ * Changelog:
+ * ----------
+ * v1.0.0 (2025-11-20):
+ *   - Initial implementation
+ *   - All methods call authenticated endpoints
+ *   - Support for HTML and markdown formats
+ *   - Search with configurable limit
+ *   - TOC extraction
+ * ============================================================================
  */
 
 import apiClient from './client';

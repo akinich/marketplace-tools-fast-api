@@ -1,6 +1,27 @@
 """
+================================================================================
 Documentation Service
-Handles reading, parsing, and searching documentation files
+================================================================================
+Version: 1.0.0
+Created: 2025-11-20
+Last Updated: 2025-11-20
+
+Description:
+  Service for managing and serving in-app documentation. Reads markdown files,
+  provides search functionality, renders HTML, and extracts table of contents.
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial implementation
+  - Read markdown files from /docs/simplified directory
+  - Convert markdown to HTML using markdown library
+  - Full-text search across all documentation
+  - Extract table of contents from headers
+  - Category organization (General, Modules)
+  - Support for 4 docs: getting-started, admin, inventory, biofloc
+
+================================================================================
 """
 import os
 import re
