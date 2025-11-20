@@ -593,7 +593,7 @@ async def record_feeding_session(
     session = await fetch_one(
         """
         SELECT
-            f.*, t.tank_name, b.batch_code
+            f.*, t.tank_code, b.batch_code
         FROM biofloc_feeding_sessions f
         JOIN biofloc_tanks t ON t.id = f.tank_id
         JOIN biofloc_batches b ON b.id = f.batch_id
@@ -662,7 +662,7 @@ async def get_feeding_sessions(
             f.id, f.tank_id, f.batch_id, f.feeding_date, f.session_number,
             f.feed_time, f.feed_items, f.total_feed_kg, f.total_cost,
             f.notes, f.created_by, f.created_at,
-            t.tank_name, b.batch_code
+            t.tank_code, b.batch_code
         FROM biofloc_feeding_sessions f
         JOIN biofloc_tanks t ON t.id = f.tank_id
         JOIN biofloc_batches b ON b.id = f.batch_id
