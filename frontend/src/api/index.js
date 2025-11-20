@@ -42,8 +42,10 @@ export const adminAPI = {
     return response.data;
   },
 
-  deleteUser: async (userId) => {
-    const response = await apiClient.delete(`/admin/users/${userId}`);
+  deleteUser: async (userId, hardDelete = false) => {
+    const response = await apiClient.delete(`/admin/users/${userId}`, {
+      params: { hard_delete: hardDelete }
+    });
     return response.data;
   },
 
