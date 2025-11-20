@@ -824,7 +824,7 @@ async def record_mortality(request: MortalityCreate, user_id: UUID) -> Dict:
     # Calculate biomass loss
     biomass_loss = None
     if request.avg_weight_g:
-        biomass_loss = (request.count * request.avg_weight_g) / 1000.0
+        biomass_loss = (request.count * request.avg_weight_g) / Decimal('1000')
 
     # Create mortality record (trigger will update batch totals)
     mortality_id = await execute_query(
