@@ -424,7 +424,7 @@ async def delete_user(user_id: str, deleted_by_id: str, hard_delete: bool = Fals
     """
     # Check if user exists
     user = await fetch_one(
-        "SELECT id, email FROM user_profiles up JOIN auth.users au ON au.id = up.id WHERE up.id = $1",
+        "SELECT up.id, au.email FROM user_profiles up JOIN auth.users au ON au.id = up.id WHERE up.id = $1",
         user_id,
     )
     if not user:
