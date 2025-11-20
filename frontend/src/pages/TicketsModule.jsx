@@ -1,7 +1,32 @@
 /**
- * Tickets Module
- * Issue tracking and feature request system
- * Version: 1.0.0
+ * ============================================================================
+ * Farm Management System - Tickets Module Frontend
+ * ============================================================================
+ * Version: 1.0.1
+ * Last Updated: 2025-11-20
+ *
+ * Changelog:
+ * ----------
+ * v1.0.1 (2025-11-20):
+ *   - Version bump to match backend fixes
+ *   - No frontend changes required for SQL fix
+ *
+ * v1.0.0 (2025-11-20):
+ *   - Initial tickets module frontend implementation
+ *   - Ticket listing with filters (status, type, priority)
+ *   - Create new ticket dialog
+ *   - View ticket details with comments
+ *   - Add/edit/delete comments functionality
+ *   - Admin features: set priority, change status, close tickets
+ *   - Ticket statistics dashboard
+ *   - Pagination support
+ *   - Responsive design with Material-UI
+ *
+ * Description:
+ *   Complete frontend interface for the ticket system module. Allows users
+ *   to create, view, and manage tickets for issues, feature requests, and
+ *   upgrade suggestions. Includes comment threads and admin controls.
+ * ============================================================================
  */
 
 import React, { useState, useEffect } from 'react';
