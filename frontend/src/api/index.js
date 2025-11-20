@@ -355,6 +355,74 @@ export const ticketsAPI = {
   },
 };
 
+// ============================================================================
+// DEVELOPMENT API
+// ============================================================================
+export const developmentAPI = {
+  // Features
+  getFeatures: async (params = {}) => {
+    const response = await apiClient.get('/development', { params });
+    return response.data;
+  },
+
+  getFeatureStats: async () => {
+    const response = await apiClient.get('/development/stats');
+    return response.data;
+  },
+
+  getFeature: async (featureId) => {
+    const response = await apiClient.get(`/development/${featureId}`);
+    return response.data;
+  },
+
+  createFeature: async (data) => {
+    const response = await apiClient.post('/development', data);
+    return response.data;
+  },
+
+  updateFeature: async (featureId, data) => {
+    const response = await apiClient.put(`/development/${featureId}`, data);
+    return response.data;
+  },
+
+  deleteFeature: async (featureId) => {
+    const response = await apiClient.delete(`/development/${featureId}`);
+    return response.data;
+  },
+
+  // Steps
+  createStep: async (featureId, data) => {
+    const response = await apiClient.post(`/development/${featureId}/steps`, data);
+    return response.data;
+  },
+
+  updateStep: async (stepId, data) => {
+    const response = await apiClient.put(`/development/steps/${stepId}`, data);
+    return response.data;
+  },
+
+  deleteStep: async (stepId) => {
+    const response = await apiClient.delete(`/development/steps/${stepId}`);
+    return response.data;
+  },
+
+  reorderSteps: async (featureId, stepIds) => {
+    const response = await apiClient.post(`/development/${featureId}/steps/reorder`, { step_ids: stepIds });
+    return response.data;
+  },
+
+  // Comments
+  addComment: async (featureId, data) => {
+    const response = await apiClient.post(`/development/${featureId}/comments`, data);
+    return response.data;
+  },
+
+  deleteComment: async (commentId) => {
+    const response = await apiClient.delete(`/development/comments/${commentId}`);
+    return response.data;
+  },
+};
+
 // Export all APIs
 export { authAPI, bioflocAPI, apiClient };
 export default {
@@ -364,4 +432,5 @@ export default {
   inventory: inventoryAPI,
   biofloc: bioflocAPI,
   tickets: ticketsAPI,
+  development: developmentAPI,
 };
