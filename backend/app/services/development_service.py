@@ -2,11 +2,26 @@
 ================================================================================
 Farm Management System - Development Planning Service Layer
 ================================================================================
-Version: 1.0.0
+Version: 1.0.1
 Last Updated: 2025-11-20
 
 Description:
   Service layer for development planning - track features, steps, and progress.
+
+Changelog:
+----------
+v1.0.1 (2025-11-20):
+  - Fixed SQL queries to join with auth.users table for email column
+  - Changed from 'up.email' to 'au.email' in all queries
+  - Resolved "column up.email does not exist" error
+  - Affected functions: get_features_list(), get_feature_by_id(), add_comment()
+
+v1.0.0 (2025-11-20):
+  - Initial implementation of development planning service
+  - Feature CRUD operations with status and priority tracking
+  - Step management with ordering and status tracking
+  - Comment system for features
+  - Statistics and filtering capabilities
 
 ================================================================================
 """

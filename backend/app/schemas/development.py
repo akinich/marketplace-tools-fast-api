@@ -1,6 +1,49 @@
 """
-Development Planning Schemas
-Pydantic models for feature planning request/response validation
+================================================================================
+Farm Management System - Development Planning Schemas
+================================================================================
+Version: 1.0.0
+Created: 2025-11-20
+Last Updated: 2025-11-20
+
+Description:
+  Pydantic models for development planning module request/response validation.
+  Defines data structures for features, steps, comments, and related operations.
+
+Models:
+  Enums:
+    - FeatureStatus: planned, in_development, testing, completed, on_hold
+    - FeaturePriority: low, medium, high, critical
+    - StepStatus: todo, in_progress, done
+
+  Request Models:
+    - CreateFeatureRequest: Create new feature with title, description, priority
+    - UpdateFeatureRequest: Update feature fields (partial update support)
+    - CreateStepRequest: Add implementation step to feature
+    - UpdateStepRequest: Update step details or status
+    - ReorderStepsRequest: Reorder steps for a feature
+    - CreateCommentRequest: Add comment to feature
+
+  Response Models:
+    - FeatureResponse: Basic feature info with counts
+    - FeatureDetailResponse: Full feature with steps and comments
+    - FeaturesListResponse: Paginated feature list
+    - StepResponse: Single step details
+    - CommentResponse: Single comment with user info
+    - FeatureStatsResponse: Statistics by status and priority
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial schema definitions for development planning
+  - Support for feature lifecycle tracking
+  - Priority-based feature management
+  - Step-by-step implementation tracking
+  - Comment system with user attribution
+  - Pagination support for large feature lists
+  - Statistics and reporting schemas
+
+================================================================================
 """
 
 from pydantic import BaseModel, Field

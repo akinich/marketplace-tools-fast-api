@@ -5,21 +5,39 @@ Farm Management System - Development Planning Routes
 Version: 1.0.0
 Last Updated: 2025-11-20
 
+Description:
+  FastAPI routes for development planning and feature tracking module.
+  Provides endpoints for managing features, implementation steps, and comments.
+
 Endpoints:
-  GET    /features         - List all features
-  GET    /features/stats   - Get feature statistics
-  GET    /features/{id}    - Get single feature with steps and comments
-  POST   /features         - Create new feature (admin only)
-  PUT    /features/{id}    - Update feature (admin only)
-  DELETE /features/{id}    - Delete feature (admin only)
+  Feature Management:
+    GET    /features         - List all features with pagination and filtering
+    GET    /features/stats   - Get feature statistics by status and priority
+    GET    /features/{id}    - Get single feature with steps and comments
+    POST   /features         - Create new feature (admin only)
+    PUT    /features/{id}    - Update feature (admin only)
+    DELETE /features/{id}    - Delete feature (admin only)
 
-  POST   /features/{id}/steps       - Add step
-  PUT    /steps/{id}                - Update step
-  DELETE /steps/{id}                - Delete step
-  POST   /features/{id}/steps/reorder - Reorder steps
+  Step Management:
+    POST   /features/{id}/steps       - Add step to feature
+    PUT    /steps/{id}                - Update step status/details
+    DELETE /steps/{id}                - Delete step
+    POST   /features/{id}/steps/reorder - Reorder steps for a feature
 
-  POST   /features/{id}/comments    - Add comment
-  DELETE /comments/{id}             - Delete comment
+  Comment Management:
+    POST   /features/{id}/comments    - Add comment to feature
+    DELETE /comments/{id}             - Delete comment (own or admin)
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial implementation of development planning routes
+  - Feature CRUD with status (planned, in_development, testing, completed, on_hold)
+  - Priority levels (low, medium, high, critical)
+  - Step management with ordering and status tracking
+  - Comment system with user attribution
+  - Admin-only write operations, all users can read and comment
+  - Pagination and filtering support for feature lists
 
 ================================================================================
 """

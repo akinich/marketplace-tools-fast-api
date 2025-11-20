@@ -1,6 +1,41 @@
 """
-Comprehensive migration runner for all modules
-Checks which migrations are needed and runs them
+================================================================================
+Farm Management System - Comprehensive Migration Runner
+================================================================================
+Version: 1.0.0
+Created: 2025-11-20
+Last Updated: 2025-11-20
+
+Description:
+  Comprehensive migration checker and runner for all Farm Management System modules.
+  Intelligently detects which migrations have been applied and runs pending ones.
+
+  Supported Migrations:
+  - Biofloc Module (biofloc_tanks, biofloc_readings, etc.)
+  - Biofloc Grading (biofloc_gradings)
+  - Tickets Module (tickets, ticket_comments)
+  - Development Planning Module (features, feature_steps, feature_comments)
+
+Usage:
+  python run_all_migrations.py
+
+Features:
+  - Automatic detection of applied migrations
+  - Safe execution with error handling
+  - Detailed migration summary report
+  - Lists all tables and registered modules
+  - Idempotent - safe to run multiple times
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial comprehensive migration runner
+  - Checks for existence of key tables before running migrations
+  - Runs all pending migrations in correct order
+  - Provides detailed summary of database state
+  - Reports all tables and active modules after completion
+
+================================================================================
 """
 import asyncio
 import sys

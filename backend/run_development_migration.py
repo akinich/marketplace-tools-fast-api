@@ -1,5 +1,30 @@
 """
-Migration runner for development planning module
+================================================================================
+Farm Management System - Development Planning Module Migration Runner
+================================================================================
+Version: 1.0.0
+Created: 2025-11-20
+Last Updated: 2025-11-20
+
+Description:
+  Runs the development planning module database migration to create:
+  - features table (for tracking development features)
+  - feature_steps table (for breaking down features into steps)
+  - feature_comments table (for discussion and collaboration)
+  - Development module registration in modules table
+
+Usage:
+  python run_development_migration.py
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial migration runner for development planning module
+  - Executes development_module_v1.0.0.sql migration script
+  - Verifies table creation and module registration
+  - Provides detailed output of migration results
+
+================================================================================
 """
 import asyncio
 import sys
