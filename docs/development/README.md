@@ -1,6 +1,6 @@
 # Development Planning Module
 
-**Version:** 1.0.1
+**Version:** 1.1.0
 **Last Updated:** 2025-11-20
 **Status:** Production Ready ✅
 
@@ -242,6 +242,15 @@ Base URL: `/api/v1/development`
 See [Technical Guide](./technical-guide.md) for complete API reference.
 
 ## Version History
+
+### v1.1.0 (2025-11-20)
+- 🎨 Added delete functionality with full UI support
+- ✅ Delete button in feature detail view (admin only, with confirmation dialog)
+- ✅ Delete button in features list table (admin only, with confirmation dialog)
+- ✅ Confirmation dialogs show counts of steps and comments to be deleted
+- ✅ Warning message that deletion is permanent and cannot be undone
+- ✅ Backend delete endpoints already existed, now have complete UI
+- ✅ Cascading delete removes all related steps and comments
 
 ### v1.0.1 (2025-11-20)
 - 🐛 Fixed SQL queries to properly join with auth.users for email columns

@@ -2,7 +2,7 @@
 ================================================================================
 Farm Management System - Development Planning Routes
 ================================================================================
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2025-11-20
 
 Description:
@@ -16,20 +16,27 @@ Endpoints:
     GET    /features/{id}    - Get single feature with steps and comments
     POST   /features         - Create new feature (admin only)
     PUT    /features/{id}    - Update feature (admin only)
-    DELETE /features/{id}    - Delete feature (admin only)
+    DELETE /features/{id}    - Delete feature (admin only) - NEW UI in v1.1.0
 
   Step Management:
     POST   /features/{id}/steps       - Add step to feature
     PUT    /steps/{id}                - Update step status/details
-    DELETE /steps/{id}                - Delete step
+    DELETE /steps/{id}                - Delete step (UI available)
     POST   /features/{id}/steps/reorder - Reorder steps for a feature
 
   Comment Management:
     POST   /features/{id}/comments    - Add comment to feature
-    DELETE /comments/{id}             - Delete comment (own or admin)
+    DELETE /comments/{id}             - Delete comment (own or admin, UI available)
 
 Changelog:
 ----------
+v1.1.0 (2025-11-20):
+  - Added delete feature UI in frontend (delete buttons and confirmation dialogs)
+  - Delete button in feature detail view (admin only)
+  - Delete button in features list table (admin only)
+  - Confirmation dialogs show counts of steps/comments to be deleted
+  - Backend delete endpoints already existed, now have full UI support
+
 v1.0.0 (2025-11-20):
   - Initial implementation of development planning routes
   - Feature CRUD with status (planned, in_development, testing, completed, on_hold)

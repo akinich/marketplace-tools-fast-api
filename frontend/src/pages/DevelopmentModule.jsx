@@ -1,7 +1,22 @@
 /**
  * Development Planning Module
  * Feature planning and progress tracking
- * Version: 1.0.0
+ * Version: 1.1.0
+ *
+ * Changelog:
+ * v1.1.0 (2025-11-20):
+ *   - Added delete functionality for features
+ *   - Delete button in feature detail view (admin only)
+ *   - Delete button in features list table (admin only)
+ *   - Confirmation dialogs before deletion
+ *   - Shows count of steps and comments that will be deleted
+ *
+ * v1.0.0 (2025-11-20):
+ *   - Initial release
+ *   - Features list with filters and pagination
+ *   - Feature detail view with steps and comments
+ *   - Admin can create/edit features and steps
+ *   - All users can view and comment
  */
 
 import React, { useState, useEffect } from 'react';
@@ -124,6 +139,10 @@ function FeaturesList() {
     target_date: '',
   });
 
+  // Delete confirmation
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [featureToDelete, setFeatureToDelete] = useState(null);
+
   const fetchFeatures = async () => {
     setLoading(true);
     try {
@@ -179,6 +198,21 @@ function FeaturesList() {
       fetchStats();
     } catch (error) {
       enqueueSnackbar(error.response?.data?.detail || 'Failed to create feature', { variant: 'error' });
+    }
+  };
+
+  const handleDeleteFeature = async () => {
+    if (!featureToDelete) return;
+
+    try {
+      await developmentAPI.deleteFeature(featureToDelete.id);
+      enqueueSnackbar('Feature deleted successfully', { variant: 'success' });
+      setDeleteDialog(false);
+      setFeatureToDelete(null);
+      fetchFeatures();
+      fetchStats();
+    } catch (error) {
+      enqueueSnackbar(error.response?.data?.detail || 'Failed to delete feature', { variant: 'error' });
     }
   };
 
@@ -349,9 +383,19 @@ function FeaturesList() {
                       </TableCell>
                       <TableCell>{formatDate(feature.target_date)}</TableCell>
                       <TableCell align="right">
-                        <IconButton size="small" onClick={() => navigate(`/development/${feature.id}`)}>
+                        <IconButton size="small" onClick={() => navigate(`/development/${feature.id}`)} title="View">
                           <ViewIcon />
                         </IconButton>
+                        {isAdmin && (
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => { setFeatureToDelete(feature); setDeleteDialog(true); }}
+                            title="Delete"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -421,6 +465,35 @@ function FeaturesList() {
           <Button variant="contained" onClick={handleCreateFeature}>Create</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Feature Confirmation Dialog */}
+      <Dialog open={deleteDialog} onClose={() => { setDeleteDialog(false); setFeatureToDelete(null); }} maxWidth="sm" fullWidth>
+        <DialogTitle>Delete Feature</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this feature?
+          </Typography>
+          {featureToDelete && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                "{featureToDelete.title}"
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                This will permanently delete the feature and all its {featureToDelete.step_count} steps and {featureToDelete.comment_count} comments.
+              </Typography>
+            </Box>
+          )}
+          <Typography color="error" sx={{ mt: 2, fontWeight: 'bold' }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDeleteDialog(false); setFeatureToDelete(null); }}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteFeature}>
+            Delete Permanently
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -449,6 +522,9 @@ function FeatureDetail() {
   // Edit dialog
   const [editDialog, setEditDialog] = useState(false);
   const [editData, setEditData] = useState({});
+
+  // Delete confirmation
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   const fetchFeature = async () => {
     setLoading(true);
@@ -519,6 +595,16 @@ function FeatureDetail() {
     }
   };
 
+  const handleDeleteFeature = async () => {
+    try {
+      await developmentAPI.deleteFeature(featureId);
+      enqueueSnackbar('Feature deleted successfully', { variant: 'success' });
+      navigate('/development');
+    } catch (error) {
+      enqueueSnackbar(error.response?.data?.detail || 'Failed to delete feature', { variant: 'error' });
+    }
+  };
+
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
 
@@ -570,9 +656,14 @@ function FeatureDetail() {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button variant="outlined" onClick={() => navigate('/development')}>Back</Button>
           {isAdmin && (
-            <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditDialog(true)}>
-              Edit
-            </Button>
+            <>
+              <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditDialog(true)}>
+                Edit
+              </Button>
+              <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteDialog(true)}>
+                Delete
+              </Button>
+            </>
           )}
         </Box>
       </Box>
@@ -799,6 +890,30 @@ function FeatureDetail() {
         <DialogActions>
           <Button onClick={() => setEditDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleUpdateFeature}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Feature Confirmation Dialog */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Delete Feature</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this feature? This will permanently delete:
+          </Typography>
+          <Box component="ul" sx={{ mt: 1 }}>
+            <li>The feature "{feature?.title}"</li>
+            <li>All {feature?.steps?.length || 0} implementation steps</li>
+            <li>All {feature?.comments?.length || 0} comments</li>
+          </Box>
+          <Typography color="error" sx={{ mt: 2, fontWeight: 'bold' }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={() => { setDeleteDialog(false); handleDeleteFeature(); }}>
+            Delete Permanently
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

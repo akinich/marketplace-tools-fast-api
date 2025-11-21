@@ -162,10 +162,28 @@ Target Date: 2025-12-15
 
 ### Deleting a Feature (Admin Only)
 
-1. Open feature detail view
-2. Click **Delete** button
-3. Confirm deletion
-4. **Warning:** This permanently deletes the feature, all steps, and all comments
+**From Feature Detail View:**
+1. Open the feature detail view
+2. Click **Delete** button (red, in header next to Edit)
+3. Review the confirmation dialog which shows:
+   - Feature title
+   - Number of steps that will be deleted
+   - Number of comments that will be deleted
+4. Click **Delete Permanently** to confirm
+5. You'll be returned to the features list
+
+**From Features List Table:**
+1. Find the feature you want to delete
+2. Click the **Delete** icon (trash can) in the Actions column
+3. Review the confirmation dialog
+4. Click **Delete Permanently** to confirm
+5. The features list will refresh
+
+**Important Warnings:**
+- ⚠️ Deletion is permanent and cannot be undone
+- ⚠️ All implementation steps are deleted
+- ⚠️ All comments are deleted
+- ⚠️ Only admins can delete features
 
 ---
 
