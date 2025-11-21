@@ -211,7 +211,9 @@ class DocsService:
             categories[category]["docs"].append({
                 "id": doc_id,
                 "title": doc_info["title"],
-                "description": doc_info["description"]
+                "category": doc_info["category"],
+                "description": doc_info["description"],
+                "order": doc_info["order"]
             })
 
         return list(categories.values())
