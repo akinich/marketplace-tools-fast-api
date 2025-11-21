@@ -1,6 +1,33 @@
 """
+================================================================================
 Documentation API Routes
-Provides access to in-app documentation for logged-in users
+================================================================================
+Version: 1.0.0
+Created: 2025-11-20
+Last Updated: 2025-11-20
+
+Description:
+  API endpoints for accessing in-app documentation. All endpoints require
+  authentication. Provides browsing, viewing, and searching capabilities.
+
+Endpoints:
+  - GET /docs - List all available documentation
+  - GET /docs/categories - Get docs organized by categories
+  - GET /docs/search?q=query - Search across all documentation
+  - GET /docs/{doc_id} - Get specific document content (HTML or markdown)
+  - GET /docs/{doc_id}/toc - Get table of contents for document
+
+Changelog:
+----------
+v1.0.0 (2025-11-20):
+  - Initial implementation
+  - All endpoints require authentication (logged-in users)
+  - Support for markdown and HTML format responses
+  - Full-text search with context
+  - TOC extraction from headers
+  - Static file serving (no database storage)
+
+================================================================================
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional

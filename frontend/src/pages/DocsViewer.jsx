@@ -1,6 +1,33 @@
 /**
+ * ============================================================================
  * Documentation Viewer Page
- * Display specific documentation with table of contents
+ * ============================================================================
+ * Version: 1.0.0
+ * Created: 2025-11-20
+ * Last Updated: 2025-11-20
+ *
+ * Description:
+ *   Display specific documentation with table of contents sidebar.
+ *   Renders HTML-formatted documentation with styled markdown.
+ *
+ * Features:
+ *   - Display full documentation content
+ *   - Table of contents sidebar (desktop) / drawer (mobile)
+ *   - Smooth scroll to sections
+ *   - Breadcrumb navigation
+ *   - Back to list button
+ *   - Responsive layout
+ *   - Styled markdown rendering (headers, code blocks, tables, etc.)
+ *
+ * Changelog:
+ * ----------
+ * v1.0.0 (2025-11-20):
+ *   - Initial implementation
+ *   - TOC sidebar with auto-hide on mobile
+ *   - HTML content rendering with custom styles
+ *   - Smooth scroll navigation
+ *   - Material-UI components
+ * ============================================================================
  */
 
 import React, { useState, useEffect } from 'react';
