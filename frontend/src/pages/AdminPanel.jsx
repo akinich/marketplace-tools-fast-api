@@ -1,10 +1,15 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.7.0
- * Last Updated: 2025-11-20
+ * Version: 1.8.0
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.8.0 (2025-11-21):
+ *   - Converted Material-UI icon imports to individual imports for better tree-shaking
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Bundle size optimization as part of code splitting initiative
+ *
  * v1.7.0 (2025-11-20):
  *   - Added Telegram Notifications settings route (/admin/telegram)
  *   - Integrated TelegramSettings component for bot configuration

@@ -1,9 +1,15 @@
 /**
  * Development Planning Module
  * Feature planning and progress tracking
- * Version: 1.1.0
+ * Version: 1.2.0
+ * Last Updated: 2025-11-21
  *
  * Changelog:
+ * v1.2.0 (2025-11-21):
+ *   - Converted Material-UI icon imports to individual imports for better tree-shaking
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Bundle size optimization as part of code splitting initiative
+ *
  * v1.1.0 (2025-11-20):
  *   - Added delete functionality for features
  *   - Delete button in feature detail view (admin only)

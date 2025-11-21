@@ -1,10 +1,15 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.4.0
+ * Version: 1.5.0
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.5.0 (2025-11-21):
+ *   - Converted Material-UI icon imports to individual imports for better tree-shaking
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Bundle size optimization as part of code splitting initiative
+ *
  * v1.4.0 (2025-11-21):
  *   - Added "My Profile" option in user menu dropdown
  *   - Added Person icon import

@@ -1,6 +1,7 @@
 /**
  * Reservations Dashboard - View and manage inventory reservations
- * Version: 1.0.0
+ * Version: 1.1.0
+ * Last Updated: 2025-11-21
  * Created: 2025-11-18
  */
 

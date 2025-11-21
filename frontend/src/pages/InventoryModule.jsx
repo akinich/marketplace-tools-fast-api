@@ -1,10 +1,15 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 3.0.0
+ * Version: 3.1.0
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v3.1.0 (2025-11-21):
+ *   - Converted Material-UI icon imports to individual imports for better tree-shaking
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Bundle size optimization as part of code splitting initiative
+ *
  * v3.0.0 (2025-11-21):
  *   - MAJOR: Complete Purchase Order management overhaul
  *   - FEATURE: Auto-fill default price from item master when selecting items

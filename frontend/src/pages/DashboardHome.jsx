@@ -1,10 +1,15 @@
 /**
  * Dashboard Home Page
- * Version: 1.1.0
- * Last Updated: 2025-11-17
+ * Version: 1.2.0
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.2.0 (2025-11-21):
+ *   - Converted Material-UI icon imports to individual imports for better tree-shaking
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Bundle size optimization as part of code splitting initiative
+ *
  * v1.1.0 (2025-11-17):
  *   - Added INR currency formatting for inventory value
  *   - Uses formatCurrency utility with Indian Rupee symbol (₹)

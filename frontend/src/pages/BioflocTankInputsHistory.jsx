@@ -2,8 +2,8 @@
  * ============================================================================
  * Biofloc Tank Inputs History Page
  * ============================================================================
- * Version: 1.0.0
- * Last Updated: 2025-11-19
+ * Version: 1.1.0
+ * Last Updated: 2025-11-21
  *
  * Displays history of all tank inputs (chemicals, probiotics, etc.) with filtering.
  * ============================================================================

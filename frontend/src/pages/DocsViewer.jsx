@@ -2,9 +2,9 @@
  * ============================================================================
  * Documentation Viewer Page
  * ============================================================================
- * Version: 1.0.0
+ * Version: 1.1.0
  * Created: 2025-11-20
- * Last Updated: 2025-11-20
+ * Last Updated: 2025-11-21
  *
  * Description:
  *   Display specific documentation with table of contents sidebar.
@@ -21,6 +21,11 @@
  *
  * Changelog:
  * ----------
+ * v1.1.0 (2025-11-21):
+ *   - Converted Material-UI icon imports to individual imports for better tree-shaking
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Bundle size optimization as part of code splitting initiative
+ *
  * v1.0.0 (2025-11-20):
  *   - Initial implementation
  *   - TOC sidebar with auto-hide on mobile
