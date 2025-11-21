@@ -1,6 +1,11 @@
 /**
  * Auth API Service
- * Version: 1.0.0
+ * Version: 1.1.0
+ *
+ * Changelog:
+ * v1.1.0 (2025-11-21):
+ *   - Added getProfile() - Get user profile with security info
+ *   - Added updateProfile(fullName) - Update user full name
  */
 
 import apiClient from './client';
@@ -50,6 +55,20 @@ export const authAPI = {
     const response = await apiClient.post('/auth/change-password', {
       current_password: currentPassword,
       new_password: newPassword,
+    });
+    return response.data;
+  },
+
+  // Get user profile
+  getProfile: async () => {
+    const response = await apiClient.get('/auth/profile');
+    return response.data;
+  },
+
+  // Update user profile
+  updateProfile: async (fullName) => {
+    const response = await apiClient.put('/auth/profile', {
+      full_name: fullName,
     });
     return response.data;
   },

@@ -2,11 +2,15 @@
 ================================================================================
 Farm Management System - Authentication Schemas
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-17
+Version: 1.1.0
+Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.1.0 (2025-11-21):
+  - Added UserProfileResponse schema
+  - Added UpdateProfileRequest/Response schemas
+
 v1.0.0 (2025-11-17):
   - Initial authentication Pydantic models
   - Login, logout, refresh token schemas
@@ -265,3 +269,54 @@ class ErrorResponse(BaseModel):
 
     class Config:
         json_schema_extra = {"example": {"detail": "Invalid credentials"}}
+
+
+# ============================================================================
+# USER PROFILE SCHEMAS
+# ============================================================================
+
+
+class UserProfileResponse(BaseModel):
+    """User profile with security information"""
+
+    id: str = Field(..., description="User UUID")
+    email: str = Field(..., description="User email")
+    full_name: str = Field(..., description="User full name")
+    role: str = Field(..., description="User role (Admin/User)")
+    is_active: bool = Field(..., description="Account active status")
+    created_at: Optional[datetime] = Field(None, description="Account creation date")
+    last_password_change: Optional[datetime] = Field(None, description="Last password change date")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "email": "john.doe@example.com",
+                "full_name": "John Doe",
+                "role": "Admin",
+                "is_active": True,
+                "created_at": "2025-01-15T10:30:00",
+                "last_password_change": "2025-11-20T14:00:00",
+            }
+        }
+
+
+class UpdateProfileRequest(BaseModel):
+    """Update profile request"""
+
+    full_name: str = Field(..., min_length=1, max_length=255, description="User full name")
+
+    class Config:
+        json_schema_extra = {"example": {"full_name": "John Doe"}}
+
+
+class UpdateProfileResponse(BaseModel):
+    """Update profile response"""
+
+    message: str = Field(default="Profile updated successfully")
+    full_name: str = Field(..., description="Updated full name")
+
+    class Config:
+        json_schema_extra = {
+            "example": {"message": "Profile updated successfully", "full_name": "John Doe"}
+        }

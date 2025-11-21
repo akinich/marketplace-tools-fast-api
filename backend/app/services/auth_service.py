@@ -658,3 +658,104 @@ async def admin_unlock_account(user_id: str) -> Dict[str, str]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while unlocking account"
         )
+
+
+# ============================================================================
+# USER PROFILE SERVICES
+# ============================================================================
+
+
+async def get_user_profile(user_id: str) -> Dict[str, Any]:
+    """
+    Get user profile with security information.
+
+    Args:
+        user_id: UUID of user
+
+    Returns:
+        User profile dict with security info
+    """
+    try:
+        user = await fetch_one(
+            """
+            SELECT
+                up.id, au.email, up.full_name, r.name as role,
+                up.is_active, up.created_at, up.last_password_change
+            FROM user_profiles up
+            JOIN auth.users au ON au.id = up.id
+            JOIN roles r ON r.id = up.role_id
+            WHERE up.id = $1
+            """,
+            user_id
+        )
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        return {
+            "id": str(user["id"]),
+            "email": user["email"],
+            "full_name": user["full_name"],
+            "role": user["role"],
+            "is_active": user["is_active"],
+            "created_at": user["created_at"],
+            "last_password_change": user["last_password_change"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get user profile error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching profile"
+        )
+
+
+async def update_user_profile(
+    user_id: str, full_name: str, user_email: str, user_role: str
+) -> Dict[str, str]:
+    """
+    Update user profile (full name).
+
+    Args:
+        user_id: UUID of user
+        full_name: New full name
+        user_email: User email for logging
+        user_role: User role for logging
+
+    Returns:
+        Success message with updated name
+    """
+    try:
+        await execute_query(
+            """
+            UPDATE user_profiles
+            SET full_name = $1, updated_at = NOW()
+            WHERE id = $2
+            """,
+            full_name, user_id
+        )
+
+        # Log activity
+        await log_activity(
+            user_id=user_id,
+            user_email=user_email,
+            user_role=user_role,
+            action_type="profile_update",
+            description=f"User {user_email} updated their profile name",
+        )
+
+        logger.info(f"Profile updated for user: {user_email}")
+
+        return {"message": "Profile updated successfully", "full_name": full_name}
+
+    except Exception as e:
+        logger.error(f"Update user profile error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating profile"
+        )

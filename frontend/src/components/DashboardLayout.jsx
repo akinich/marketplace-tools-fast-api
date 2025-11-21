@@ -1,10 +1,14 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.3.0
- * Last Updated: 2025-11-20
+ * Version: 1.4.0
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.4.0 (2025-11-21):
+ *   - Added "My Profile" option in user menu dropdown
+ *   - Added Person icon import
+ *
  * v1.3.0 (2025-11-20):
  *   - Added 30-minute inactivity timeout with auto-logout
  *   - Tracks user activity (mouse, keyboard, scroll, touch)
@@ -66,6 +70,7 @@ import {
   AccountCircle,
   Logout,
   Lock,
+  Person,
   ExpandLess,
   ExpandMore,
   Warning as WarningIcon,
@@ -410,6 +415,12 @@ export default function DashboardLayout() {
               </Typography>
             </MenuItem>
             <Divider />
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>
+              <ListItemIcon>
+                <Person fontSize="small" />
+              </ListItemIcon>
+              My Profile
+            </MenuItem>
             <MenuItem onClick={() => { handleMenuClose(); navigate('/change-password'); }}>
               <ListItemIcon>
                 <Lock fontSize="small" />

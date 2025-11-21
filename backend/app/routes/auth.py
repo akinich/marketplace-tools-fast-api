@@ -2,11 +2,15 @@
 ================================================================================
 Farm Management System - Authentication Routes
 ================================================================================
-Version: 1.1.0
+Version: 1.2.0
 Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.2.0 (2025-11-21):
+  - Added GET /profile - Get user profile with security info
+  - Added PUT /profile - Update user profile (full name)
+
 v1.1.0 (2025-11-21):
   - Added POST /change-password - Change password for logged-in users
   - Login now returns must_change_password flag
@@ -39,6 +43,9 @@ from app.schemas.auth import (
     ChangePasswordResponse,
     CurrentUser,
     ErrorResponse,
+    UserProfileResponse,
+    UpdateProfileRequest,
+    UpdateProfileResponse,
 )
 from app.services.auth_service import (
     authenticate_user,
@@ -47,6 +54,8 @@ from app.services.auth_service import (
     reset_password,
     change_password,
     log_activity,
+    get_user_profile,
+    update_user_profile,
 )
 from app.auth.dependencies import get_current_user
 import logging
@@ -319,4 +328,78 @@ async def change_password_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while changing password",
+        )
+
+
+# ============================================================================
+# USER PROFILE ENDPOINTS
+# ============================================================================
+
+
+@router.get(
+    "/profile",
+    response_model=UserProfileResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "User profile retrieved"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    summary="Get User Profile",
+    description="Get detailed profile information including security settings.",
+)
+async def get_profile(current_user: CurrentUser = Depends(get_current_user)):
+    """
+    Get user profile with security information.
+
+    - Returns full profile with created_at, last_password_change
+    """
+    try:
+        profile = await get_user_profile(current_user.id)
+        return UserProfileResponse(**profile)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get profile error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching profile",
+        )
+
+
+@router.put(
+    "/profile",
+    response_model=UpdateProfileResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Profile updated successfully"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+    },
+    summary="Update User Profile",
+    description="Update user profile information (full name).",
+)
+async def update_profile(
+    request: UpdateProfileRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Update user profile.
+
+    - Updates full_name
+    - Logs activity
+    """
+    try:
+        result = await update_user_profile(
+            user_id=current_user.id,
+            full_name=request.full_name,
+            user_email=current_user.email,
+            user_role=current_user.role,
+        )
+        return UpdateProfileResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update profile error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating profile",
         )

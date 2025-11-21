@@ -2,7 +2,7 @@
 
 A modern, full-stack farm management system migrated from Streamlit to FastAPI backend + React frontend for improved performance, scalability, and user experience.
 
-![Version](https://img.shields.io/badge/version-1.1.0-green)
+![Version](https://img.shields.io/badge/version-1.2.0-green)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
@@ -994,6 +994,27 @@ v1.0.0 (2025-11-17):
 ---
 
 ## 📝 Version History
+
+### v1.2.0 (2025-11-21) - User Profile Feature
+
+**User Profile:**
+- ✅ Added User Profile page accessible from top-right menu
+- ✅ View profile info: name, email, role, account creation date
+- ✅ Edit full name with inline editing
+- ✅ View last password change date
+- ✅ Quick link to change password
+
+**Backend:**
+- ✅ Added GET /auth/profile - Get user profile with security info
+- ✅ Added PUT /auth/profile - Update user profile (full name)
+- ✅ Activity logging for profile updates
+
+**Frontend:**
+- ✅ New UserProfilePage component
+- ✅ Profile menu option in user dropdown
+- ✅ Auth API extended with getProfile/updateProfile
+
+---
 
 ### v1.1.0 (2025-11-17) - Phase 1-4 Enhancements
 

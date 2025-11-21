@@ -1,8 +1,11 @@
 /**
  * Main App Component
- * Version: 1.1.0
+ * Version: 1.2.0
  *
  * Changelog:
+ * v1.2.0 (2025-11-21):
+ *   - Added UserProfilePage route at /profile
+ *
  * v1.1.0 (2025-11-21):
  *   - Added ChangePasswordPage route
  *   - Added mustChangePassword redirect logic
@@ -16,6 +19,7 @@ import useAuthStore from './store/authStore';
 import LoginPage from './pages/LoginPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import UserProfilePage from './pages/UserProfilePage';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardHome from './pages/DashboardHome';
 import AdminPanel from './pages/AdminPanel';
@@ -71,6 +75,7 @@ function App() {
       >
         <Route index element={<DashboardHome />} />
         <Route path="dashboard" element={<DashboardHome />} />
+        <Route path="profile" element={<UserProfilePage />} />
         <Route path="admin/*" element={<AdminPanel />} />
         <Route path="inventory/*" element={<InventoryModule />} />
         <Route path="biofloc/*" element={<BioflocModule />} />
