@@ -112,6 +112,66 @@ export const adminAPI = {
     const response = await apiClient.get(`/admin/modules/${moduleId}/users-count`);
     return response.data;
   },
+
+  // Unlock user account
+  unlockUser: async (userId) => {
+    const response = await apiClient.post(`/admin/users/${userId}/unlock`);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// SECURITY API
+// ============================================================================
+export const securityAPI = {
+  // User's own sessions
+  getMySessions: async () => {
+    const response = await apiClient.get('/security/sessions');
+    return response.data;
+  },
+
+  revokeSession: async (sessionId) => {
+    const response = await apiClient.delete(`/security/sessions/${sessionId}`);
+    return response.data;
+  },
+
+  revokeAllMySessions: async () => {
+    const response = await apiClient.delete('/security/sessions');
+    return response.data;
+  },
+
+  getMyLoginHistory: async (limit = 20) => {
+    const response = await apiClient.get('/security/login-history', { params: { limit } });
+    return response.data;
+  },
+
+  // Admin endpoints
+  getAllSessions: async () => {
+    const response = await apiClient.get('/security/admin/sessions');
+    return response.data;
+  },
+
+  adminRevokeSession: async (sessionId) => {
+    const response = await apiClient.delete(`/security/admin/sessions/${sessionId}`);
+    return response.data;
+  },
+
+  adminRevokeUserSessions: async (userId) => {
+    const response = await apiClient.delete(`/security/admin/users/${userId}/sessions`);
+    return response.data;
+  },
+
+  getAllLoginHistory: async (limit = 50, statusFilter = null) => {
+    const params = { limit };
+    if (statusFilter) params.status_filter = statusFilter;
+    const response = await apiClient.get('/security/admin/login-history', { params });
+    return response.data;
+  },
+
+  getSecurityStats: async () => {
+    const response = await apiClient.get('/security/admin/stats');
+    return response.data;
+  },
 };
 
 // ============================================================================

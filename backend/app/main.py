@@ -127,6 +127,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate Limiting Middleware
+from app.middleware.rate_limit import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware, default_limit=100, window_seconds=60)
+
 
 # Request Logging Middleware
 @app.middleware("http")
@@ -249,11 +253,12 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram
+from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram, security
 
 # Mount routers
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin Panel"])
+app.include_router(security.router, prefix=f"{settings.API_PREFIX}/security", tags=["Security"])
 app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
 app.include_router(biofloc.router, tags=["Biofloc"])
