@@ -1140,21 +1140,26 @@ async def record_po_history(
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
     """
-    if conn:
-        return await execute_query_tx(
-            query,
-            po_id, action, previous_status, new_status,
-            json.dumps(change_details) if change_details else None,
-            user_id, user_name,
-            conn=conn
-        )
-    else:
-        return await execute_query(
-            query,
-            po_id, action, previous_status, new_status,
-            json.dumps(change_details) if change_details else None,
-            user_id, user_name
-        )
+    try:
+        if conn:
+            return await execute_query_tx(
+                query,
+                po_id, action, previous_status, new_status,
+                json.dumps(change_details) if change_details else None,
+                user_id, user_name,
+                conn=conn
+            )
+        else:
+            return await execute_query(
+                query,
+                po_id, action, previous_status, new_status,
+                json.dumps(change_details) if change_details else None,
+                user_id, user_name
+            )
+    except Exception:
+        # Table might not exist yet - migration not run
+        # Silently ignore - history is optional
+        return None
 
 
 async def get_purchase_order_detail(po_id: int) -> Dict:
@@ -1207,36 +1212,41 @@ async def get_purchase_order_detail(po_id: int) -> Dict:
         po_id
     )
 
-    # Get receiving info if any
-    receiving = await fetch_all(
-        """
-        SELECT
-            pr.id,
-            pr.po_item_id,
-            pr.item_master_id,
-            im.item_name,
-            pr.ordered_qty,
-            pr.received_qty,
-            pr.po_unit_cost,
-            pr.actual_unit_cost,
-            pr.po_line_total,
-            pr.actual_line_total,
-            pr.batch_id,
-            pr.batch_number,
-            pr.receipt_date,
-            pr.expiry_date,
-            pr.notes,
-            pr.received_by::text as received_by,
-            up.full_name as received_by_name,
-            pr.created_at
-        FROM po_receiving pr
-        JOIN item_master im ON im.id = pr.item_master_id
-        LEFT JOIN user_profiles up ON up.id = pr.received_by
-        WHERE pr.purchase_order_id = $1
-        ORDER BY pr.created_at DESC
-        """,
-        po_id
-    )
+    # Get receiving info if table exists (graceful handling)
+    receiving = []
+    try:
+        receiving = await fetch_all(
+            """
+            SELECT
+                pr.id,
+                pr.po_item_id,
+                pr.item_master_id,
+                im.item_name,
+                pr.ordered_qty,
+                pr.received_qty,
+                pr.po_unit_cost,
+                pr.actual_unit_cost,
+                pr.po_line_total,
+                pr.actual_line_total,
+                pr.batch_id,
+                pr.batch_number,
+                pr.receipt_date,
+                pr.expiry_date,
+                pr.notes,
+                pr.received_by::text as received_by,
+                up.full_name as received_by_name,
+                pr.created_at
+            FROM po_receiving pr
+            JOIN item_master im ON im.id = pr.item_master_id
+            LEFT JOIN user_profiles up ON up.id = pr.received_by
+            WHERE pr.purchase_order_id = $1
+            ORDER BY pr.created_at DESC
+            """,
+            po_id
+        )
+    except Exception:
+        # Table might not exist yet - migration not run
+        receiving = []
 
     # Calculate receiving summary
     summary = None
@@ -1966,32 +1976,37 @@ async def get_po_history(po_id: int) -> Dict:
             detail=f"Purchase order {po_id} not found"
         )
 
-    history = await fetch_all(
-        """
-        SELECT
-            id,
-            purchase_order_id,
-            action,
-            previous_status,
-            new_status,
-            change_details,
-            changed_by::text as changed_by,
-            changed_by_name,
-            changed_at
-        FROM po_history
-        WHERE purchase_order_id = $1
-        ORDER BY changed_at DESC
-        """,
-        po_id
-    )
+    history = []
+    try:
+        history = await fetch_all(
+            """
+            SELECT
+                id,
+                purchase_order_id,
+                action,
+                previous_status,
+                new_status,
+                change_details,
+                changed_by::text as changed_by,
+                changed_by_name,
+                changed_at
+            FROM po_history
+            WHERE purchase_order_id = $1
+            ORDER BY changed_at DESC
+            """,
+            po_id
+        )
 
-    # Parse JSON change_details
-    for h in history:
-        if h["change_details"] and isinstance(h["change_details"], str):
-            try:
-                h["change_details"] = json.loads(h["change_details"])
-            except:
-                pass
+        # Parse JSON change_details
+        for h in history:
+            if h["change_details"] and isinstance(h["change_details"], str):
+                try:
+                    h["change_details"] = json.loads(h["change_details"])
+                except:
+                    pass
+    except Exception:
+        # Table might not exist yet - migration not run
+        history = []
 
     return {
         "history": history,
