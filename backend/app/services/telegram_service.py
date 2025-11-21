@@ -1,11 +1,18 @@
 """
 Telegram Notification Service
-Version: 1.1.0
+Version: 1.2.0
 Created: 2025-11-20
 Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.2.0 (2025-11-21):
+  - Added granular event-level notification toggles
+  - Tickets: notify_ticket_created, updated, closed, comment, priority_changed
+  - POs: notify_po_created, notify_po_status_changed
+  - Inventory: notify_low_stock_first_alert, notify_low_stock_daily_summary
+  - Each notification function now checks both channel and event toggles
+
 v1.1.0 (2025-11-21):
   - BREAKING: Replaced python-telegram-bot library with direct HTTP API calls
   - Uses httpx for async HTTP requests to Telegram Bot API

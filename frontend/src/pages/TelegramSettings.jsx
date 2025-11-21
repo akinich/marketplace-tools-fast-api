@@ -1,10 +1,23 @@
 /**
  * Telegram Notifications Settings Page
- * Version: 1.0.0
- * Last Updated: 2025-11-20
+ * Version: 1.2.0
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.2.0 (2025-11-21):
+ *   - Fix: Toggle states now properly reflect database values on load
+ *   - Added toBool() helper for proper string-to-boolean conversion
+ *   - Settings state starts as null until data is fetched
+ *   - Prevents false defaults from overriding actual saved values
+ *
+ * v1.1.0 (2025-11-21):
+ *   - Added granular event-level notification toggles
+ *   - Tickets: created, updated, closed, comment, priority_changed
+ *   - POs: created, status_changed
+ *   - Inventory: first_alert, daily_summary
+ *   - Expandable event toggles shown when channel notifications enabled
+ *
  * v1.0.0 (2025-11-20):
  *   - Initial Telegram notifications settings page
  *   - Bot status indicator with health check
@@ -61,32 +74,20 @@ function TelegramSettings() {
   const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [settings, setSettings] = useState({
-    tickets_channel_id: null,
-    po_channel_id: null,
-    inventory_channel_id: null,
-    enable_ticket_notifications: true,
-    enable_po_notifications: true,
-    enable_inventory_notifications: true,
-    enable_personal_notifications: false,
-    // Granular ticket notifications
-    notify_ticket_created: true,
-    notify_ticket_updated: true,
-    notify_ticket_closed: true,
-    notify_ticket_comment: true,
-    notify_ticket_priority_changed: true,
-    // Granular PO notifications
-    notify_po_created: true,
-    notify_po_status_changed: true,
-    // Granular inventory notifications
-    notify_low_stock_first_alert: true,
-    notify_low_stock_daily_summary: true,
-  });
+  const [settings, setSettings] = useState(null); // Start with null until data loads
 
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [testChannelType, setTestChannelType] = useState('');
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkCode, setLinkCode] = useState(null);
+
+  // Helper to convert string/boolean to boolean
+  const toBool = (val, defaultVal = true) => {
+    if (val === null || val === undefined) return defaultVal;
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'string') return val.toLowerCase() === 'true';
+    return Boolean(val);
+  };
 
   // ========================================================================
   // FETCH SETTINGS
@@ -97,7 +98,28 @@ function TelegramSettings() {
     () => telegramAPI.getSettings(),
     {
       onSuccess: (data) => {
-        setSettings(data);
+        // Properly parse all settings with defaults
+        setSettings({
+          tickets_channel_id: data.tickets_channel_id || null,
+          po_channel_id: data.po_channel_id || null,
+          inventory_channel_id: data.inventory_channel_id || null,
+          enable_ticket_notifications: toBool(data.enable_ticket_notifications, true),
+          enable_po_notifications: toBool(data.enable_po_notifications, true),
+          enable_inventory_notifications: toBool(data.enable_inventory_notifications, true),
+          enable_personal_notifications: toBool(data.enable_personal_notifications, false),
+          // Granular ticket notifications
+          notify_ticket_created: toBool(data.notify_ticket_created, true),
+          notify_ticket_updated: toBool(data.notify_ticket_updated, true),
+          notify_ticket_closed: toBool(data.notify_ticket_closed, true),
+          notify_ticket_comment: toBool(data.notify_ticket_comment, true),
+          notify_ticket_priority_changed: toBool(data.notify_ticket_priority_changed, true),
+          // Granular PO notifications
+          notify_po_created: toBool(data.notify_po_created, true),
+          notify_po_status_changed: toBool(data.notify_po_status_changed, true),
+          // Granular inventory notifications
+          notify_low_stock_first_alert: toBool(data.notify_low_stock_first_alert, true),
+          notify_low_stock_daily_summary: toBool(data.notify_low_stock_daily_summary, true),
+        });
       },
       staleTime: 30 * 1000, // 30 seconds
     }
@@ -269,7 +291,7 @@ function TelegramSettings() {
   // RENDER
   // ========================================================================
 
-  if (loadingSettings) {
+  if (loadingSettings || !settings) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />

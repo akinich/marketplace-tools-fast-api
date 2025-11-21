@@ -1,10 +1,17 @@
 """
 Telegram Notification Routes
-Version: 1.0.0
+Version: 1.1.0
 Created: 2025-11-20
+Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.1.0 (2025-11-21):
+  - Added handling for granular notification toggles in update_settings
+  - Tickets: notify_ticket_created, updated, closed, comment, priority_changed
+  - POs: notify_po_created, notify_po_status_changed
+  - Inventory: notify_low_stock_first_alert, notify_low_stock_daily_summary
+
 v1.0.0 (2025-11-20):
   - Initial telegram notification routes
   - Admin endpoints for settings management
