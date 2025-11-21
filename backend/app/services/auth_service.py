@@ -679,7 +679,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
         user = await fetch_one(
             """
             SELECT
-                up.id, au.email, up.full_name, r.name as role,
+                up.id, au.email, up.full_name, r.role_name as role,
                 up.is_active, up.created_at, up.last_password_change
             FROM user_profiles up
             JOIN auth.users au ON au.id = up.id
