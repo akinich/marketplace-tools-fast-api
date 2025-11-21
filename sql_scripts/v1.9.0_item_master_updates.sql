@@ -51,7 +51,6 @@ COMMENT ON COLUMN item_master.default_price IS 'Optional default price for the i
 DO $$
 DECLARE
     items_to_delete INTEGER;
-    rec RECORD;
 BEGIN
     SELECT COUNT(*) INTO items_to_delete
     FROM item_master
