@@ -977,6 +977,35 @@ async def create_purchase_order(request: CreatePORequest, user_id: str) -> Dict:
             status_code=status.HTTP_404_NOT_FOUND, detail="Supplier not found"
         )
 
+    # Verify all items exist and are active
+    item_ids = [item.item_master_id for item in request.items]
+    items_check = await fetch_all(
+        """
+        SELECT id, item_name, is_active
+        FROM item_master
+        WHERE id = ANY($1::int[])
+        """,
+        item_ids
+    )
+
+    # Check for missing items
+    found_ids = {item["id"] for item in items_check}
+    missing_ids = set(item_ids) - found_ids
+    if missing_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Items not found: {list(missing_ids)}"
+        )
+
+    # Check for inactive items
+    inactive_items = [item for item in items_check if not item["is_active"]]
+    if inactive_items:
+        inactive_names = [item["item_name"] for item in inactive_items]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot add inactive items to PO: {', '.join(inactive_names)}"
+        )
+
     async with DatabaseTransaction() as conn:
         # Create PO (total_cost will be auto-calculated by trigger)
         po_id = await execute_query_tx(
@@ -1498,7 +1527,7 @@ async def receive_purchase_order(po_id: int, request, user_id: str, user_name: s
     # Get PO items for validation
     po_items = await fetch_all(
         """
-        SELECT poi.*, im.item_name
+        SELECT poi.*, im.item_name, im.is_active
         FROM purchase_order_items poi
         JOIN item_master im ON im.id = poi.item_master_id
         WHERE poi.purchase_order_id = $1
@@ -1507,6 +1536,15 @@ async def receive_purchase_order(po_id: int, request, user_id: str, user_name: s
     )
 
     po_items_dict = {item["id"]: item for item in po_items}
+
+    # Check for inactive items in the PO
+    inactive_items = [item for item in po_items if not item["is_active"]]
+    if inactive_items:
+        inactive_names = [item["item_name"] for item in inactive_items]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot receive: Items are inactive: {', '.join(inactive_names)}. Please reactivate the items or remove them from the PO."
+        )
 
     # Validate received items
     for recv_item in request.items:
@@ -1728,19 +1766,41 @@ async def add_po_items(po_id: int, request, user_id: str, user_name: str) -> Dic
             detail=f"Cannot modify items on PO with status '{po['status']}'. Only pending POs can be modified."
         )
 
+    # Verify all items exist and are active before starting transaction
+    item_ids = [item.item_master_id for item in request.items]
+    items_check = await fetch_all(
+        """
+        SELECT id, item_name, is_active
+        FROM item_master
+        WHERE id = ANY($1::int[])
+        """,
+        item_ids
+    )
+
+    # Check for missing items
+    found_ids = {item["id"] for item in items_check}
+    missing_ids = set(item_ids) - found_ids
+    if missing_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Items not found: {list(missing_ids)}"
+        )
+
+    # Check for inactive items
+    inactive_items = [item for item in items_check if not item["is_active"]]
+    if inactive_items:
+        inactive_names = [item["item_name"] for item in inactive_items]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot add inactive items to PO: {', '.join(inactive_names)}"
+        )
+
+    items_dict = {item["id"]: item for item in items_check}
+
     async with DatabaseTransaction() as conn:
         added_items = []
         for item in request.items:
-            # Verify item exists
-            im = await fetch_one(
-                "SELECT id, item_name FROM item_master WHERE id = $1",
-                item.item_master_id
-            )
-            if not im:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Item {item.item_master_id} not found"
-                )
+            im = items_dict[item.item_master_id]
 
             await execute_query_tx(
                 """

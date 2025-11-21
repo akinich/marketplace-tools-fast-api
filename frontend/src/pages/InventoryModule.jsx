@@ -739,7 +739,7 @@ function CreatePODialog({ open, onClose }) {
     inventoryAPI.getSuppliers
   );
   const { data: itemsData, isLoading: itemsLoading } = useQuery('po-dialog-items', () =>
-    inventoryAPI.getItems({ page: 1, limit: 100 })
+    inventoryAPI.getItems({ page: 1, limit: 100, is_active: true })
   );
 
   const suppliers = suppliersData?.suppliers || [];
