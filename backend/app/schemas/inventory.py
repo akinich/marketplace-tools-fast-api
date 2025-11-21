@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Inventory Module Schemas
 ================================================================================
-Version: 1.3.0
+Version: 1.4.1
 Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.4.1 (2025-11-21):
+  - BUGFIX: Added has_transactions field to ItemMasterItem schema
+  - Critical fix: Backend was querying has_transactions but schema wasn't exposing it
+  - This prevented delete button from showing for inactive items without transaction history
+  - has_transactions is an integer count (0 = no transactions, >0 = has transactions)
+
 v1.4.0 (2025-11-21):
   - Added POStatus enum and PO_STATUS_TRANSITIONS for workflow validation
   - Added PO receiving schemas (ReceiveItemRequest, ReceivePORequest, POReceivingItem, etc.)
