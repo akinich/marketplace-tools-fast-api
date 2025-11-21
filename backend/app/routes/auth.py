@@ -24,7 +24,7 @@ v1.0.0 (2025-11-17):
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -77,7 +77,7 @@ router = APIRouter()
     summary="User Login",
     description="Authenticate user with email and password. Returns JWT tokens and must_change_password flag.",
 )
-async def login(credentials: LoginRequest):
+async def login(credentials: LoginRequest, request: Request):
     """
     User login endpoint.
 
@@ -86,10 +86,36 @@ async def login(credentials: LoginRequest):
     - Logs successful login activity
     - Returns 423 Locked if account is locked due to failed attempts
     """
+    from app.services.security_service import record_login_attempt, create_session
+
     try:
         response = await authenticate_user(credentials.email, credentials.password)
+
+        # Record successful login
+        await record_login_attempt(
+            user_id=response["user"]["id"],
+            request=request,
+            status="success"
+        )
+
+        # Create session
+        await create_session(
+            user_id=response["user"]["id"],
+            refresh_token=response["refresh_token"],
+            request=request
+        )
+
         return response
-    except HTTPException:
+    except HTTPException as e:
+        # Record failed login attempt
+        if e.status_code in [401, 423]:
+            status_val = "locked" if e.status_code == 423 else "failed"
+            await record_login_attempt(
+                user_id=None,
+                request=request,
+                status=status_val,
+                failure_reason=e.detail
+            )
         raise
     except Exception as e:
         logger.error(f"Login error: {e}")
