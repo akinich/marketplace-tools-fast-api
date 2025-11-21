@@ -121,4 +121,8 @@ FROM information_schema.columns
 WHERE table_name = 'item_master'
 ORDER BY ordinal_position;
 
-RAISE NOTICE 'Migration v1.9.0 completed successfully!';
+-- Final completion message
+DO $$
+BEGIN
+    RAISE NOTICE 'Migration v1.9.0 completed successfully!';
+END $$;
