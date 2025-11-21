@@ -1,10 +1,15 @@
 /**
  * API Services Export
- * Version: 1.1.0
- * Last Updated: 2025-11-20
+ * Version: 1.1.1
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.1.1 (2025-11-21):
+ *   - CRITICAL FIX: Removed duplicate export of telegramAPI
+ *   - Fixed Rollup build error: "Duplicate export 'telegramAPI'"
+ *   - telegramAPI now only exported once on line 430
+ *
  * v1.1.0 (2025-11-20):
  *   - Added telegramAPI for Telegram bot notification management
  *   - Added endpoints for settings, status, testing, and user linking
@@ -479,7 +484,7 @@ export const telegramAPI = {
 };
 
 // Export all APIs
-export { authAPI, bioflocAPI, docsAPI, apiClient, telegramAPI };
+export { authAPI, bioflocAPI, docsAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
