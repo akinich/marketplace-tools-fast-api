@@ -2,11 +2,19 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.5.2
-Last Updated: 2025-11-20
+Version: 1.6.0
+Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.6.0 (2025-11-21):
+  - Added default_price field support in item master operations
+  - BREAKING: Removed auto-create category logic - categories must exist before creating items
+  - Added category validation in create_item (must exist in inventory_categories)
+  - Updated delete_item to check stock before deactivation (prevents deletion if current_qty > 0)
+  - Updated get_items_list to include default_price in SELECT
+  - Updated create_item and update_item to handle default_price field
+
 v1.5.2 (2025-11-20):
   - CRITICAL FIX: Cast tank_id to text in get_transactions_list query
   - Fixes ResponseValidationError when returning transactions with UUID tank_id
@@ -130,8 +138,8 @@ async def get_items_list(
         SELECT
             im.id, im.item_name, im.sku, im.category, im.unit,
             im.default_supplier_id, s.supplier_name as default_supplier_name,
-            im.reorder_threshold, im.min_stock_level, im.current_qty,
-            im.is_active, im.created_at
+            im.default_price, im.reorder_threshold, im.min_stock_level,
+            im.current_qty, im.is_active, im.created_at
         FROM item_master im
         LEFT JOIN suppliers s ON s.id = im.default_supplier_id
         {where_clause}
@@ -157,33 +165,26 @@ async def create_item(request: CreateItemRequest, user_id: str) -> Dict:
                 detail=f"Item with SKU '{request.sku}' already exists",
             )
 
-    # Auto-create category if it doesn't exist
+    # Validate category exists (required - no auto-creation)
     if request.category:
         category_exists = await fetch_one(
             "SELECT id FROM inventory_categories WHERE category_name = $1",
             request.category
         )
         if not category_exists:
-            # Create the category automatically
-            await execute_query(
-                """
-                INSERT INTO inventory_categories (category_name, description)
-                VALUES ($1, $2)
-                ON CONFLICT (category_name) DO NOTHING
-                """,
-                request.category,
-                f"Auto-created category"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category '{request.category}' does not exist. Please create the category first in the Categories sub-module.",
             )
-            logger.info(f"Auto-created category: {request.category}")
 
     # Insert item
     item_id = await execute_query(
         """
         INSERT INTO item_master (
             item_name, sku, category, unit, default_supplier_id,
-            reorder_threshold, min_stock_level, created_by
+            default_price, reorder_threshold, min_stock_level, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
         """,
         request.item_name,
@@ -191,6 +192,7 @@ async def create_item(request: CreateItemRequest, user_id: str) -> Dict:
         request.category,
         request.unit,
         request.default_supplier_id,
+        request.default_price,
         request.reorder_threshold,
         request.min_stock_level,
         user_id,
@@ -251,6 +253,11 @@ async def update_item(
         params.append(request.default_supplier_id)
         param_count += 1
 
+    if request.default_price is not None:
+        update_fields.append(f"default_price = ${param_count}")
+        params.append(request.default_price)
+        param_count += 1
+
     if request.reorder_threshold is not None:
         update_fields.append(f"reorder_threshold = ${param_count}")
         params.append(request.reorder_threshold)
@@ -296,14 +303,30 @@ async def update_item(
 
 
 async def delete_item(item_id: int) -> None:
-    """Delete item (soft delete)"""
-    result = await execute_query(
-        "UPDATE item_master SET is_active = FALSE WHERE id = $1", item_id
+    """Delete item (soft delete) - Only if no stock exists"""
+    # Check if item exists and get current stock
+    item = await fetch_one(
+        "SELECT id, item_name, current_qty FROM item_master WHERE id = $1",
+        item_id
     )
-    if not result:
+    if not item:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found"
         )
+
+    # Prevent deletion if stock exists
+    if item["current_qty"] and item["current_qty"] > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete item '{item['item_name']}' because it has stock (current quantity: {item['current_qty']}). Please use all stock before deleting.",
+        )
+
+    # Soft delete (set is_active to FALSE)
+    await execute_query(
+        "UPDATE item_master SET is_active = FALSE, updated_at = NOW() WHERE id = $1",
+        item_id
+    )
 
 
 # ============================================================================

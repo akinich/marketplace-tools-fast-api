@@ -2,11 +2,15 @@
 ================================================================================
 Farm Management System - Inventory Module Schemas
 ================================================================================
-Version: 1.2.1
-Last Updated: 2025-11-20
+Version: 1.3.0
+Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.3.0 (2025-11-21):
+  - Added default_price field to ItemMasterBase, CreateItemRequest, UpdateItemRequest, ItemMasterItem
+  - Updated item master schemas to support optional default pricing (2 decimal precision)
+
 v1.2.1 (2025-11-20):
   - CRITICAL FIX: Changed TransactionItem.tank_id from int to str (UUID as string)
   - Fixes ResponseValidationError when returning transactions with UUID tank_id
@@ -157,6 +161,7 @@ class ItemMasterBase(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     unit: str = Field(..., max_length=50)
     default_supplier_id: Optional[int] = None
+    default_price: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     reorder_threshold: Decimal = Field(default=0, ge=0)
     min_stock_level: Decimal = Field(default=0, ge=0)
 
@@ -175,6 +180,7 @@ class UpdateItemRequest(BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     unit: Optional[str] = Field(None, max_length=50)
     default_supplier_id: Optional[int] = None
+    default_price: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     reorder_threshold: Optional[Decimal] = Field(None, ge=0)
     min_stock_level: Optional[Decimal] = Field(None, ge=0)
     is_active: Optional[bool] = None
@@ -190,6 +196,7 @@ class ItemMasterItem(BaseModel):
     unit: str
     default_supplier_id: Optional[int]
     default_supplier_name: Optional[str]
+    default_price: Optional[Decimal]
     reorder_threshold: Decimal
     min_stock_level: Decimal
     current_qty: Decimal

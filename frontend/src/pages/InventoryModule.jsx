@@ -1,10 +1,24 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.8.0
- * Last Updated: 2025-11-18
+ * Version: 1.9.1
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.9.1 (2025-11-21):
+ *   - FEATURE: Added reactivate functionality for inactive items
+ *   - Added "Show Status" filter dropdown (Active Only / All Items)
+ *   - Inactive items now show Reactivate button instead of Delete
+ *   - Enhanced UX with status filtering and reactivation capability
+ *
+ * v1.9.0 (2025-11-21):
+ *   - BREAKING: Removed custom category input - categories must be selected from dropdown only
+ *   - FEATURE: Added default_price field (optional, 2 decimal precision)
+ *   - FEATURE: Added delete item functionality with stock validation
+ *   - Updated AddItemDialog to require category selection from existing categories
+ *   - Added delete button to items table with confirmation dialog
+ *   - Updated items table to display default_price column
+ *
  * v1.8.0 (2025-11-18):
  *   - FIXED: PO item dropdown now shows items properly with unique query keys
  *   - FIXED: Add Stock item dropdown loading states
@@ -113,6 +127,7 @@ import {
   Search as SearchIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
+  Restore as RestoreIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useSnackbar } from 'notistack';
@@ -130,6 +145,7 @@ function AddItemDialog({ open, onClose, onSuccess }) {
     category: '',
     unit: '',
     default_supplier_id: '',
+    default_price: '',
     reorder_threshold: '0',
     min_stock_level: '0',
   });
@@ -186,6 +202,10 @@ function AddItemDialog({ open, onClose, onSuccess }) {
       newErrors.min_stock_level = 'Must be 0 or greater';
     }
 
+    if (formData.default_price && Number(formData.default_price) < 0) {
+      newErrors.default_price = 'Must be 0 or greater';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -205,6 +225,7 @@ function AddItemDialog({ open, onClose, onSuccess }) {
     if (formData.sku?.trim()) submitData.sku = formData.sku.trim();
     if (formData.category?.trim()) submitData.category = formData.category.trim();
     if (formData.default_supplier_id) submitData.default_supplier_id = Number(formData.default_supplier_id);
+    if (formData.default_price) submitData.default_price = Number(formData.default_price);
 
     createItemMutation.mutate(submitData);
   };
@@ -216,6 +237,7 @@ function AddItemDialog({ open, onClose, onSuccess }) {
       category: '',
       unit: '',
       default_supplier_id: '',
+      default_price: '',
       reorder_threshold: '0',
       min_stock_level: '0',
     });
@@ -263,22 +285,9 @@ function AddItemDialog({ open, onClose, onSuccess }) {
                   {cat.category}
                 </MenuItem>
               ))}
-              {/* Allow custom category entry */}
-              <MenuItem value="__custom__" disabled>
-                <em>Or enter custom below</em>
-              </MenuItem>
             </Select>
-            <FormHelperText>Select from existing or enter custom category</FormHelperText>
+            <FormHelperText>Select from existing categories. Create new categories in the Categories sub-module first.</FormHelperText>
           </FormControl>
-
-          <TextField
-            label="Custom Category"
-            fullWidth
-            value={formData.category && !categoriesData?.categories?.some(c => c.category === formData.category) ? formData.category : ''}
-            onChange={handleChange('category')}
-            placeholder="Enter custom category"
-            helperText="If category not in dropdown, type here"
-          />
 
           <TextField
             label="Unit of Measurement"
@@ -309,6 +318,17 @@ function AddItemDialog({ open, onClose, onSuccess }) {
             </Select>
             <FormHelperText>Optional - Preferred supplier for this item</FormHelperText>
           </FormControl>
+
+          <TextField
+            label="Default Price"
+            type="number"
+            fullWidth
+            value={formData.default_price}
+            onChange={handleChange('default_price')}
+            error={!!errors.default_price}
+            helperText={errors.default_price || 'Optional - Default unit price for this item'}
+            inputProps={{ min: 0, step: 0.01 }}
+          />
 
           <TextField
             label="Reorder Threshold"
@@ -352,8 +372,70 @@ function AddItemDialog({ open, onClose, onSuccess }) {
 
 // Items Page
 function ItemsPage() {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
   const { data, isLoading, error } = useQuery('inventoryItems', () => inventoryAPI.getItems());
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState({ open: false, item: null });
+  const [showInactive, setShowInactive] = useState(false);
+
+  const deleteItemMutation = useMutation(
+    (itemId) => inventoryAPI.deleteItem(itemId),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Item deactivated successfully', { variant: 'success' });
+        queryClient.invalidateQueries('inventoryItems');
+        queryClient.invalidateQueries('inventoryDashboard');
+        setDeleteConfirmDialog({ open: false, item: null });
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to deactivate item: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const reactivateItemMutation = useMutation(
+    ({ itemId, itemName }) => inventoryAPI.updateItem(itemId, { is_active: true }),
+    {
+      onSuccess: (data, variables) => {
+        enqueueSnackbar(`Item "${variables.itemName}" reactivated successfully`, { variant: 'success' });
+        queryClient.invalidateQueries('inventoryItems');
+        queryClient.invalidateQueries('inventoryDashboard');
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to reactivate item: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const handleDeleteClick = (item) => {
+    setDeleteConfirmDialog({ open: true, item });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirmDialog.item) {
+      deleteItemMutation.mutate(deleteConfirmDialog.item.id);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmDialog({ open: false, item: null });
+  };
+
+  const handleReactivateClick = (item) => {
+    reactivateItemMutation.mutate({ itemId: item.id, itemName: item.item_name });
+  };
+
+  // Filter items based on showInactive toggle
+  const filteredItems = showInactive
+    ? data?.items
+    : data?.items?.filter(item => item.is_active);
 
   if (isLoading) {
     return (
@@ -373,9 +455,23 @@ function ItemsPage() {
         <Typography variant="h5" fontWeight="bold">
           Inventory Items
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddDialog(true)}>
-          Add Item
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControl>
+            <FormHelperText sx={{ mt: 0, mb: 0.5 }}>Show Status</FormHelperText>
+            <Select
+              size="small"
+              value={showInactive}
+              onChange={(e) => setShowInactive(e.target.value)}
+              sx={{ minWidth: 150 }}
+            >
+              <MenuItem value={false}>Active Only</MenuItem>
+              <MenuItem value={true}>All Items</MenuItem>
+            </Select>
+          </FormControl>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddDialog(true)}>
+            Add Item
+          </Button>
+        </Box>
       </Box>
 
       {/* Add Item Dialog */}
@@ -383,6 +479,33 @@ function ItemsPage() {
         open={openAddDialog}
         onClose={() => setOpenAddDialog(false)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmDialog.open} onClose={handleDeleteCancel}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{deleteConfirmDialog.item?.item_name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            This item will be marked as inactive. You cannot delete items with existing stock.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleteItemMutation.isLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleteItemMutation.isLoading}
+            startIcon={deleteItemMutation.isLoading ? <CircularProgress size={20} /> : <DeleteIcon />}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Card>
         <CardContent>
@@ -393,18 +516,21 @@ function ItemsPage() {
                   <TableCell>Item Name</TableCell>
                   <TableCell>SKU</TableCell>
                   <TableCell>Category</TableCell>
+                  <TableCell>Default Price</TableCell>
                   <TableCell>Current Stock</TableCell>
                   <TableCell>Unit</TableCell>
                   <TableCell>Reorder Level</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data?.items?.map((item) => (
+                {filteredItems?.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.item_name}</TableCell>
                     <TableCell>{item.sku || '-'}</TableCell>
                     <TableCell>{item.category || '-'}</TableCell>
+                    <TableCell>{item.default_price ? formatCurrency(item.default_price) : '-'}</TableCell>
                     <TableCell>
                       {Number(item.current_qty) <= Number(item.reorder_threshold) ? (
                         <Chip
@@ -425,6 +551,28 @@ function ItemsPage() {
                         color={item.is_active ? 'success' : 'default'}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell>
+                      {item.is_active ? (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteClick(item)}
+                          color="error"
+                          title="Deactivate item"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      ) : (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleReactivateClick(item)}
+                          color="success"
+                          title="Reactivate item"
+                          disabled={reactivateItemMutation.isLoading}
+                        >
+                          <RestoreIcon fontSize="small" />
+                        </IconButton>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

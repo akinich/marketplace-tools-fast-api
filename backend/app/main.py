@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - FastAPI Main Application
 ================================================================================
-Version: 1.1.0
-Last Updated: 2025-11-18
+Version: 1.2.0
+Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.2.0 (2025-11-21):
+  - Enhanced inventory item master module with new features
+  - Added default_price field support across item master operations
+  - Removed auto-category creation (BREAKING) - categories must exist first
+  - Enhanced delete validation to prevent deletion of items with stock
+  - All inventory schemas and services updated (see inventory module changelogs)
+
 v1.1.0 (2025-11-18):
   - Added background scheduler for inventory reservation auto-expiry
   - Integrated APScheduler into lifespan management
