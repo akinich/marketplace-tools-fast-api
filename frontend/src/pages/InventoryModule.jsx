@@ -1,10 +1,13 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 2.1.1
+ * Version: 2.1.2
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v2.1.2 (2025-11-21):
+ *   - BUGFIX: Check has_transactions === 0 (integer) instead of boolean for reliable detection
+ *
  * v2.1.1 (2025-11-21):
  *   - BUGFIX: Use strict equality check (=== false) for has_transactions to handle undefined/null
  *
