@@ -254,6 +254,7 @@ export default function DashboardLayout() {
       admin_users: '/admin/users',
       admin_modules: '/admin/modules',
       admin_activity: '/admin/activity',
+      admin_security: '/admin/security',
     };
 
     // Inventory sub-modules

@@ -109,6 +109,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { adminAPI } from '../api';
 import { useSnackbar } from 'notistack';
 import TelegramSettings from './TelegramSettings';
+import SecurityDashboard from './SecurityDashboard';
 
 // Create User Dialog Component
 function CreateUserDialog({ open, onClose }) {
@@ -1320,6 +1321,7 @@ export default function AdminPanel() {
       <Route path="modules" element={<ModuleManagementPage />} />
       <Route path="activity" element={<ActivityLogsPage />} />
       <Route path="telegram" element={<TelegramSettings />} />
+      <Route path="security" element={<SecurityDashboard />} />
     </Routes>
   );
 }
