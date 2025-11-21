@@ -87,7 +87,7 @@ COMMENT ON TABLE rate_limits IS 'Tracks API rate limiting per IP/user';
 -- ============================================================================
 -- ADD SECURITY MODULE TO ADMIN
 -- ============================================================================
-INSERT INTO modules (module_key, module_name, description, is_enabled, display_order, parent_id, icon)
+INSERT INTO modules (module_key, module_name, description, is_active, display_order, parent_module_id, icon)
 SELECT 'admin_security', 'Security', 'Security dashboard - sessions, login history', TRUE, 5,
        (SELECT id FROM modules WHERE module_key = 'admin'), 'Security'
 WHERE NOT EXISTS (SELECT 1 FROM modules WHERE module_key = 'admin_security');
