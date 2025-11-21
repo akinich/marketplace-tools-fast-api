@@ -361,6 +361,17 @@ async def hard_delete_item(item_id: int) -> None:
             detail=f"Cannot permanently delete item '{item['item_name']}' because it still has stock ({item['current_qty']}). Please clear all stock first.",
         )
 
+    # Check if item has any inventory transactions
+    transaction_count = await fetch_one(
+        "SELECT COUNT(*) as count FROM inventory_transactions WHERE item_master_id = $1",
+        item_id
+    )
+    if transaction_count and transaction_count["count"] > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot permanently delete item '{item['item_name']}' because it has {transaction_count['count']} inventory transaction(s). Items with transaction history cannot be permanently deleted - they can only be deactivated.",
+        )
+
     # Hard delete - remove from database
     # Note: Due to CASCADE constraints, this will also delete related batches
     await execute_query(
