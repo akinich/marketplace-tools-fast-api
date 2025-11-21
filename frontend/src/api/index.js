@@ -1,10 +1,14 @@
 /**
  * API Services Export
- * Version: 1.1.1
+ * Version: 1.2.0
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.2.0 (2025-11-21):
+ *   - Added hardDeleteItem API function for permanent deletion of inactive items
+ *   - DELETE /inventory/items/{itemId}/permanent
+ *
  * v1.1.1 (2025-11-21):
  *   - CRITICAL FIX: Removed duplicate export of telegramAPI
  *   - Fixed Rollup build error: "Duplicate export 'telegramAPI'"
@@ -132,6 +136,11 @@ export const inventoryAPI = {
 
   deleteItem: async (itemId) => {
     const response = await apiClient.delete(`/inventory/items/${itemId}`);
+    return response.data;
+  },
+
+  hardDeleteItem: async (itemId) => {
+    const response = await apiClient.delete(`/inventory/items/${itemId}/permanent`);
     return response.data;
   },
 

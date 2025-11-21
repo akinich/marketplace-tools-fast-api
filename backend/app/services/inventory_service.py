@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.6.0
+Version: 1.7.0
 Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.7.0 (2025-11-21):
+  - Added hard_delete_item() for permanent deletion of inactive items
+  - Only inactive items can be permanently deleted (is_active = FALSE)
+  - Cascades delete to related records (batches, transactions, mappings)
+
 v1.6.0 (2025-11-21):
   - Added default_price field support in item master operations
   - BREAKING: Removed auto-create category logic - categories must exist before creating items
@@ -327,6 +332,42 @@ async def delete_item(item_id: int) -> None:
         "UPDATE item_master SET is_active = FALSE, updated_at = NOW() WHERE id = $1",
         item_id
     )
+
+
+async def hard_delete_item(item_id: int) -> None:
+    """Permanently delete item (hard delete) - Only for inactive items"""
+    # Check if item exists and is inactive
+    item = await fetch_one(
+        "SELECT id, item_name, is_active, current_qty FROM item_master WHERE id = $1",
+        item_id
+    )
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found"
+        )
+
+    # Only allow hard delete for inactive items
+    if item["is_active"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot permanently delete active item '{item['item_name']}'. Please deactivate the item first.",
+        )
+
+    # Check if item has any stock (extra safety check)
+    if item["current_qty"] and item["current_qty"] > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot permanently delete item '{item['item_name']}' because it still has stock ({item['current_qty']}). Please clear all stock first.",
+        )
+
+    # Hard delete - remove from database
+    # Note: Due to CASCADE constraints, this will also delete related batches
+    await execute_query(
+        "DELETE FROM item_master WHERE id = $1",
+        item_id
+    )
+    logger.info(f"Permanently deleted item {item_id}: {item['item_name']}")
 
 
 # ============================================================================

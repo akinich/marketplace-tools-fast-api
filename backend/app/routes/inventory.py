@@ -2,11 +2,16 @@
 ================================================================================
 Farm Management System - Inventory Module Routes
 ================================================================================
-Version: 1.3.1
-Last Updated: 2025-11-19
+Version: 1.4.0
+Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.4.0 (2025-11-21):
+  - Added hard delete endpoint (DELETE /items/{item_id}/permanent)
+  - Only inactive items can be permanently deleted
+  - Prevents accidental deletion of active items
+
 v1.3.1 (2025-11-19):
   - CRITICAL FIX: Handle empty string parameters in GET /transactions
   - Converts item_id from string to int, handles empty values as None
@@ -123,6 +128,20 @@ async def delete_item(
 ):
     """Delete item (soft delete)"""
     await inventory_service.delete_item(item_id)
+
+
+@router.delete(
+    "/items/{item_id}/permanent",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently Delete Item",
+    description="Permanently delete an inactive inventory item. Only works for inactive items.",
+)
+async def hard_delete_item(
+    item_id: int,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Permanently delete item (hard delete) - only for inactive items"""
+    await inventory_service.hard_delete_item(item_id)
 
 
 # ============================================================================

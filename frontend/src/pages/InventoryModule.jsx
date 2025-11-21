@@ -1,10 +1,18 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 1.9.1
+ * Version: 2.0.0
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v2.0.0 (2025-11-21):
+ *   - FEATURE: Added "Inactive Only" option to status filter dropdown
+ *   - FEATURE: Added permanent delete (hard delete) for inactive items
+ *   - Status filter now has 3 options: Active Only, All Items, Inactive Only
+ *   - Inactive items show both Reactivate and Permanent Delete buttons
+ *   - Permanent delete removes item completely from database
+ *   - Safety: Only inactive items can be permanently deleted
+ *
  * v1.9.1 (2025-11-21):
  *   - FEATURE: Added reactivate functionality for inactive items
  *   - Added "Show Status" filter dropdown (Active Only / All Items)
@@ -128,6 +136,7 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   Restore as RestoreIcon,
+  DeleteForever as DeleteForeverIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useSnackbar } from 'notistack';
@@ -377,7 +386,8 @@ function ItemsPage() {
   const { data, isLoading, error } = useQuery('inventoryItems', () => inventoryAPI.getItems());
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [deleteConfirmDialog, setDeleteConfirmDialog] = useState({ open: false, item: null });
-  const [showInactive, setShowInactive] = useState(false);
+  const [hardDeleteDialog, setHardDeleteDialog] = useState({ open: false, item: null });
+  const [statusFilter, setStatusFilter] = useState('active');
 
   const deleteItemMutation = useMutation(
     (itemId) => inventoryAPI.deleteItem(itemId),
@@ -391,6 +401,24 @@ function ItemsPage() {
       onError: (error) => {
         enqueueSnackbar(
           `Failed to deactivate item: ${error.response?.data?.detail || error.message}`,
+          { variant: 'error' }
+        );
+      },
+    }
+  );
+
+  const hardDeleteItemMutation = useMutation(
+    (itemId) => inventoryAPI.hardDeleteItem(itemId),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Item permanently deleted', { variant: 'success' });
+        queryClient.invalidateQueries('inventoryItems');
+        queryClient.invalidateQueries('inventoryDashboard');
+        setHardDeleteDialog({ open: false, item: null });
+      },
+      onError: (error) => {
+        enqueueSnackbar(
+          `Failed to permanently delete item: ${error.response?.data?.detail || error.message}`,
           { variant: 'error' }
         );
       },
@@ -428,14 +456,34 @@ function ItemsPage() {
     setDeleteConfirmDialog({ open: false, item: null });
   };
 
+  const handleHardDeleteClick = (item) => {
+    setHardDeleteDialog({ open: true, item });
+  };
+
+  const handleHardDeleteConfirm = () => {
+    if (hardDeleteDialog.item) {
+      hardDeleteItemMutation.mutate(hardDeleteDialog.item.id);
+    }
+  };
+
+  const handleHardDeleteCancel = () => {
+    setHardDeleteDialog({ open: false, item: null });
+  };
+
   const handleReactivateClick = (item) => {
     reactivateItemMutation.mutate({ itemId: item.id, itemName: item.item_name });
   };
 
-  // Filter items based on showInactive toggle
-  const filteredItems = showInactive
-    ? data?.items
-    : data?.items?.filter(item => item.is_active);
+  // Filter items based on status filter
+  const filteredItems = (() => {
+    if (statusFilter === 'active') {
+      return data?.items?.filter(item => item.is_active);
+    } else if (statusFilter === 'inactive') {
+      return data?.items?.filter(item => !item.is_active);
+    } else {
+      return data?.items; // 'all'
+    }
+  })();
 
   if (isLoading) {
     return (
@@ -460,12 +508,13 @@ function ItemsPage() {
             <FormHelperText sx={{ mt: 0, mb: 0.5 }}>Show Status</FormHelperText>
             <Select
               size="small"
-              value={showInactive}
-              onChange={(e) => setShowInactive(e.target.value)}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
               sx={{ minWidth: 150 }}
             >
-              <MenuItem value={false}>Active Only</MenuItem>
-              <MenuItem value={true}>All Items</MenuItem>
+              <MenuItem value="active">Active Only</MenuItem>
+              <MenuItem value="all">All Items</MenuItem>
+              <MenuItem value="inactive">Inactive Only</MenuItem>
             </Select>
           </FormControl>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenAddDialog(true)}>
@@ -480,15 +529,15 @@ function ItemsPage() {
         onClose={() => setOpenAddDialog(false)}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Deactivate Confirmation Dialog */}
       <Dialog open={deleteConfirmDialog.open} onClose={handleDeleteCancel}>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle>Confirm Deactivate</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete <strong>{deleteConfirmDialog.item?.item_name}</strong>?
+            Are you sure you want to deactivate <strong>{deleteConfirmDialog.item?.item_name}</strong>?
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This item will be marked as inactive. You cannot delete items with existing stock.
+            This item will be marked as inactive and can be reactivated later. Items with existing stock cannot be deactivated.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -502,7 +551,37 @@ function ItemsPage() {
             disabled={deleteItemMutation.isLoading}
             startIcon={deleteItemMutation.isLoading ? <CircularProgress size={20} /> : <DeleteIcon />}
           >
-            Delete
+            Deactivate
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Permanent Delete Confirmation Dialog */}
+      <Dialog open={hardDeleteDialog.open} onClose={handleHardDeleteCancel}>
+        <DialogTitle sx={{ color: 'error.main' }}>⚠️ Permanent Delete</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            This action cannot be undone!
+          </Alert>
+          <Typography>
+            Are you sure you want to <strong>permanently delete</strong> item <strong>{hardDeleteDialog.item?.item_name}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            This will remove the item and all its related data from the database. This action is irreversible.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleHardDeleteCancel} disabled={hardDeleteItemMutation.isLoading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleHardDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={hardDeleteItemMutation.isLoading}
+            startIcon={hardDeleteItemMutation.isLoading ? <CircularProgress size={20} /> : <DeleteForeverIcon />}
+          >
+            Delete Permanently
           </Button>
         </DialogActions>
       </Dialog>
@@ -563,15 +642,26 @@ function ItemsPage() {
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       ) : (
-                        <IconButton
-                          size="small"
-                          onClick={() => handleReactivateClick(item)}
-                          color="success"
-                          title="Reactivate item"
-                          disabled={reactivateItemMutation.isLoading}
-                        >
-                          <RestoreIcon fontSize="small" />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleReactivateClick(item)}
+                            color="success"
+                            title="Reactivate item"
+                            disabled={reactivateItemMutation.isLoading}
+                          >
+                            <RestoreIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleHardDeleteClick(item)}
+                            color="error"
+                            title="Permanently delete item"
+                            disabled={hardDeleteItemMutation.isLoading}
+                          >
+                            <DeleteForeverIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                       )}
                     </TableCell>
                   </TableRow>
