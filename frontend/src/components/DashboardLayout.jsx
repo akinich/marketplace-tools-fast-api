@@ -65,6 +65,7 @@ import {
   Code as DevelopmentIcon,
   AccountCircle,
   Logout,
+  Lock,
   ExpandLess,
   ExpandMore,
   Warning as WarningIcon,
@@ -409,6 +410,12 @@ export default function DashboardLayout() {
               </Typography>
             </MenuItem>
             <Divider />
+            <MenuItem onClick={() => { handleMenuClose(); navigate('/change-password'); }}>
+              <ListItemIcon>
+                <Lock fontSize="small" />
+              </ListItemIcon>
+              Change Password
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <Logout fontSize="small" />
