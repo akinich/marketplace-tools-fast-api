@@ -1,11 +1,16 @@
 """
 Telegram Notification Service
-Version: 1.2.0
+Version: 1.2.1
 Created: 2025-11-20
 Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.2.1 (2025-11-21):
+  - Fix: Changed update_setting to use UPSERT (INSERT ON CONFLICT)
+  - Settings are now created if they don't exist in database
+  - Resolves toggle state not persisting issue when migration not run
+
 v1.2.0 (2025-11-21):
   - Added granular event-level notification toggles
   - Tickets: notify_ticket_created, updated, closed, comment, priority_changed
@@ -124,16 +129,18 @@ async def get_setting(setting_key: str) -> Optional[str]:
 
 
 async def update_setting(setting_key: str, setting_value: str, updated_by: Optional[str]) -> bool:
-    """Update a single setting"""
+    """Update a single setting (creates if not exists)"""
+    # Use UPSERT to create setting if it doesn't exist
     await execute_query(
         """
-        UPDATE notification_settings
-        SET setting_value = $1, updated_by = $2, updated_at = NOW()
-        WHERE setting_key = $3
+        INSERT INTO notification_settings (setting_key, setting_value, setting_type, updated_by, updated_at)
+        VALUES ($1, $2, 'boolean', $3, NOW())
+        ON CONFLICT (setting_key) DO UPDATE
+        SET setting_value = EXCLUDED.setting_value, updated_by = EXCLUDED.updated_by, updated_at = NOW()
         """,
+        setting_key,
         setting_value,
-        updated_by,
-        setting_key
+        updated_by
     )
     return True
 
