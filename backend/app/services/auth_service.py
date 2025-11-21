@@ -37,7 +37,7 @@ v1.0.0 (2025-11-17):
 ================================================================================
 """
 
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from fastapi import HTTPException, status
 import logging
 import secrets
