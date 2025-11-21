@@ -1,10 +1,16 @@
 """
 Telegram Notification Service
-Version: 1.0.0
+Version: 1.0.1
 Created: 2025-11-20
+Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.0.1 (2025-11-21):
+  - Fix: Changed update_setting to accept Optional[str] for updated_by parameter
+  - Fix: System-initiated updates now pass None instead of "system" string
+  - Fix: Resolves UUID validation error in bot health checks
+
 v1.0.0 (2025-11-20):
   - Initial telegram notification service
   - Bot initialization and health checks
@@ -117,7 +123,7 @@ async def get_setting(setting_key: str) -> Optional[str]:
     return result["setting_value"] if result else None
 
 
-async def update_setting(setting_key: str, setting_value: str, updated_by: str) -> bool:
+async def update_setting(setting_key: str, setting_value: str, updated_by: Optional[str]) -> bool:
     """Update a single setting"""
     await execute_query(
         """
@@ -212,11 +218,11 @@ async def check_bot_health() -> Dict:
 
 async def update_bot_status(status: str, error_message: Optional[str]) -> None:
     """Update bot status in settings"""
-    await update_setting("bot_status", status, "system")
-    await update_setting("last_health_check", datetime.utcnow().isoformat(), "system")
+    await update_setting("bot_status", status, None)
+    await update_setting("last_health_check", datetime.utcnow().isoformat(), None)
 
     if error_message:
-        await update_setting("last_error", error_message, "system")
+        await update_setting("last_error", error_message, None)
 
 
 # ============================================================================
