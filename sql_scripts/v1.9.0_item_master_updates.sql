@@ -47,41 +47,21 @@ COMMENT ON COLUMN item_master.default_price IS 'Optional default price for the i
 -- STEP 2: Delete items with custom categories (not in inventory_categories)
 -- ============================================================================
 
--- First, let's see what we're about to delete (for logging purposes)
-DO $$
-DECLARE
-    items_to_delete INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO items_to_delete
-    FROM item_master
-    WHERE category IS NOT NULL
-      AND category NOT IN (SELECT category_name FROM inventory_categories);
+-- First, show what will be deleted (view this before running the delete)
+SELECT
+    id,
+    item_name,
+    sku,
+    category,
+    'Will be deleted - custom category' as status
+FROM item_master
+WHERE category IS NOT NULL
+  AND category NOT IN (SELECT category_name FROM inventory_categories);
 
-    IF items_to_delete > 0 THEN
-        RAISE NOTICE 'Found % items with custom categories to be deleted', items_to_delete;
-
-        -- Log the items being deleted
-        RAISE NOTICE 'Items to be deleted:';
-        FOR rec IN (
-            SELECT id, item_name, sku, category
-            FROM item_master
-            WHERE category IS NOT NULL
-              AND category NOT IN (SELECT category_name FROM inventory_categories)
-        ) LOOP
-            RAISE NOTICE 'ID: %, Name: %, SKU: %, Custom Category: %',
-                rec.id, rec.item_name, rec.sku, rec.category;
-        END LOOP;
-
-        -- Delete the items with custom categories
-        DELETE FROM item_master
-        WHERE category IS NOT NULL
-          AND category NOT IN (SELECT category_name FROM inventory_categories);
-
-        RAISE NOTICE 'Successfully deleted % items with custom categories', items_to_delete;
-    ELSE
-        RAISE NOTICE 'No items with custom categories found - nothing to delete';
-    END IF;
-END $$;
+-- Delete the items with custom categories
+DELETE FROM item_master
+WHERE category IS NOT NULL
+  AND category NOT IN (SELECT category_name FROM inventory_categories);
 
 -- ============================================================================
 -- STEP 3: Update triggers if needed (current_qty trigger should still work)
@@ -121,4 +101,8 @@ FROM information_schema.columns
 WHERE table_name = 'item_master'
 ORDER BY ordinal_position;
 
-RAISE NOTICE 'Migration v1.9.0 completed successfully!';
+-- Final completion message
+DO $$
+BEGIN
+    RAISE NOTICE 'Migration v1.9.0 completed successfully!';
+END $$;
