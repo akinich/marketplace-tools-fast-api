@@ -354,6 +354,11 @@ export const ticketsAPI = {
     return response.data;
   },
 
+  deleteTicket: async (ticketId) => {
+    const response = await apiClient.delete(`/tickets/${ticketId}`);
+    return response.data;
+  },
+
   // Comments
   addComment: async (ticketId, data) => {
     const response = await apiClient.post(`/tickets/${ticketId}/comments`, data);

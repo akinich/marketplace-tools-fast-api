@@ -324,6 +324,16 @@ See [Technical Guide](./technical-guide.md) for complete API reference.
 
 ## Version History
 
+### v1.1.0 (2025-11-20)
+- ✨ **NEW FEATURE:** Added ticket deletion functionality
+- ✅ Users can delete their own tickets
+- ✅ Admins can delete any ticket
+- ✅ DELETE /tickets/{id} endpoint added to API
+- ✅ Frontend delete button with confirmation dialog
+- ✅ Cascade deletion of associated comments
+- ✅ Ownership verification and permission checks
+- 📝 Updated all version histories and changelogs
+
 ### v1.0.1 (2025-11-20)
 - 🐛 **CRITICAL FIX:** Resolved SQL query error causing 500 errors on ticket fetch
 - 🐛 Fixed "column up_created.email does not exist" database error

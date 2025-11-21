@@ -2,11 +2,19 @@
 ================================================================================
 Farm Management System - Ticket Service Layer
 ================================================================================
-Version: 1.0.1
+Version: 1.1.0
 Last Updated: 2025-11-20
 
 Changelog:
 ----------
+v1.1.0 (2025-11-20):
+  - Added delete_ticket() function for ticket deletion
+  - Users can delete their own tickets
+  - Admins can delete any ticket
+  - Ownership verification with permission checks
+  - Cascade deletion of associated comments via database constraint
+  - Returns success message after deletion
+
 v1.0.1 (2025-11-20):
   - CRITICAL FIX: Resolved SQL query error causing 500 errors on ticket fetch
   - Added JOIN with auth.users table to properly retrieve user email addresses
@@ -508,6 +516,45 @@ async def close_ticket(
     )
 
     return closed_ticket
+
+
+async def delete_ticket(
+    ticket_id: int,
+    user_id: str,
+    is_admin: bool = False
+) -> Dict:
+    """
+    Delete a ticket. Users can only delete their own tickets.
+    Admins can delete any ticket.
+    """
+    # Check if ticket exists
+    ticket = await fetch_one(
+        "SELECT id, created_by_id::text FROM tickets WHERE id = $1",
+        ticket_id
+    )
+
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticket with id {ticket_id} not found"
+        )
+
+    # Check ownership (unless admin)
+    if not is_admin and ticket["created_by_id"] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own tickets"
+        )
+
+    # Delete ticket (comments will be cascade deleted)
+    await execute_query(
+        "DELETE FROM tickets WHERE id = $1",
+        ticket_id
+    )
+
+    logger.info(f"Ticket {ticket_id} deleted by user {user_id}")
+
+    return {"message": "Ticket deleted successfully"}
 
 
 # ============================================================================

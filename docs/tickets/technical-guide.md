@@ -524,7 +524,35 @@ Closes a ticket (admin only).
 
 ---
 
-#### 9. Add Comment
+#### 9. Delete Ticket
+
+**DELETE** `/tickets/{ticket_id}`
+
+Deletes a ticket (user can only delete their own tickets, admins can delete any).
+
+**Path Parameters:**
+- `ticket_id` (integer): Ticket ID
+
+**Response:** 200 OK
+```json
+{
+  "message": "Ticket deleted successfully"
+}
+```
+
+**Notes:**
+- Users can only delete their own tickets
+- Admins can delete any ticket
+- All associated comments are cascade deleted automatically
+- This action is irreversible
+
+**Errors:**
+- 403 Forbidden: "You can only delete your own tickets"
+- 404 Not Found: Ticket doesn't exist
+
+---
+
+#### 10. Add Comment
 
 **POST** `/tickets/{ticket_id}/comments`
 
@@ -560,7 +588,7 @@ Adds a comment to a ticket.
 
 ---
 
-#### 10. Update Comment
+#### 11. Update Comment
 
 **PUT** `/tickets/comments/{comment_id}`
 
@@ -585,7 +613,7 @@ Updates a comment (user can only update their own comments).
 
 ---
 
-#### 11. Delete Comment
+#### 12. Delete Comment
 
 **DELETE** `/tickets/comments/{comment_id}`
 
@@ -649,6 +677,15 @@ Deletes a comment (user can only delete their own comments).
 - Optionally adds closing comment
 - Uses database transaction for atomicity
 - Prevents re-closing
+
+**delete_ticket(ticket_id, user_id, is_admin)**
+- Deletes ticket from database
+- Ownership check (unless admin)
+- Cascade deletes all associated comments
+- Returns success message
+- Irreversible action
+- Raises 403 if non-admin tries to delete other's ticket
+- Raises 404 if ticket not found
 
 **add_comment(ticket_id, request, user_id)**
 - Adds comment to ticket
@@ -1115,6 +1152,26 @@ VITE_API_BASE_URL=https://your-backend-api.com
 ---
 
 ## Version History
+
+### v1.1.0 (2025-11-20)
+
+**New Feature - Ticket Deletion:**
+- ✨ Added DELETE /tickets/{ticket_id} endpoint
+- ✅ Users can delete their own tickets
+- ✅ Admins can delete any ticket
+- ✅ Ownership verification with permission checks
+- ✅ Cascade deletion of associated comments via database constraint
+- ✅ Frontend delete button with confirmation dialog
+- ✅ Warning message about irreversible action
+- 📝 Updated all version histories and changelogs to v1.1.0
+
+**Implementation Details:**
+- Backend route: DELETE /tickets/{ticket_id}
+- Service function: delete_ticket(ticket_id, user_id, is_admin)
+- Frontend: handleDeleteTicket() with confirmation dialog
+- API: ticketsAPI.deleteTicket(ticketId)
+- Returns: {"message": "Ticket deleted successfully"}
+- Error handling: 403 Forbidden, 404 Not Found
 
 ### v1.0.1 (2025-11-20)
 

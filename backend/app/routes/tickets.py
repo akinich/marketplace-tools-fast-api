@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Ticket Routes
 ================================================================================
-Version: 1.0.1
+Version: 1.1.0
 Last Updated: 2025-11-20
 
 Changelog:
 ----------
+v1.1.0 (2025-11-20):
+  - Added DELETE /tickets/{ticket_id} endpoint for ticket deletion
+  - Users can delete their own tickets
+  - Admins can delete any ticket
+  - Cascade deletion of associated comments
+
 v1.0.1 (2025-11-20):
   - No changes to routes - version bump to match service layer fix
 
@@ -30,6 +36,7 @@ Endpoints:
   PUT    /tickets/{id}    - Update ticket (user - own tickets only)
   PUT    /tickets/{id}/admin - Admin update (priority, status)
   POST   /tickets/{id}/close - Close ticket (admin only)
+  DELETE /tickets/{id}    - Delete ticket (owner or admin)
 
   POST   /tickets/{id}/comments        - Add comment
   PUT    /tickets/comments/{id}        - Update comment
@@ -187,6 +194,24 @@ async def close_ticket(
         ticket_id,
         admin.id,
         comment=comment
+    )
+
+
+@router.delete("/{ticket_id}")
+async def delete_ticket(
+    ticket_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Delete a ticket.
+    Users can only delete their own tickets.
+    Admins can delete any ticket.
+    """
+    is_admin = current_user.role.lower() == "admin"
+    return await tickets_service.delete_ticket(
+        ticket_id,
+        current_user.id,
+        is_admin=is_admin
     )
 
 

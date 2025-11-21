@@ -2,11 +2,19 @@
  * ============================================================================
  * Farm Management System - Tickets Module Frontend
  * ============================================================================
- * Version: 1.0.1
+ * Version: 1.1.0
  * Last Updated: 2025-11-20
  *
  * Changelog:
  * ----------
+ * v1.1.0 (2025-11-20):
+ *   - Added ticket deletion functionality
+ *   - Users can delete their own tickets
+ *   - Admins can delete any ticket
+ *   - Delete button in ticket detail view
+ *   - Confirmation dialog with warning
+ *   - Cascade deletion of associated comments
+ *
  * v1.0.1 (2025-11-20):
  *   - Version bump to match backend fixes
  *   - No frontend changes required for SQL fix
@@ -486,6 +494,7 @@ function TicketDetail() {
   });
   const [closeDialog, setCloseDialog] = useState(false);
   const [closeComment, setCloseComment] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState(false);
 
   const fetchTicket = async () => {
     setLoading(true);
@@ -550,6 +559,17 @@ function TicketDetail() {
     }
   };
 
+  const handleDeleteTicket = async () => {
+    try {
+      await ticketsAPI.deleteTicket(ticketId);
+      setDeleteDialog(false);
+      navigate('/tickets');
+      enqueueSnackbar('Ticket deleted successfully', { variant: 'success' });
+    } catch (error) {
+      enqueueSnackbar(error.response?.data?.detail || 'Failed to delete ticket', { variant: 'error' });
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -594,6 +614,16 @@ function TicketDetail() {
           <Button variant="outlined" onClick={() => navigate('/tickets')}>
             Back
           </Button>
+          {(isAdmin || ticket.created_by_id === user?.id) && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => setDeleteDialog(true)}
+            >
+              Delete
+            </Button>
+          )}
           {isAdmin && !isClosed && (
             <>
               <Button variant="outlined" onClick={() => setAdminDialog(true)}>
@@ -790,6 +820,25 @@ function TicketDetail() {
           <Button onClick={() => setCloseDialog(false)}>Cancel</Button>
           <Button variant="contained" color="error" onClick={handleCloseTicket}>
             Close Ticket
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Ticket Dialog */}
+      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
+        <DialogTitle>Delete Ticket</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action cannot be undone!
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to delete this ticket? All associated comments will also be deleted.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteTicket}>
+            Delete Ticket
           </Button>
         </DialogActions>
       </Dialog>

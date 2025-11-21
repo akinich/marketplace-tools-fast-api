@@ -2,11 +2,15 @@
 ================================================================================
 Farm Management System - Ticket System Schemas
 ================================================================================
-Version: 1.0.1
+Version: 1.1.0
 Last Updated: 2025-11-20
 
 Changelog:
 ----------
+v1.1.0 (2025-11-20):
+  - No schema changes - version bump to match deletion feature addition
+  - Delete functionality uses existing validation models
+
 v1.0.1 (2025-11-20):
   - No schema changes - version bump to match service layer fix
 
