@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -41,17 +41,15 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import {
-  Delete as DeleteIcon,
-  Refresh as RefreshIcon,
-  Security as SecurityIcon,
-  History as HistoryIcon,
-  Devices as DevicesIcon,
-  CheckCircle,
-  Cancel,
-  Warning,
-  LockOpen,
-} from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SecurityIcon from '@mui/icons-material/Security';
+import HistoryIcon from '@mui/icons-material/History';
+import DevicesIcon from '@mui/icons-material/Devices';
+import CheckCircle from '@mui/icons-material/CheckCircle';
+import Cancel from '@mui/icons-material/Cancel';
+import Warning from '@mui/icons-material/Warning';
+import LockOpen from '@mui/icons-material/LockOpen';
 import { useSnackbar } from 'notistack';
 import { securityAPI, adminAPI } from '../api';
 

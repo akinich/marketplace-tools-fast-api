@@ -20,7 +20,7 @@
  */
 
 import React from 'react';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -34,15 +34,13 @@ import {
   Chip,
   LinearProgress,
 } from '@mui/material';
-import {
-  Pool as TankIcon,
-  Inventory2 as BatchIcon,
-  ShowChart as GrowthIcon,
-  Warning as WarningIcon,
-  Opacity as WaterIcon,
-  LocalShipping as HarvestIcon,
-  Add as AddIcon,
-} from '@mui/icons-material';
+import TankIcon from '@mui/icons-material/Pool';
+import BatchIcon from '@mui/icons-material/Inventory2';
+import GrowthIcon from '@mui/icons-material/ShowChart';
+import WarningIcon from '@mui/icons-material/Warning';
+import WaterIcon from '@mui/icons-material/Opacity';
+import HarvestIcon from '@mui/icons-material/LocalShipping';
+import AddIcon from '@mui/icons-material/Add';
 
 import { bioflocAPI } from '../api';
 

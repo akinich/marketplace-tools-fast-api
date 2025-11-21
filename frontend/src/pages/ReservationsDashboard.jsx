@@ -32,11 +32,9 @@ import {
   Grid,
   Tooltip,
 } from '@mui/material';
-import {
-  Cancel as CancelIcon,
-  CheckCircle as ConfirmIcon,
-  Refresh as RefreshIcon,
-} from '@mui/icons-material';
+import CancelIcon from '@mui/icons-material/Cancel';
+import ConfirmIcon from '@mui/icons-material/CheckCircle';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { inventoryAPI } from '../api';
 
 const ReservationsDashboard = () => {

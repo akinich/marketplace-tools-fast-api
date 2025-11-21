@@ -47,12 +47,10 @@ import {
   Paper,
   Divider,
 } from '@mui/material';
-import {
-  Search as SearchIcon,
-  Article as ArticleIcon,
-  School as SchoolIcon,
-  Info as InfoIcon,
-} from '@mui/icons-material';
+import SearchIcon from '@mui/icons-material/Search';
+import ArticleIcon from '@mui/icons-material/Article';
+import SchoolIcon from '@mui/icons-material/School';
+import InfoIcon from '@mui/icons-material/Info';
 import { docsAPI } from '../api';
 
 export default function DocsList() {

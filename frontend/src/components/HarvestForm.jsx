@@ -16,7 +16,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -39,11 +39,9 @@ import {
   FormControlLabel,
   FormLabel,
 } from '@mui/material';
-import {
-  Save as SaveIcon,
-  LocalShipping as HarvestIcon,
-  Warning as WarningIcon,
-} from '@mui/icons-material';
+import SaveIcon from '@mui/icons-material/Save';
+import HarvestIcon from '@mui/icons-material/LocalShipping';
+import WarningIcon from '@mui/icons-material/Warning';
 
 import { bioflocAPI } from '../api';
 

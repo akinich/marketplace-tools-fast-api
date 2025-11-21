@@ -74,19 +74,17 @@ import {
   ListItemAvatar,
   Avatar,
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Visibility as ViewIcon,
-  Edit as EditIcon,
-  Close as CloseIcon,
-  Send as SendIcon,
-  Delete as DeleteIcon,
-  BugReport as BugIcon,
-  Lightbulb as FeatureIcon,
-  TrendingUp as UpgradeIcon,
-  MoreHoriz as OthersIcon,
-  Comment as CommentIcon,
-} from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import ViewIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import CloseIcon from '@mui/icons-material/Close';
+import SendIcon from '@mui/icons-material/Send';
+import DeleteIcon from '@mui/icons-material/Delete';
+import BugIcon from '@mui/icons-material/BugReport';
+import FeatureIcon from '@mui/icons-material/Lightbulb';
+import UpgradeIcon from '@mui/icons-material/TrendingUp';
+import OthersIcon from '@mui/icons-material/MoreHoriz';
+import CommentIcon from '@mui/icons-material/Comment';
 import { useSnackbar } from 'notistack';
 import useAuthStore from '../store/authStore';
 import { ticketsAPI } from '../api';

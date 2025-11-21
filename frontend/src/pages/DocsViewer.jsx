@@ -49,11 +49,9 @@ import {
   Breadcrumbs,
   Link,
 } from '@mui/material';
-import {
-  ArrowBack as ArrowBackIcon,
-  Menu as MenuIcon,
-  Close as CloseIcon,
-} from '@mui/icons-material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import { docsAPI } from '../api';
 
 export default function DocsViewer() {

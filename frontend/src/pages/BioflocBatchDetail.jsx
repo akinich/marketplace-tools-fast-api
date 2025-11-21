@@ -20,7 +20,7 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -40,17 +40,15 @@ import {
   Paper,
   LinearProgress,
 } from '@mui/material';
-import {
-  ArrowBack as BackIcon,
-  TrendingUp as GrowthIcon,
-  ShowChart as ChartIcon,
-  Restaurant as FeedIcon,
-  Science as SamplingIcon,
-  Warning as MortalityIcon,
-  ShoppingCart as HarvestIcon,
-  MonetizationOn as CostIcon,
-  CompareArrows as TransferIcon,
-} from '@mui/icons-material';
+import BackIcon from '@mui/icons-material/ArrowBack';
+import GrowthIcon from '@mui/icons-material/TrendingUp';
+import ChartIcon from '@mui/icons-material/ShowChart';
+import FeedIcon from '@mui/icons-material/Restaurant';
+import SamplingIcon from '@mui/icons-material/Science';
+import MortalityIcon from '@mui/icons-material/Warning';
+import HarvestIcon from '@mui/icons-material/ShoppingCart';
+import CostIcon from '@mui/icons-material/MonetizationOn';
+import TransferIcon from '@mui/icons-material/CompareArrows';
 
 import { bioflocAPI } from '../api';
 

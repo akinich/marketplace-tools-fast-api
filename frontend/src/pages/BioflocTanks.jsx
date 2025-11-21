@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Grid,
@@ -40,15 +40,13 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Pool as TankIcon,
-  CheckCircle as ActiveIcon,
-  Cancel as InactiveIcon,
-  Build as MaintenanceIcon,
-} from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import TankIcon from '@mui/icons-material/Pool';
+import ActiveIcon from '@mui/icons-material/CheckCircle';
+import InactiveIcon from '@mui/icons-material/Cancel';
+import MaintenanceIcon from '@mui/icons-material/Build';
 
 import { bioflocAPI } from '../api';
 

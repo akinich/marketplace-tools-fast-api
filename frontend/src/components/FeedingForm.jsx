@@ -20,7 +20,7 @@
  */
 
 import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -37,12 +37,10 @@ import {
   Paper,
   Chip,
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Save as SaveIcon,
-  Restaurant as FeedIcon,
-} from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import FeedIcon from '@mui/icons-material/Restaurant';
 
 import { bioflocAPI } from '../api';
 import { inventoryAPI } from '../api';

@@ -19,7 +19,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -46,13 +46,11 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
-import {
-  Save as SaveIcon,
-  SwapHoriz as TransferIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Warning as WarningIcon,
-} from '@mui/icons-material';
+import SaveIcon from '@mui/icons-material/Save';
+import TransferIcon from '@mui/icons-material/SwapHoriz';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import WarningIcon from '@mui/icons-material/Warning';
 
 import { bioflocAPI } from '../api';
 

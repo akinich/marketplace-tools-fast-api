@@ -1,10 +1,14 @@
 /**
  * Main Entry Point
- * Version: 1.1.0
- * Last Updated: 2025-11-17
+ * Version: 1.2.0
+ * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.2.0 (2025-11-21):
+ *   - Migrated from react-query v3 to @tanstack/react-query v5
+ *   - Removed duplicate React Query dependency for bundle size optimization
+ *
  * v1.1.0 (2025-11-17):
  *   - Added autoHideDuration to SnackbarProvider (3 seconds auto-dismiss)
  *   - Added close button with CloseIcon to toast notifications
@@ -22,7 +26,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider, useSnackbar } from 'notistack';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 

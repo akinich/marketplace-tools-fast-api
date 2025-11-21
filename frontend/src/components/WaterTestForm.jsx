@@ -16,7 +16,7 @@
  */
 
 import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from 'react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Card,
@@ -33,12 +33,10 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
-import {
-  Save as SaveIcon,
-  Opacity as WaterIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
-} from '@mui/icons-material';
+import SaveIcon from '@mui/icons-material/Save';
+import WaterIcon from '@mui/icons-material/Opacity';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import { bioflocAPI } from '../api';
 

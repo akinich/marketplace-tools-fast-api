@@ -24,13 +24,11 @@ import {
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-  CheckCircle,
-  Cancel,
-  Lock,
-} from '@mui/icons-material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import CheckCircle from '@mui/icons-material/CheckCircle';
+import Cancel from '@mui/icons-material/Cancel';
+import Lock from '@mui/icons-material/Lock';
 import { authAPI } from '../api/auth';
 import useAuthStore from '../store/authStore';
 

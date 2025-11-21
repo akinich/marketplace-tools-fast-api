@@ -68,17 +68,15 @@ import {
   DialogActions,
   Paper,
 } from '@mui/material';
-import {
-  Telegram as TelegramIcon,
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
-  Send as SendIcon,
-  Refresh as RefreshIcon,
-  Link as LinkIcon,
-  LinkOff as LinkOffIcon,
-  ContentCopy as ContentCopyIcon,
-} from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
+import TelegramIcon from '@mui/icons-material/Telegram';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import SendIcon from '@mui/icons-material/Send';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import LinkIcon from '@mui/icons-material/Link';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { telegramAPI } from '../api';
 import { useSnackbar } from 'notistack';
 
