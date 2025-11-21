@@ -1,10 +1,16 @@
 /**
  * Telegram Notifications Settings Page
- * Version: 1.2.1
+ * Version: 1.2.2
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.2.2 (2025-11-21):
+ *   - Fix: Moved settings parsing from onSuccess to useEffect for better reliability
+ *   - Added isSuccess check to prevent stuck loading state
+ *   - Disabled refetchOnWindowFocus to prevent unnecessary refetches
+ *   - Added loading text indicator for better UX
+ *
  * v1.2.1 (2025-11-21):
  *   - Fix: Loading state now properly handles errors (error check before loading check)
  *   - Added retry logic (2 retries with 1s delay) for failed API requests
@@ -40,7 +46,7 @@
  *   connectivity, and managing user account linking.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -99,42 +105,47 @@ function TelegramSettings() {
   // FETCH SETTINGS
   // ========================================================================
 
-  const { data: settingsData, isLoading: loadingSettings, error: settingsError } = useQuery(
+  const { data: settingsData, isLoading: loadingSettings, isSuccess, error: settingsError } = useQuery(
     'telegramSettings',
     () => telegramAPI.getSettings(),
     {
-      onSuccess: (data) => {
-        // Properly parse all settings with defaults
-        setSettings({
-          tickets_channel_id: data.tickets_channel_id || null,
-          po_channel_id: data.po_channel_id || null,
-          inventory_channel_id: data.inventory_channel_id || null,
-          enable_ticket_notifications: toBool(data.enable_ticket_notifications, true),
-          enable_po_notifications: toBool(data.enable_po_notifications, true),
-          enable_inventory_notifications: toBool(data.enable_inventory_notifications, true),
-          enable_personal_notifications: toBool(data.enable_personal_notifications, false),
-          // Granular ticket notifications
-          notify_ticket_created: toBool(data.notify_ticket_created, true),
-          notify_ticket_updated: toBool(data.notify_ticket_updated, true),
-          notify_ticket_closed: toBool(data.notify_ticket_closed, true),
-          notify_ticket_comment: toBool(data.notify_ticket_comment, true),
-          notify_ticket_priority_changed: toBool(data.notify_ticket_priority_changed, true),
-          // Granular PO notifications
-          notify_po_created: toBool(data.notify_po_created, true),
-          notify_po_status_changed: toBool(data.notify_po_status_changed, true),
-          // Granular inventory notifications
-          notify_low_stock_first_alert: toBool(data.notify_low_stock_first_alert, true),
-          notify_low_stock_daily_summary: toBool(data.notify_low_stock_daily_summary, true),
-        });
-      },
-      onError: (error) => {
-        console.error('Failed to load Telegram settings:', error);
-      },
       retry: 2, // Retry failed requests twice
       retryDelay: 1000, // Wait 1 second between retries
       staleTime: 30 * 1000, // 30 seconds
+      cacheTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false, // Don't refetch on window focus to avoid flashing
+      onError: (error) => {
+        console.error('Failed to load Telegram settings:', error);
+      },
     }
   );
+
+  // Parse settings when data is available
+  useEffect(() => {
+    if (settingsData) {
+      setSettings({
+        tickets_channel_id: settingsData.tickets_channel_id || null,
+        po_channel_id: settingsData.po_channel_id || null,
+        inventory_channel_id: settingsData.inventory_channel_id || null,
+        enable_ticket_notifications: toBool(settingsData.enable_ticket_notifications, true),
+        enable_po_notifications: toBool(settingsData.enable_po_notifications, true),
+        enable_inventory_notifications: toBool(settingsData.enable_inventory_notifications, true),
+        enable_personal_notifications: toBool(settingsData.enable_personal_notifications, false),
+        // Granular ticket notifications
+        notify_ticket_created: toBool(settingsData.notify_ticket_created, true),
+        notify_ticket_updated: toBool(settingsData.notify_ticket_updated, true),
+        notify_ticket_closed: toBool(settingsData.notify_ticket_closed, true),
+        notify_ticket_comment: toBool(settingsData.notify_ticket_comment, true),
+        notify_ticket_priority_changed: toBool(settingsData.notify_ticket_priority_changed, true),
+        // Granular PO notifications
+        notify_po_created: toBool(settingsData.notify_po_created, true),
+        notify_po_status_changed: toBool(settingsData.notify_po_status_changed, true),
+        // Granular inventory notifications
+        notify_low_stock_first_alert: toBool(settingsData.notify_low_stock_first_alert, true),
+        notify_low_stock_daily_summary: toBool(settingsData.notify_low_stock_daily_summary, true),
+      });
+    }
+  }, [settingsData]);
 
   // ========================================================================
   // FETCH BOT STATUS
@@ -306,13 +317,12 @@ function TelegramSettings() {
   if (settingsError) {
     return (
       <Box sx={{ p: 4 }}>
-        <Alert severity="error">
+        <Alert severity="error" sx={{ mb: 2 }}>
           Failed to load settings: {settingsError.message}
         </Alert>
         <Button
           variant="outlined"
           onClick={() => window.location.reload()}
-          sx={{ mt: 2 }}
         >
           Reload Page
         </Button>
@@ -320,10 +330,14 @@ function TelegramSettings() {
     );
   }
 
-  if (loadingSettings || !settings) {
+  // Show loading only when actually loading (not when data is being processed)
+  if (loadingSettings || !isSuccess || !settings) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 4, minHeight: '400px' }}>
         <CircularProgress />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          Loading Telegram settings...
+        </Typography>
       </Box>
     );
   }
