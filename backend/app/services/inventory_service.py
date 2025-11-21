@@ -1633,17 +1633,16 @@ async def receive_purchase_order(po_id: int, request, user_id: str, user_name: s
             })
 
         # Determine new status
-        # Get all receiving for this PO
-        all_receiving = await fetch_all(
-            """
+        # Get all receiving for this PO (use conn to see uncommitted data)
+        all_receiving_query = """
             SELECT poi.id, poi.ordered_qty, COALESCE(SUM(pr.received_qty), 0) as total_received
             FROM purchase_order_items poi
             LEFT JOIN po_receiving pr ON pr.po_item_id = poi.id
             WHERE poi.purchase_order_id = $1
             GROUP BY poi.id, poi.ordered_qty
-            """,
-            po_id
-        )
+        """
+        all_receiving_result = await conn.fetch(all_receiving_query, po_id)
+        all_receiving = [dict(r) for r in all_receiving_result]
 
         all_fully_received = all(
             float(r["total_received"]) >= float(r["ordered_qty"])
