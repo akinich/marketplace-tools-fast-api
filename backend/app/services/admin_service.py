@@ -69,7 +69,7 @@ import math
 import uuid
 
 from app.database import get_db, fetch_one, fetch_all, execute_query
-from app.auth.password import generate_temporary_password, hash_password
+from app.auth.password import hash_password
 from app.services.auth_service import log_activity
 from app.schemas.admin import (
     CreateUserRequest,
@@ -187,8 +187,12 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
         HTTPException: If user creation fails or email already exists
     """
     try:
-        # Generate temporary password
-        temp_password = generate_temporary_password()
+        # Generate simple temporary password: firstname@year (e.g., john@2025)
+        # User is forced to change on first login anyway
+        from datetime import datetime
+        first_name = request.full_name.split()[0].lower()
+        current_year = datetime.now().year
+        temp_password = f"{first_name}@{current_year}"
         password_hash_value = hash_password(temp_password)
 
         # Check if email already exists
