@@ -38,9 +38,13 @@ try:
     from telegram import Bot
     from telegram.error import TelegramError, Unauthorized, BadRequest
     TELEGRAM_AVAILABLE = True
-except ImportError:
+    logging.info("python-telegram-bot loaded successfully")
+except ImportError as e:
     TELEGRAM_AVAILABLE = False
-    logging.warning("python-telegram-bot not installed. Telegram features will be disabled.")
+    logging.warning(f"python-telegram-bot not installed: {e}")
+except Exception as e:
+    TELEGRAM_AVAILABLE = False
+    logging.error(f"Failed to import telegram library: {type(e).__name__}: {e}")
 
 from app.database import fetch_one, fetch_all, execute_query
 from app.config import settings
