@@ -177,17 +177,21 @@ async def refresh_token(request: RefreshTokenRequest):
         401: {"model": ErrorResponse, "description": "Unauthorized"},
     },
     summary="User Logout",
-    description="Logout current user. Client should discard tokens.",
+    description="Logout current user and revoke all active sessions.",
 )
 async def logout(current_user: CurrentUser = Depends(get_current_user)):
     """
     User logout endpoint.
 
     - Logs logout activity
-    - Client should discard tokens (JWT is stateless)
-    - Optional: Could implement token blacklist in future
+    - Revokes all active sessions for the user
     """
     try:
+        from app.services.security_service import revoke_all_user_sessions
+
+        # Revoke all active sessions
+        await revoke_all_user_sessions(current_user.id, current_user.id)
+
         # Log logout activity
         await log_activity(
             user_id=current_user.id,
