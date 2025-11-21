@@ -303,8 +303,13 @@ async def send_to_channel(channel_setting_key: str, message: str) -> bool:
 
 async def notify_ticket_created(ticket: Dict) -> bool:
     """Notify when a new ticket is created"""
+    # Check channel-level toggle
     enabled = await get_setting("enable_ticket_notifications")
     if enabled != "true":
+        return False
+    # Check event-level toggle
+    event_enabled = await get_setting("notify_ticket_created")
+    if event_enabled == "false":
         return False
 
     message = f"""🎫 *New Ticket Created*
@@ -329,6 +334,9 @@ async def notify_ticket_updated(ticket: Dict, updated_fields: List[str]) -> bool
     enabled = await get_setting("enable_ticket_notifications")
     if enabled != "true":
         return False
+    event_enabled = await get_setting("notify_ticket_updated")
+    if event_enabled == "false":
+        return False
 
     fields_str = ", ".join(updated_fields)
 
@@ -350,6 +358,9 @@ async def notify_ticket_closed(ticket: Dict, closed_by_name: str) -> bool:
     enabled = await get_setting("enable_ticket_notifications")
     if enabled != "true":
         return False
+    event_enabled = await get_setting("notify_ticket_closed")
+    if event_enabled == "false":
+        return False
 
     message = f"""✅ *Ticket Closed*
 ━━━━━━━━━━━━━━━━
@@ -367,6 +378,9 @@ async def notify_ticket_comment(ticket: Dict, comment: str, commenter_name: str)
     """Notify when a comment is added"""
     enabled = await get_setting("enable_ticket_notifications")
     if enabled != "true":
+        return False
+    event_enabled = await get_setting("notify_ticket_comment")
+    if event_enabled == "false":
         return False
 
     message = f"""💬 *New Comment on Ticket*
@@ -387,6 +401,9 @@ async def notify_ticket_priority_changed(ticket: Dict, old_priority: Optional[st
     """Notify when ticket priority changes"""
     enabled = await get_setting("enable_ticket_notifications")
     if enabled != "true":
+        return False
+    event_enabled = await get_setting("notify_ticket_priority_changed")
+    if event_enabled == "false":
         return False
 
     priority_emoji = {
@@ -417,6 +434,9 @@ async def notify_po_created(po: Dict) -> bool:
     enabled = await get_setting("enable_po_notifications")
     if enabled != "true":
         return False
+    event_enabled = await get_setting("notify_po_created")
+    if event_enabled == "false":
+        return False
 
     message = f"""📦 *Purchase Order Created*
 ━━━━━━━━━━━━━━━━
@@ -439,6 +459,9 @@ async def notify_po_status_changed(po: Dict, old_status: str, new_status: str) -
     """Notify when PO status changes"""
     enabled = await get_setting("enable_po_notifications")
     if enabled != "true":
+        return False
+    event_enabled = await get_setting("notify_po_status_changed")
+    if event_enabled == "false":
         return False
 
     status_emoji = {
@@ -469,6 +492,9 @@ async def notify_low_stock_first_alert(item: Dict) -> bool:
     """First alert when item goes below threshold"""
     enabled = await get_setting("enable_inventory_notifications")
     if enabled != "true":
+        return False
+    event_enabled = await get_setting("notify_low_stock_first_alert")
+    if event_enabled == "false":
         return False
 
     # Check if already alerted
@@ -521,6 +547,9 @@ async def notify_low_stock_daily_summary() -> bool:
     """Send daily summary of all low stock items"""
     enabled = await get_setting("enable_inventory_notifications")
     if enabled != "true":
+        return False
+    event_enabled = await get_setting("notify_low_stock_daily_summary")
+    if event_enabled == "false":
         return False
 
     # Get all currently low stock items

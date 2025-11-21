@@ -34,6 +34,21 @@ class UpdateSettingsRequest(BaseModel):
     enable_inventory_notifications: Optional[bool] = Field(None, description="Enable/disable inventory notifications")
     enable_personal_notifications: Optional[bool] = Field(None, description="Enable/disable personal DM notifications")
 
+    # Granular ticket notification settings
+    notify_ticket_created: Optional[bool] = Field(None, description="Notify when ticket is created")
+    notify_ticket_updated: Optional[bool] = Field(None, description="Notify when ticket is updated")
+    notify_ticket_closed: Optional[bool] = Field(None, description="Notify when ticket is closed")
+    notify_ticket_comment: Optional[bool] = Field(None, description="Notify when comment is added")
+    notify_ticket_priority_changed: Optional[bool] = Field(None, description="Notify when priority changes")
+
+    # Granular PO notification settings
+    notify_po_created: Optional[bool] = Field(None, description="Notify when PO is created")
+    notify_po_status_changed: Optional[bool] = Field(None, description="Notify when PO status changes")
+
+    # Granular inventory notification settings
+    notify_low_stock_first_alert: Optional[bool] = Field(None, description="Send first alert when item goes low")
+    notify_low_stock_daily_summary: Optional[bool] = Field(None, description="Send daily summary of low stock")
+
     @validator('tickets_channel_id', 'po_channel_id', 'inventory_channel_id')
     def validate_channel_id(cls, v):
         """Validate channel ID is negative (for channels/groups)"""
@@ -50,7 +65,10 @@ class UpdateSettingsRequest(BaseModel):
                 "enable_ticket_notifications": True,
                 "enable_po_notifications": True,
                 "enable_inventory_notifications": True,
-                "enable_personal_notifications": False
+                "enable_personal_notifications": False,
+                "notify_ticket_created": True,
+                "notify_po_created": True,
+                "notify_low_stock_first_alert": True
             }
         }
 

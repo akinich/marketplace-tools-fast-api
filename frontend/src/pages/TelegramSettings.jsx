@@ -69,6 +69,18 @@ function TelegramSettings() {
     enable_po_notifications: true,
     enable_inventory_notifications: true,
     enable_personal_notifications: false,
+    // Granular ticket notifications
+    notify_ticket_created: true,
+    notify_ticket_updated: true,
+    notify_ticket_closed: true,
+    notify_ticket_comment: true,
+    notify_ticket_priority_changed: true,
+    // Granular PO notifications
+    notify_po_created: true,
+    notify_po_status_changed: true,
+    // Granular inventory notifications
+    notify_low_stock_first_alert: true,
+    notify_low_stock_daily_summary: true,
   });
 
   const [testDialogOpen, setTestDialogOpen] = useState(false);
@@ -219,6 +231,21 @@ function TelegramSettings() {
     updates.enable_inventory_notifications = settings.enable_inventory_notifications;
     updates.enable_personal_notifications = settings.enable_personal_notifications;
 
+    // Granular ticket notification settings
+    updates.notify_ticket_created = settings.notify_ticket_created;
+    updates.notify_ticket_updated = settings.notify_ticket_updated;
+    updates.notify_ticket_closed = settings.notify_ticket_closed;
+    updates.notify_ticket_comment = settings.notify_ticket_comment;
+    updates.notify_ticket_priority_changed = settings.notify_ticket_priority_changed;
+
+    // Granular PO notification settings
+    updates.notify_po_created = settings.notify_po_created;
+    updates.notify_po_status_changed = settings.notify_po_status_changed;
+
+    // Granular inventory notification settings
+    updates.notify_low_stock_first_alert = settings.notify_low_stock_first_alert;
+    updates.notify_low_stock_daily_summary = settings.notify_low_stock_daily_summary;
+
     updateSettingsMutation.mutate(updates);
   };
 
@@ -356,6 +383,33 @@ function TelegramSettings() {
                   }
                   label="Enable Notifications"
                 />
+                {settings.enable_ticket_notifications && (
+                  <Box sx={{ ml: 2, mt: 1, borderLeft: '2px solid', borderColor: 'divider', pl: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      Event Types:
+                    </Typography>
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_ticket_created} onChange={handleSettingChange('notify_ticket_created')} />}
+                      label={<Typography variant="body2">Ticket Created</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_ticket_updated} onChange={handleSettingChange('notify_ticket_updated')} />}
+                      label={<Typography variant="body2">Ticket Updated</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_ticket_closed} onChange={handleSettingChange('notify_ticket_closed')} />}
+                      label={<Typography variant="body2">Ticket Closed</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_ticket_comment} onChange={handleSettingChange('notify_ticket_comment')} />}
+                      label={<Typography variant="body2">New Comment</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_ticket_priority_changed} onChange={handleSettingChange('notify_ticket_priority_changed')} />}
+                      label={<Typography variant="body2">Priority Changed</Typography>}
+                    />
+                  </Box>
+                )}
                 <Box sx={{ mt: 1 }}>
                   <Button
                     size="small"
@@ -396,6 +450,21 @@ function TelegramSettings() {
                   }
                   label="Enable Notifications"
                 />
+                {settings.enable_po_notifications && (
+                  <Box sx={{ ml: 2, mt: 1, borderLeft: '2px solid', borderColor: 'divider', pl: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      Event Types:
+                    </Typography>
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_po_created} onChange={handleSettingChange('notify_po_created')} />}
+                      label={<Typography variant="body2">PO Created</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_po_status_changed} onChange={handleSettingChange('notify_po_status_changed')} />}
+                      label={<Typography variant="body2">Status Changed</Typography>}
+                    />
+                  </Box>
+                )}
                 <Box sx={{ mt: 1 }}>
                   <Button
                     size="small"
@@ -436,6 +505,21 @@ function TelegramSettings() {
                   }
                   label="Enable Notifications"
                 />
+                {settings.enable_inventory_notifications && (
+                  <Box sx={{ ml: 2, mt: 1, borderLeft: '2px solid', borderColor: 'divider', pl: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      Event Types:
+                    </Typography>
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_low_stock_first_alert} onChange={handleSettingChange('notify_low_stock_first_alert')} />}
+                      label={<Typography variant="body2">Low Stock First Alert</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Switch size="small" checked={settings.notify_low_stock_daily_summary} onChange={handleSettingChange('notify_low_stock_daily_summary')} />}
+                      label={<Typography variant="body2">Daily Summary</Typography>}
+                    />
+                  </Box>
+                )}
                 <Box sx={{ mt: 1 }}>
                   <Button
                     size="small"

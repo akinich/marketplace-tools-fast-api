@@ -111,6 +111,30 @@ async def update_notification_settings(
     if request.enable_personal_notifications is not None:
         updates["enable_personal_notifications"] = request.enable_personal_notifications
 
+    # Granular ticket notification settings
+    if request.notify_ticket_created is not None:
+        updates["notify_ticket_created"] = request.notify_ticket_created
+    if request.notify_ticket_updated is not None:
+        updates["notify_ticket_updated"] = request.notify_ticket_updated
+    if request.notify_ticket_closed is not None:
+        updates["notify_ticket_closed"] = request.notify_ticket_closed
+    if request.notify_ticket_comment is not None:
+        updates["notify_ticket_comment"] = request.notify_ticket_comment
+    if request.notify_ticket_priority_changed is not None:
+        updates["notify_ticket_priority_changed"] = request.notify_ticket_priority_changed
+
+    # Granular PO notification settings
+    if request.notify_po_created is not None:
+        updates["notify_po_created"] = request.notify_po_created
+    if request.notify_po_status_changed is not None:
+        updates["notify_po_status_changed"] = request.notify_po_status_changed
+
+    # Granular inventory notification settings
+    if request.notify_low_stock_first_alert is not None:
+        updates["notify_low_stock_first_alert"] = request.notify_low_stock_first_alert
+    if request.notify_low_stock_daily_summary is not None:
+        updates["notify_low_stock_daily_summary"] = request.notify_low_stock_daily_summary
+
     if not updates:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
