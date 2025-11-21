@@ -1,11 +1,17 @@
 # ============================================================================
 # Farm Management System - Backend Dependencies
 # ============================================================================
-# Version: 1.2.1
+# Version: 1.3.0
 # Created: 2025-11-17
 #
 # Changelog:
 # ----------
+# v1.3.0 (2025-11-21):
+#   - BREAKING: Removed python-telegram-bot library
+#   - Telegram notifications now use direct HTTP API calls via httpx
+#   - More reliable deployment on Render and other platforms
+#   - No external library dependency for Telegram functionality
+#
 # v1.2.1 (2025-11-20):
 #   - CRITICAL FIX: Updated python-telegram-bot from 20.8 to 22.5
 #   - Resolves httpx dependency conflict (20.8 required ~=0.26.0, but we need 0.27.2)
@@ -62,8 +68,8 @@ aiofiles==23.2.1
 # Background Tasks & Scheduling
 APScheduler==3.10.4
 
-# Telegram Bot
-python-telegram-bot==22.5  # Updated for httpx 0.27.x compatibility
+# Telegram Bot - uses httpx (already included above) for direct API calls
+# No additional library needed
 
 # Documentation
 markdown==3.5.1

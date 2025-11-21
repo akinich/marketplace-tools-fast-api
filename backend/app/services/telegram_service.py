@@ -1,11 +1,17 @@
 """
 Telegram Notification Service
-Version: 1.0.1
+Version: 1.1.0
 Created: 2025-11-20
 Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.1.0 (2025-11-21):
+  - BREAKING: Replaced python-telegram-bot library with direct HTTP API calls
+  - Uses httpx for async HTTP requests to Telegram Bot API
+  - More reliable deployment on Render and other platforms
+  - No external library dependency for Telegram functionality
+
 v1.0.1 (2025-11-21):
   - Fix: Changed update_setting to accept Optional[str] for updated_by parameter
   - Fix: System-initiated updates now pass None instead of "system" string
@@ -23,64 +29,47 @@ v1.0.0 (2025-11-20):
 Description:
   Handles all Telegram bot operations including sending notifications,
   managing user links, and maintaining bot health status.
+  Uses direct HTTP calls to Telegram Bot API via httpx.
 """
 
 import logging
 import secrets
 import string
+import httpx
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from decimal import Decimal
 
 from fastapi import HTTPException, status
 
-try:
-    from telegram import Bot
-    from telegram.error import TelegramError, Unauthorized, BadRequest
-    TELEGRAM_AVAILABLE = True
-    logging.info("python-telegram-bot loaded successfully")
-except ImportError as e:
-    TELEGRAM_AVAILABLE = False
-    logging.warning(f"python-telegram-bot not installed: {e}")
-except Exception as e:
-    TELEGRAM_AVAILABLE = False
-    logging.error(f"Failed to import telegram library: {type(e).__name__}: {e}")
-
 from app.database import fetch_one, fetch_all, execute_query
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Telegram Bot API base URL
+TELEGRAM_API_BASE = "https://api.telegram.org/bot"
 
 
 # ============================================================================
 # BOT INITIALIZATION
 # ============================================================================
 
-_bot_instance: Optional[Bot] = None
-
-
-def get_bot() -> Optional[Bot]:
-    """Get or create Telegram bot instance"""
-    global _bot_instance
-
-    if not TELEGRAM_AVAILABLE:
-        logger.error("Telegram library not available")
+def get_bot_token() -> Optional[str]:
+    """Get the bot token from settings"""
+    token = settings.TELEGRAM_BOT_TOKEN
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not configured")
         return None
+    return token
 
-    if _bot_instance is None:
-        token = settings.TELEGRAM_BOT_TOKEN
-        if not token:
-            logger.warning("TELEGRAM_BOT_TOKEN not configured")
-            return None
 
-        try:
-            _bot_instance = Bot(token=token)
-            logger.info("Telegram bot initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Telegram bot: {e}")
-            return None
-
-    return _bot_instance
+def get_api_url(method: str) -> Optional[str]:
+    """Get the full API URL for a Telegram method"""
+    token = get_bot_token()
+    if not token:
+        return None
+    return f"{TELEGRAM_API_BASE}{token}/{method}"
 
 
 # ============================================================================
@@ -166,42 +155,52 @@ async def update_settings_bulk(updates: Dict, updated_by: str) -> Dict:
 # ============================================================================
 
 async def check_bot_health() -> Dict:
-    """Check if bot is operational"""
-    bot = get_bot()
+    """Check if bot is operational using direct HTTP call"""
+    api_url = get_api_url("getMe")
 
-    if bot is None:
-        await update_bot_status("error", "Bot not initialized or token missing")
+    if api_url is None:
+        await update_bot_status("error", "Bot token not configured")
         return {
             "status": "error",
-            "message": "Bot not initialized",
+            "message": "Bot token not configured",
             "last_check": datetime.utcnow().isoformat()
         }
 
     try:
-        # Test bot by getting its info
-        bot_info = await bot.get_me()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(api_url)
+            data = response.json()
 
-        await update_bot_status("active", None)
+            if response.status_code == 200 and data.get("ok"):
+                bot_info = data.get("result", {})
+                await update_bot_status("active", None)
 
-        return {
-            "status": "active",
-            "message": f"Bot @{bot_info.username} is operational",
-            "bot_name": bot_info.first_name,
-            "bot_username": bot_info.username,
-            "last_check": datetime.utcnow().isoformat()
-        }
+                return {
+                    "status": "active",
+                    "message": f"Bot @{bot_info.get('username', 'unknown')} is operational",
+                    "bot_name": bot_info.get("first_name", "Unknown"),
+                    "bot_username": bot_info.get("username", "unknown"),
+                    "last_check": datetime.utcnow().isoformat()
+                }
+            elif response.status_code == 401:
+                error_msg = "Bot token is invalid or revoked"
+                await update_bot_status("error", error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                    "last_check": datetime.utcnow().isoformat()
+                }
+            else:
+                error_msg = data.get("description", f"API error: {response.status_code}")
+                await update_bot_status("error", error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                    "last_check": datetime.utcnow().isoformat()
+                }
 
-    except Unauthorized:
-        error_msg = "Bot token is invalid or revoked"
-        await update_bot_status("error", error_msg)
-        return {
-            "status": "error",
-            "message": error_msg,
-            "last_check": datetime.utcnow().isoformat()
-        }
-
-    except TelegramError as e:
-        error_msg = f"Telegram API error: {str(e)}"
+    except httpx.TimeoutException:
+        error_msg = "Telegram API request timed out"
         await update_bot_status("error", error_msg)
         return {
             "status": "error",
@@ -234,34 +233,43 @@ async def update_bot_status(status: str, error_message: Optional[str]) -> None:
 # ============================================================================
 
 async def send_message(chat_id: int, message: str, parse_mode: str = "Markdown") -> bool:
-    """Send message to a Telegram chat"""
-    bot = get_bot()
+    """Send message to a Telegram chat using direct HTTP call"""
+    api_url = get_api_url("sendMessage")
 
-    if bot is None:
-        logger.error("Cannot send message: Bot not initialized")
+    if api_url is None:
+        logger.error("Cannot send message: Bot token not configured")
         return False
+
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": parse_mode
+    }
 
     try:
-        await bot.send_message(
-            chat_id=chat_id,
-            text=message,
-            parse_mode=parse_mode
-        )
-        logger.info(f"Message sent successfully to chat {chat_id}")
-        return True
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(api_url, json=payload)
+            data = response.json()
 
-    except Unauthorized:
-        logger.error(f"Bot not authorized to send to chat {chat_id}")
-        await update_bot_status("error", f"Unauthorized for chat {chat_id}")
-        return False
+            if response.status_code == 200 and data.get("ok"):
+                logger.info(f"Message sent successfully to chat {chat_id}")
+                return True
+            elif response.status_code == 401:
+                logger.error(f"Bot not authorized to send to chat {chat_id}")
+                await update_bot_status("error", f"Unauthorized for chat {chat_id}")
+                return False
+            elif response.status_code == 400:
+                error_desc = data.get("description", "Bad request")
+                logger.error(f"Bad request sending to chat {chat_id}: {error_desc}")
+                return False
+            else:
+                error_desc = data.get("description", f"API error: {response.status_code}")
+                logger.error(f"Telegram error sending to chat {chat_id}: {error_desc}")
+                await update_bot_status("error", error_desc)
+                return False
 
-    except BadRequest as e:
-        logger.error(f"Bad request sending to chat {chat_id}: {e}")
-        return False
-
-    except TelegramError as e:
-        logger.error(f"Telegram error sending to chat {chat_id}: {e}")
-        await update_bot_status("error", str(e))
+    except httpx.TimeoutException:
+        logger.error(f"Timeout sending message to chat {chat_id}")
         return False
 
     except Exception as e:
