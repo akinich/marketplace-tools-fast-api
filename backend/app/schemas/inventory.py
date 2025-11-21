@@ -210,6 +210,7 @@ class ItemMasterItem(BaseModel):
     current_qty: Decimal
     is_active: bool
     created_at: datetime
+    has_transactions: int = 0  # Count of transactions and PO items
 
     class Config:
         from_attributes = True
