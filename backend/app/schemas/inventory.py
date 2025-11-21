@@ -7,6 +7,14 @@ Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.4.0 (2025-11-21):
+  - Added POStatus enum and PO_STATUS_TRANSITIONS for workflow validation
+  - Added PO receiving schemas (ReceiveItemRequest, ReceivePORequest, POReceivingItem, etc.)
+  - Added PO history/audit schemas (POHistoryItem, POHistoryResponse)
+  - Added line item CRUD schemas (AddPOItemRequest, UpdatePOItemRequest, etc.)
+  - Added DuplicatePORequest for PO duplication
+  - Added PODetailWithReceiving for enhanced PO details
+
 v1.3.0 (2025-11-21):
   - Added default_price field to ItemMasterBase, CreateItemRequest, UpdateItemRequest, ItemMasterItem
   - Updated item master schemas to support optional default pricing (2 decimal precision)
@@ -475,6 +483,226 @@ class POsListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+# ============================================================================
+# PO STATUS WORKFLOW
+# ============================================================================
+
+
+class POStatus(str, Enum):
+    """Valid PO statuses with workflow transitions"""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    ORDERED = "ordered"
+    PARTIALLY_RECEIVED = "partially_received"
+    RECEIVED = "received"
+    CLOSED = "closed"
+    CANCELLED = "cancelled"
+
+
+# Status workflow: defines valid transitions from each status
+PO_STATUS_TRANSITIONS = {
+    "pending": ["approved", "cancelled"],
+    "approved": ["ordered", "cancelled"],
+    "ordered": ["partially_received", "received", "cancelled"],
+    "partially_received": ["received", "closed", "cancelled"],
+    "received": ["closed"],
+    "closed": [],  # Terminal state
+    "cancelled": [],  # Terminal state
+}
+
+
+# ============================================================================
+# PO RECEIVING SCHEMAS
+# ============================================================================
+
+
+class ReceiveItemRequest(BaseModel):
+    """Request to receive a single PO line item"""
+
+    po_item_id: int = Field(..., gt=0, description="ID of the PO line item")
+    received_qty: Decimal = Field(..., ge=0, description="Actual quantity received")
+    actual_unit_cost: Decimal = Field(..., ge=0, description="Actual unit cost")
+    batch_number: Optional[str] = Field(None, max_length=100)
+    expiry_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
+class ReceivePORequest(BaseModel):
+    """Request to receive goods for a PO"""
+
+    items: List[ReceiveItemRequest] = Field(..., min_items=1)
+    receipt_date: date = Field(default_factory=date.today)
+    close_po: bool = Field(False, description="Close PO even if partially received")
+    notes: Optional[str] = None
+
+
+class POReceivingItem(BaseModel):
+    """Received item details"""
+
+    id: int
+    po_item_id: int
+    item_master_id: int
+    item_name: Optional[str]
+
+    # Quantities
+    ordered_qty: Decimal
+    received_qty: Decimal
+
+    # Prices
+    po_unit_cost: Decimal
+    actual_unit_cost: Decimal
+    po_line_total: Decimal
+    actual_line_total: Decimal
+
+    # Details
+    batch_id: Optional[int]
+    batch_number: Optional[str]
+    receipt_date: date
+    expiry_date: Optional[date]
+    notes: Optional[str]
+
+    # Audit
+    received_by: Optional[str]
+    received_by_name: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class POReceivingSummary(BaseModel):
+    """Summary of PO receiving status"""
+
+    total_items: int
+    fully_received: int
+    partially_received: int
+    not_received: int
+    total_ordered_value: Decimal
+    total_received_value: Decimal
+    variance: Decimal
+
+
+class ReceivePOResponse(BaseModel):
+    """Response after receiving goods"""
+
+    success: bool
+    message: str
+    po_id: int
+    new_status: str
+    items_received: List[POReceivingItem]
+    batches_created: List[int]  # IDs of created inventory batches
+    summary: POReceivingSummary
+
+
+# ============================================================================
+# PO HISTORY/AUDIT SCHEMAS
+# ============================================================================
+
+
+class POHistoryItem(BaseModel):
+    """PO history/audit item"""
+
+    id: int
+    purchase_order_id: int
+    action: str
+    previous_status: Optional[str]
+    new_status: Optional[str]
+    change_details: Optional[dict]
+    changed_by: Optional[str]
+    changed_by_name: Optional[str]
+    changed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class POHistoryResponse(BaseModel):
+    """PO history response"""
+
+    history: List[POHistoryItem]
+    total: int
+
+
+# ============================================================================
+# PO LINE ITEM CRUD SCHEMAS
+# ============================================================================
+
+
+class AddPOItemRequest(BaseModel):
+    """Request to add a new item to an existing PO"""
+
+    item_master_id: int = Field(..., gt=0)
+    ordered_qty: Decimal = Field(..., gt=0)
+    unit_cost: Decimal = Field(..., ge=0)
+
+
+class UpdatePOItemRequest(BaseModel):
+    """Request to update a PO line item"""
+
+    po_item_id: int = Field(..., gt=0)
+    ordered_qty: Optional[Decimal] = Field(None, gt=0)
+    unit_cost: Optional[Decimal] = Field(None, ge=0)
+
+
+class AddPOItemsRequest(BaseModel):
+    """Request to add multiple items to a PO"""
+
+    items: List[AddPOItemRequest] = Field(..., min_items=1)
+
+
+class UpdatePOItemsRequest(BaseModel):
+    """Request to update multiple PO line items"""
+
+    items: List[UpdatePOItemRequest] = Field(..., min_items=1)
+
+
+class POItemsUpdateResponse(BaseModel):
+    """Response after updating PO items"""
+
+    success: bool
+    message: str
+    po_id: int
+    new_total_cost: Decimal
+    items_count: int
+
+
+# ============================================================================
+# PO DUPLICATE SCHEMA
+# ============================================================================
+
+
+class DuplicatePORequest(BaseModel):
+    """Request to duplicate a PO"""
+
+    new_po_number: str = Field(..., min_length=1, max_length=100)
+    po_date: date = Field(default_factory=date.today)
+    expected_delivery: Optional[date] = None
+    supplier_id: Optional[int] = Field(None, gt=0, description="Override supplier")
+    notes: Optional[str] = None
+
+    # Option to modify items during duplication
+    items: Optional[List[POItemDetail]] = Field(None, description="Override items, or None to copy all")
+
+    @validator("expected_delivery")
+    def delivery_must_be_future(cls, v, values):
+        if v and "po_date" in values and v < values["po_date"]:
+            raise ValueError("Expected delivery date cannot be before PO date")
+        return v
+
+
+# ============================================================================
+# PO DETAIL WITH RECEIVING INFO
+# ============================================================================
+
+
+class PODetailWithReceiving(PODetail):
+    """Purchase order detail with receiving information"""
+
+    receiving: List[POReceivingItem] = []
+    receiving_summary: Optional[POReceivingSummary] = None
 
 
 # ============================================================================

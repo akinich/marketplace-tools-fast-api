@@ -1106,6 +1106,997 @@ async def update_purchase_order_status(po_id: int, request: UpdatePORequest) -> 
 
 
 # ============================================================================
+# ENHANCED PO OPERATIONS
+# ============================================================================
+
+
+# Import PO status transitions
+from app.schemas.inventory import PO_STATUS_TRANSITIONS
+import json
+
+
+def validate_status_transition(current_status: str, new_status: str) -> bool:
+    """Validate if a status transition is allowed"""
+    allowed = PO_STATUS_TRANSITIONS.get(current_status, [])
+    return new_status in allowed
+
+
+async def record_po_history(
+    po_id: int,
+    action: str,
+    user_id: str,
+    user_name: str = None,
+    previous_status: str = None,
+    new_status: str = None,
+    change_details: dict = None,
+    conn=None
+):
+    """Record PO history/audit entry"""
+    query = """
+        INSERT INTO po_history (
+            purchase_order_id, action, previous_status, new_status,
+            change_details, changed_by, changed_by_name
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+    """
+    if conn:
+        return await execute_query_tx(
+            query,
+            po_id, action, previous_status, new_status,
+            json.dumps(change_details) if change_details else None,
+            user_id, user_name,
+            conn=conn
+        )
+    else:
+        return await execute_query(
+            query,
+            po_id, action, previous_status, new_status,
+            json.dumps(change_details) if change_details else None,
+            user_id, user_name
+        )
+
+
+async def get_purchase_order_detail(po_id: int) -> Dict:
+    """Get single purchase order with all line items"""
+    # Get PO header
+    po = await fetch_one(
+        """
+        SELECT
+            po.id,
+            po.po_number,
+            po.supplier_id,
+            s.supplier_name,
+            po.po_date,
+            po.expected_delivery,
+            po.status,
+            po.total_cost,
+            po.notes,
+            po.created_by::text as created_by,
+            up.full_name as created_by_name,
+            po.created_at
+        FROM purchase_orders po
+        JOIN suppliers s ON s.id = po.supplier_id
+        LEFT JOIN user_profiles up ON up.id = po.created_by
+        WHERE po.id = $1
+        """,
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    # Get line items
+    items = await fetch_all(
+        """
+        SELECT
+            poi.id,
+            poi.item_master_id,
+            im.item_name,
+            poi.ordered_qty,
+            poi.unit_cost,
+            (poi.ordered_qty * poi.unit_cost) as line_total
+        FROM purchase_order_items poi
+        JOIN item_master im ON im.id = poi.item_master_id
+        WHERE poi.purchase_order_id = $1
+        ORDER BY poi.id
+        """,
+        po_id
+    )
+
+    # Get receiving info if any
+    receiving = await fetch_all(
+        """
+        SELECT
+            pr.id,
+            pr.po_item_id,
+            pr.item_master_id,
+            im.item_name,
+            pr.ordered_qty,
+            pr.received_qty,
+            pr.po_unit_cost,
+            pr.actual_unit_cost,
+            pr.po_line_total,
+            pr.actual_line_total,
+            pr.batch_id,
+            pr.batch_number,
+            pr.receipt_date,
+            pr.expiry_date,
+            pr.notes,
+            pr.received_by::text as received_by,
+            up.full_name as received_by_name,
+            pr.created_at
+        FROM po_receiving pr
+        JOIN item_master im ON im.id = pr.item_master_id
+        LEFT JOIN user_profiles up ON up.id = pr.received_by
+        WHERE pr.purchase_order_id = $1
+        ORDER BY pr.created_at DESC
+        """,
+        po_id
+    )
+
+    # Calculate receiving summary
+    summary = None
+    if items:
+        total_items = len(items)
+        total_ordered_value = sum(float(item["line_total"]) for item in items)
+
+        # Get receiving totals per item
+        receiving_by_item = {}
+        for r in receiving:
+            item_id = r["po_item_id"]
+            if item_id not in receiving_by_item:
+                receiving_by_item[item_id] = {"qty": 0, "value": 0}
+            receiving_by_item[item_id]["qty"] += float(r["received_qty"])
+            receiving_by_item[item_id]["value"] += float(r["actual_line_total"])
+
+        fully_received = 0
+        partially_received = 0
+        not_received = 0
+        total_received_value = 0
+
+        for item in items:
+            item_id = item["id"]
+            ordered = float(item["ordered_qty"])
+            recv_data = receiving_by_item.get(item_id, {"qty": 0, "value": 0})
+            received = recv_data["qty"]
+            total_received_value += recv_data["value"]
+
+            if received >= ordered:
+                fully_received += 1
+            elif received > 0:
+                partially_received += 1
+            else:
+                not_received += 1
+
+        summary = {
+            "total_items": total_items,
+            "fully_received": fully_received,
+            "partially_received": partially_received,
+            "not_received": not_received,
+            "total_ordered_value": Decimal(str(total_ordered_value)),
+            "total_received_value": Decimal(str(total_received_value)),
+            "variance": Decimal(str(total_received_value - total_ordered_value))
+        }
+
+    result = dict(po)
+    result["items"] = items
+    result["receiving"] = receiving
+    result["receiving_summary"] = summary
+
+    return result
+
+
+async def delete_purchase_order(po_id: int, user_id: str, user_name: str) -> Dict:
+    """Delete purchase order (only pending or cancelled)"""
+    # Get PO
+    po = await fetch_one(
+        "SELECT id, po_number, status FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    # Only allow deletion of pending or cancelled POs
+    if po["status"] not in ["pending", "cancelled"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete PO with status '{po['status']}'. Only pending or cancelled POs can be deleted."
+        )
+
+    # Check if there are any receiving records
+    receiving = await fetch_one(
+        "SELECT COUNT(*) as count FROM po_receiving WHERE purchase_order_id = $1",
+        po_id
+    )
+
+    if receiving and receiving["count"] > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete PO with receiving records"
+        )
+
+    # Record history before deletion
+    await record_po_history(
+        po_id, "deleted", user_id, user_name,
+        previous_status=po["status"],
+        change_details={"po_number": po["po_number"]}
+    )
+
+    # Delete PO (cascades to items)
+    await execute_query(
+        "DELETE FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    return {
+        "success": True,
+        "message": f"Purchase order {po['po_number']} deleted successfully"
+    }
+
+
+async def duplicate_purchase_order(po_id: int, request, user_id: str, user_name: str) -> Dict:
+    """Duplicate an existing purchase order"""
+    # Get original PO
+    original_po = await fetch_one(
+        "SELECT * FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not original_po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    # Check if new PO number exists
+    existing = await fetch_one(
+        "SELECT id FROM purchase_orders WHERE po_number = $1",
+        request.new_po_number
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"PO number '{request.new_po_number}' already exists"
+        )
+
+    # Determine supplier
+    supplier_id = request.supplier_id or original_po["supplier_id"]
+
+    async with DatabaseTransaction() as conn:
+        # Create new PO
+        new_po_id = await execute_query_tx(
+            """
+            INSERT INTO purchase_orders (
+                po_number, supplier_id, po_date, expected_delivery, notes, created_by
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id
+            """,
+            request.new_po_number,
+            supplier_id,
+            request.po_date,
+            request.expected_delivery,
+            request.notes or original_po["notes"],
+            user_id,
+            conn=conn
+        )
+
+        # Copy or use provided items
+        if request.items:
+            # Use provided items
+            for item in request.items:
+                await execute_query_tx(
+                    """
+                    INSERT INTO purchase_order_items (
+                        purchase_order_id, item_master_id, ordered_qty, unit_cost
+                    )
+                    VALUES ($1, $2, $3, $4)
+                    """,
+                    new_po_id,
+                    item.item_master_id,
+                    item.ordered_qty,
+                    item.unit_cost,
+                    conn=conn
+                )
+        else:
+            # Copy original items
+            original_items = await fetch_all(
+                "SELECT item_master_id, ordered_qty, unit_cost FROM purchase_order_items WHERE purchase_order_id = $1",
+                po_id
+            )
+            for item in original_items:
+                await execute_query_tx(
+                    """
+                    INSERT INTO purchase_order_items (
+                        purchase_order_id, item_master_id, ordered_qty, unit_cost
+                    )
+                    VALUES ($1, $2, $3, $4)
+                    """,
+                    new_po_id,
+                    item["item_master_id"],
+                    item["ordered_qty"],
+                    item["unit_cost"],
+                    conn=conn
+                )
+
+        # Record history
+        await record_po_history(
+            new_po_id, "duplicated", user_id, user_name,
+            new_status="pending",
+            change_details={"duplicated_from": po_id, "original_po_number": original_po["po_number"]},
+            conn=conn
+        )
+
+    # Fetch and return new PO
+    new_po = await fetch_one(
+        """
+        SELECT
+            po.*,
+            s.supplier_name,
+            up.full_name as created_by_name,
+            (SELECT COUNT(*) FROM purchase_order_items WHERE purchase_order_id = po.id) as items_count
+        FROM purchase_orders po
+        JOIN suppliers s ON s.id = po.supplier_id
+        LEFT JOIN user_profiles up ON up.id = po.created_by
+        WHERE po.id = $1
+        """,
+        new_po_id
+    )
+
+    return new_po
+
+
+async def receive_purchase_order(po_id: int, request, user_id: str, user_name: str) -> Dict:
+    """Receive goods for a purchase order with inventory batch creation"""
+    # Get PO
+    po = await fetch_one(
+        """
+        SELECT po.*, s.supplier_name
+        FROM purchase_orders po
+        JOIN suppliers s ON s.id = po.supplier_id
+        WHERE po.id = $1
+        """,
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    # Check if status allows receiving
+    if po["status"] not in ["ordered", "partially_received"]:
+        if po["status"] == "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="PO must be in 'ordered' status to receive goods. Please approve and mark as ordered first."
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot receive goods for PO with status '{po['status']}'"
+        )
+
+    # Get PO items for validation
+    po_items = await fetch_all(
+        """
+        SELECT poi.*, im.item_name
+        FROM purchase_order_items poi
+        JOIN item_master im ON im.id = poi.item_master_id
+        WHERE poi.purchase_order_id = $1
+        """,
+        po_id
+    )
+
+    po_items_dict = {item["id"]: item for item in po_items}
+
+    # Validate received items
+    for recv_item in request.items:
+        if recv_item.po_item_id not in po_items_dict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"PO item {recv_item.po_item_id} not found in this purchase order"
+            )
+
+    batches_created = []
+    receiving_records = []
+
+    async with DatabaseTransaction() as conn:
+        for recv_item in request.items:
+            po_item = po_items_dict[recv_item.po_item_id]
+
+            # Create inventory batch if quantity > 0
+            batch_id = None
+            if recv_item.received_qty > 0:
+                batch_id = await execute_query_tx(
+                    """
+                    INSERT INTO inventory_batches (
+                        item_master_id, quantity_purchased, remaining_qty, unit_cost,
+                        purchase_date, expiry_date, supplier_id, batch_number, po_number, notes
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    RETURNING id
+                    """,
+                    po_item["item_master_id"],
+                    recv_item.received_qty,
+                    recv_item.received_qty,
+                    recv_item.actual_unit_cost,
+                    request.receipt_date,
+                    recv_item.expiry_date,
+                    po["supplier_id"],
+                    recv_item.batch_number,
+                    po["po_number"],
+                    recv_item.notes,
+                    conn=conn
+                )
+                batches_created.append(batch_id)
+
+                # Update item current_qty
+                await execute_query_tx(
+                    """
+                    UPDATE item_master
+                    SET current_qty = current_qty + $1, updated_at = NOW()
+                    WHERE id = $2
+                    """,
+                    recv_item.received_qty,
+                    po_item["item_master_id"],
+                    conn=conn
+                )
+
+                # Log transaction
+                await execute_query_tx(
+                    """
+                    INSERT INTO inventory_transactions (
+                        item_master_id, batch_id, transaction_type, quantity_change,
+                        new_balance, unit_cost, total_cost, po_number, user_id, notes
+                    )
+                    SELECT
+                        $1, $2, 'purchase', $3,
+                        im.current_qty, $4, $5, $6, $7, $8
+                    FROM item_master im WHERE im.id = $1
+                    """,
+                    po_item["item_master_id"],
+                    batch_id,
+                    recv_item.received_qty,
+                    recv_item.actual_unit_cost,
+                    recv_item.received_qty * recv_item.actual_unit_cost,
+                    po["po_number"],
+                    user_id,
+                    f"Received from PO {po['po_number']}",
+                    conn=conn
+                )
+
+            # Record receiving
+            recv_id = await execute_query_tx(
+                """
+                INSERT INTO po_receiving (
+                    purchase_order_id, po_item_id, item_master_id,
+                    ordered_qty, received_qty, po_unit_cost, actual_unit_cost,
+                    batch_id, batch_number, receipt_date, expiry_date, notes, received_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                RETURNING id
+                """,
+                po_id,
+                recv_item.po_item_id,
+                po_item["item_master_id"],
+                po_item["ordered_qty"],
+                recv_item.received_qty,
+                po_item["unit_cost"],
+                recv_item.actual_unit_cost,
+                batch_id,
+                recv_item.batch_number,
+                request.receipt_date,
+                recv_item.expiry_date,
+                recv_item.notes,
+                user_id,
+                conn=conn
+            )
+
+            receiving_records.append({
+                "id": recv_id,
+                "po_item_id": recv_item.po_item_id,
+                "item_master_id": po_item["item_master_id"],
+                "item_name": po_item["item_name"],
+                "ordered_qty": po_item["ordered_qty"],
+                "received_qty": recv_item.received_qty,
+                "po_unit_cost": po_item["unit_cost"],
+                "actual_unit_cost": recv_item.actual_unit_cost,
+                "po_line_total": po_item["ordered_qty"] * po_item["unit_cost"],
+                "actual_line_total": recv_item.received_qty * recv_item.actual_unit_cost,
+                "batch_id": batch_id,
+                "batch_number": recv_item.batch_number,
+                "receipt_date": request.receipt_date,
+                "expiry_date": recv_item.expiry_date,
+                "notes": recv_item.notes,
+                "received_by": user_id,
+                "received_by_name": user_name,
+                "created_at": datetime.now()
+            })
+
+        # Determine new status
+        # Get all receiving for this PO
+        all_receiving = await fetch_all(
+            """
+            SELECT poi.id, poi.ordered_qty, COALESCE(SUM(pr.received_qty), 0) as total_received
+            FROM purchase_order_items poi
+            LEFT JOIN po_receiving pr ON pr.po_item_id = poi.id
+            WHERE poi.purchase_order_id = $1
+            GROUP BY poi.id, poi.ordered_qty
+            """,
+            po_id
+        )
+
+        all_fully_received = all(
+            float(r["total_received"]) >= float(r["ordered_qty"])
+            for r in all_receiving
+        )
+        any_received = any(float(r["total_received"]) > 0 for r in all_receiving)
+
+        if request.close_po:
+            new_status = "closed"
+        elif all_fully_received:
+            new_status = "received"
+        elif any_received:
+            new_status = "partially_received"
+        else:
+            new_status = po["status"]
+
+        # Update PO status
+        old_status = po["status"]
+        if new_status != old_status:
+            await execute_query_tx(
+                "UPDATE purchase_orders SET status = $1, updated_at = NOW() WHERE id = $2",
+                new_status, po_id,
+                conn=conn
+            )
+
+        # Record history
+        await record_po_history(
+            po_id, "received", user_id, user_name,
+            previous_status=old_status,
+            new_status=new_status,
+            change_details={
+                "items_received": len(request.items),
+                "batches_created": batches_created,
+                "receipt_date": str(request.receipt_date)
+            },
+            conn=conn
+        )
+
+    # Calculate summary
+    summary_result = await fetch_one(
+        "SELECT * FROM get_po_receiving_summary($1)",
+        po_id
+    )
+
+    summary = {
+        "total_items": summary_result["total_items"] if summary_result else 0,
+        "fully_received": summary_result["fully_received"] if summary_result else 0,
+        "partially_received": summary_result["partially_received"] if summary_result else 0,
+        "not_received": summary_result["not_received"] if summary_result else 0,
+        "total_ordered_value": summary_result["total_ordered_value"] or Decimal("0"),
+        "total_received_value": summary_result["total_received_value"] or Decimal("0"),
+        "variance": summary_result["variance"] or Decimal("0")
+    }
+
+    return {
+        "success": True,
+        "message": f"Received {len(request.items)} items for PO {po['po_number']}",
+        "po_id": po_id,
+        "new_status": new_status,
+        "items_received": receiving_records,
+        "batches_created": batches_created,
+        "summary": summary
+    }
+
+
+async def add_po_items(po_id: int, request, user_id: str, user_name: str) -> Dict:
+    """Add items to an existing purchase order (only pending status)"""
+    # Get PO
+    po = await fetch_one(
+        "SELECT id, po_number, status FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    if po["status"] != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot modify items on PO with status '{po['status']}'. Only pending POs can be modified."
+        )
+
+    async with DatabaseTransaction() as conn:
+        added_items = []
+        for item in request.items:
+            # Verify item exists
+            im = await fetch_one(
+                "SELECT id, item_name FROM item_master WHERE id = $1",
+                item.item_master_id
+            )
+            if not im:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Item {item.item_master_id} not found"
+                )
+
+            await execute_query_tx(
+                """
+                INSERT INTO purchase_order_items (
+                    purchase_order_id, item_master_id, ordered_qty, unit_cost
+                )
+                VALUES ($1, $2, $3, $4)
+                """,
+                po_id,
+                item.item_master_id,
+                item.ordered_qty,
+                item.unit_cost,
+                conn=conn
+            )
+            added_items.append({"item_name": im["item_name"], "qty": float(item.ordered_qty)})
+
+        # Record history
+        await record_po_history(
+            po_id, "items_added", user_id, user_name,
+            change_details={"items_added": added_items},
+            conn=conn
+        )
+
+    # Get updated totals
+    po_updated = await fetch_one(
+        """
+        SELECT total_cost, (SELECT COUNT(*) FROM purchase_order_items WHERE purchase_order_id = $1) as items_count
+        FROM purchase_orders WHERE id = $1
+        """,
+        po_id
+    )
+
+    return {
+        "success": True,
+        "message": f"Added {len(request.items)} items to PO {po['po_number']}",
+        "po_id": po_id,
+        "new_total_cost": po_updated["total_cost"],
+        "items_count": po_updated["items_count"]
+    }
+
+
+async def update_po_items(po_id: int, request, user_id: str, user_name: str) -> Dict:
+    """Update items on an existing purchase order (only pending status)"""
+    # Get PO
+    po = await fetch_one(
+        "SELECT id, po_number, status FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    if po["status"] != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot modify items on PO with status '{po['status']}'. Only pending POs can be modified."
+        )
+
+    async with DatabaseTransaction() as conn:
+        updated_items = []
+        for item in request.items:
+            # Get current item
+            current = await fetch_one(
+                """
+                SELECT poi.*, im.item_name
+                FROM purchase_order_items poi
+                JOIN item_master im ON im.id = poi.item_master_id
+                WHERE poi.id = $1 AND poi.purchase_order_id = $2
+                """,
+                item.po_item_id, po_id
+            )
+
+            if not current:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"PO item {item.po_item_id} not found in this purchase order"
+                )
+
+            # Build update
+            update_fields = []
+            params = []
+            param_count = 1
+            changes = {"item_name": current["item_name"]}
+
+            if item.ordered_qty is not None:
+                update_fields.append(f"ordered_qty = ${param_count}")
+                params.append(item.ordered_qty)
+                changes["qty_from"] = float(current["ordered_qty"])
+                changes["qty_to"] = float(item.ordered_qty)
+                param_count += 1
+
+            if item.unit_cost is not None:
+                update_fields.append(f"unit_cost = ${param_count}")
+                params.append(item.unit_cost)
+                changes["cost_from"] = float(current["unit_cost"])
+                changes["cost_to"] = float(item.unit_cost)
+                param_count += 1
+
+            if update_fields:
+                params.append(item.po_item_id)
+                await execute_query_tx(
+                    f"UPDATE purchase_order_items SET {', '.join(update_fields)} WHERE id = ${param_count}",
+                    *params,
+                    conn=conn
+                )
+                updated_items.append(changes)
+
+        # Record history
+        await record_po_history(
+            po_id, "items_updated", user_id, user_name,
+            change_details={"items_updated": updated_items},
+            conn=conn
+        )
+
+    # Get updated totals
+    po_updated = await fetch_one(
+        """
+        SELECT total_cost, (SELECT COUNT(*) FROM purchase_order_items WHERE purchase_order_id = $1) as items_count
+        FROM purchase_orders WHERE id = $1
+        """,
+        po_id
+    )
+
+    return {
+        "success": True,
+        "message": f"Updated {len(request.items)} items on PO {po['po_number']}",
+        "po_id": po_id,
+        "new_total_cost": po_updated["total_cost"],
+        "items_count": po_updated["items_count"]
+    }
+
+
+async def delete_po_item(po_id: int, item_id: int, user_id: str, user_name: str) -> Dict:
+    """Delete an item from a purchase order (only pending status)"""
+    # Get PO
+    po = await fetch_one(
+        "SELECT id, po_number, status FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    if po["status"] != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot modify items on PO with status '{po['status']}'. Only pending POs can be modified."
+        )
+
+    # Get item to delete
+    item = await fetch_one(
+        """
+        SELECT poi.*, im.item_name
+        FROM purchase_order_items poi
+        JOIN item_master im ON im.id = poi.item_master_id
+        WHERE poi.id = $1 AND poi.purchase_order_id = $2
+        """,
+        item_id, po_id
+    )
+
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"PO item {item_id} not found in this purchase order"
+        )
+
+    # Check if this is the last item
+    count = await fetch_one(
+        "SELECT COUNT(*) as count FROM purchase_order_items WHERE purchase_order_id = $1",
+        po_id
+    )
+
+    if count["count"] <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete the last item from a PO. Delete the PO instead."
+        )
+
+    # Delete item
+    await execute_query(
+        "DELETE FROM purchase_order_items WHERE id = $1",
+        item_id
+    )
+
+    # Record history
+    await record_po_history(
+        po_id, "items_deleted", user_id, user_name,
+        change_details={
+            "deleted_item": {
+                "item_name": item["item_name"],
+                "ordered_qty": float(item["ordered_qty"]),
+                "unit_cost": float(item["unit_cost"])
+            }
+        }
+    )
+
+    # Get updated totals
+    po_updated = await fetch_one(
+        """
+        SELECT total_cost, (SELECT COUNT(*) FROM purchase_order_items WHERE purchase_order_id = $1) as items_count
+        FROM purchase_orders WHERE id = $1
+        """,
+        po_id
+    )
+
+    return {
+        "success": True,
+        "message": f"Deleted {item['item_name']} from PO {po['po_number']}",
+        "po_id": po_id,
+        "new_total_cost": po_updated["total_cost"],
+        "items_count": po_updated["items_count"]
+    }
+
+
+async def get_po_history(po_id: int) -> Dict:
+    """Get purchase order history/audit trail"""
+    # Verify PO exists
+    po = await fetch_one(
+        "SELECT id FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    history = await fetch_all(
+        """
+        SELECT
+            id,
+            purchase_order_id,
+            action,
+            previous_status,
+            new_status,
+            change_details,
+            changed_by::text as changed_by,
+            changed_by_name,
+            changed_at
+        FROM po_history
+        WHERE purchase_order_id = $1
+        ORDER BY changed_at DESC
+        """,
+        po_id
+    )
+
+    # Parse JSON change_details
+    for h in history:
+        if h["change_details"] and isinstance(h["change_details"], str):
+            try:
+                h["change_details"] = json.loads(h["change_details"])
+            except:
+                pass
+
+    return {
+        "history": history,
+        "total": len(history)
+    }
+
+
+async def update_purchase_order_with_validation(po_id: int, request, user_id: str, user_name: str) -> Dict:
+    """Update purchase order with status workflow validation"""
+    # Get current PO
+    po = await fetch_one(
+        "SELECT id, po_number, status FROM purchase_orders WHERE id = $1",
+        po_id
+    )
+
+    if not po:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order {po_id} not found"
+        )
+
+    # Validate status transition
+    if request.status is not None and request.status != po["status"]:
+        if not validate_status_transition(po["status"], request.status):
+            allowed = PO_STATUS_TRANSITIONS.get(po["status"], [])
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot change status from '{po['status']}' to '{request.status}'. Allowed transitions: {', '.join(allowed) if allowed else 'none (terminal state)'}"
+            )
+
+    # Build update
+    update_fields = []
+    params = []
+    param_count = 1
+    old_status = po["status"]
+
+    if request.status is not None:
+        update_fields.append(f"status = ${param_count}")
+        params.append(request.status)
+        param_count += 1
+
+    if request.expected_delivery is not None:
+        update_fields.append(f"expected_delivery = ${param_count}")
+        params.append(request.expected_delivery)
+        param_count += 1
+
+    if request.notes is not None:
+        update_fields.append(f"notes = ${param_count}")
+        params.append(request.notes)
+        param_count += 1
+
+    if not update_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update"
+        )
+
+    update_fields.append("updated_at = NOW()")
+    params.append(po_id)
+
+    async with DatabaseTransaction() as conn:
+        await execute_query_tx(
+            f"UPDATE purchase_orders SET {', '.join(update_fields)} WHERE id = ${param_count}",
+            *params,
+            conn=conn
+        )
+
+        # Record history
+        action = "status_changed" if request.status and request.status != old_status else "updated"
+        await record_po_history(
+            po_id, action, user_id, user_name,
+            previous_status=old_status if request.status else None,
+            new_status=request.status if request.status else None,
+            change_details={
+                "expected_delivery": str(request.expected_delivery) if request.expected_delivery else None,
+                "notes_updated": request.notes is not None
+            },
+            conn=conn
+        )
+
+    # Fetch updated PO
+    po_updated = await fetch_one(
+        """
+        SELECT po.*, s.supplier_name
+        FROM purchase_orders po
+        JOIN suppliers s ON s.id = po.supplier_id
+        WHERE po.id = $1
+        """,
+        po_id
+    )
+
+    # Send Telegram notification if status changed
+    if request.status is not None and request.status != old_status:
+        asyncio.create_task(
+            telegram_service.notify_po_status_changed(
+                dict(po_updated),
+                old_status,
+                request.status
+            )
+        )
+
+    return po_updated
+
+
+# ============================================================================
 # STOCK ADJUSTMENTS
 # ============================================================================
 

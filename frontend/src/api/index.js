@@ -241,6 +241,46 @@ export const inventoryAPI = {
     return response.data;
   },
 
+  getPurchaseOrderDetail: async (poId) => {
+    const response = await apiClient.get(`/inventory/purchase-orders/${poId}`);
+    return response.data;
+  },
+
+  deletePurchaseOrder: async (poId) => {
+    const response = await apiClient.delete(`/inventory/purchase-orders/${poId}`);
+    return response.data;
+  },
+
+  duplicatePurchaseOrder: async (poId, data) => {
+    const response = await apiClient.post(`/inventory/purchase-orders/${poId}/duplicate`, data);
+    return response.data;
+  },
+
+  receivePurchaseOrder: async (poId, data) => {
+    const response = await apiClient.post(`/inventory/purchase-orders/${poId}/receive`, data);
+    return response.data;
+  },
+
+  addPOItems: async (poId, data) => {
+    const response = await apiClient.post(`/inventory/purchase-orders/${poId}/items`, data);
+    return response.data;
+  },
+
+  updatePOItems: async (poId, data) => {
+    const response = await apiClient.put(`/inventory/purchase-orders/${poId}/items`, data);
+    return response.data;
+  },
+
+  deletePOItem: async (poId, itemId) => {
+    const response = await apiClient.delete(`/inventory/purchase-orders/${poId}/items/${itemId}`);
+    return response.data;
+  },
+
+  getPOHistory: async (poId) => {
+    const response = await apiClient.get(`/inventory/purchase-orders/${poId}/history`);
+    return response.data;
+  },
+
   // Suppliers
   getSuppliers: async () => {
     const response = await apiClient.get('/inventory/suppliers');

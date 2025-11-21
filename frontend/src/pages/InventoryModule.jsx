@@ -1,10 +1,25 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 2.1.3
+ * Version: 3.0.0
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v3.0.0 (2025-11-21):
+ *   - MAJOR: Complete Purchase Order management overhaul
+ *   - FEATURE: Auto-fill default price from item master when selecting items
+ *   - FEATURE: View PO details with line items and receiving summary
+ *   - FEATURE: Update PO status with workflow validation
+ *   - FEATURE: Duplicate PO functionality
+ *   - FEATURE: Receive goods with partial receiving support
+ *   - FEATURE: Track actual received qty vs ordered qty
+ *   - FEATURE: Track actual price vs PO price (variance tracking)
+ *   - FEATURE: PO history/audit trail
+ *   - FEATURE: Delete PO (pending/cancelled only)
+ *   - Added action buttons: View, Edit, Duplicate, Receive, History, Delete
+ *   - Status color coding for all PO statuses
+ *   - Creates inventory batches automatically on goods receipt
+ *
  * v2.1.3 (2025-11-21):
  *   - BUGFIX: Use Number() conversion for has_transactions to handle string/number types
  *
@@ -140,6 +155,9 @@ import {
   MenuItem,
   FormHelperText,
   IconButton,
+  Tooltip,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -151,6 +169,10 @@ import {
   TrendingDown as TrendingDownIcon,
   Restore as RestoreIcon,
   DeleteForever as DeleteForeverIcon,
+  Visibility as VisibilityIcon,
+  ContentCopy as ContentCopyIcon,
+  Inventory as InventoryIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useSnackbar } from 'notistack';
@@ -761,15 +783,22 @@ function CreatePODialog({ open, onClose }) {
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
-    setItems(newItems);
 
-    // Auto-fill supplier from item's default supplier (if not already set)
-    if (field === 'item_master_id' && value && !formData.supplier_id) {
+    // Auto-fill default price and supplier when item is selected
+    if (field === 'item_master_id' && value) {
       const selectedItem = availableItems.find((item) => item.id === parseInt(value));
-      if (selectedItem && selectedItem.default_supplier_id) {
-        setFormData({ ...formData, supplier_id: selectedItem.default_supplier_id });
+      if (selectedItem) {
+        // Auto-fill unit_cost from default_price (or 0 if not set)
+        newItems[index].unit_cost = selectedItem.default_price ? String(selectedItem.default_price) : '0';
+
+        // Auto-fill supplier from item's default supplier (if not already set)
+        if (!formData.supplier_id && selectedItem.default_supplier_id) {
+          setFormData({ ...formData, supplier_id: selectedItem.default_supplier_id });
+        }
       }
     }
+
+    setItems(newItems);
   };
 
   const addItem = () => {
@@ -1081,11 +1110,721 @@ function CreatePODialog({ open, onClose }) {
   );
 }
 
+// PO Detail Dialog
+function PODetailDialog({ open, onClose, poId }) {
+  const { data: poData, isLoading } = useQuery(
+    ['poDetail', poId],
+    () => inventoryAPI.getPurchaseOrderDetail(poId),
+    { enabled: open && !!poId }
+  );
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'warning',
+      approved: 'info',
+      ordered: 'primary',
+      partially_received: 'secondary',
+      received: 'success',
+      closed: 'default',
+      cancelled: 'error'
+    };
+    return colors[status] || 'default';
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <DialogTitle>
+        Purchase Order Details
+        {poData && (
+          <Chip
+            label={poData.status}
+            color={getStatusColor(poData.status)}
+            size="small"
+            sx={{ ml: 2 }}
+          />
+        )}
+      </DialogTitle>
+      <DialogContent>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : poData ? (
+          <Box>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">PO Number</Typography>
+                <Typography variant="body1" fontWeight="bold">{poData.po_number}</Typography>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">Supplier</Typography>
+                <Typography variant="body1">{poData.supplier_name}</Typography>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">PO Date</Typography>
+                <Typography variant="body1">{new Date(poData.po_date).toLocaleDateString()}</Typography>
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <Typography variant="caption" color="text.secondary">Expected Delivery</Typography>
+                <Typography variant="body1">
+                  {poData.expected_delivery ? new Date(poData.expected_delivery).toLocaleDateString() : '-'}
+                </Typography>
+              </Grid>
+            </Grid>
+
+            {poData.notes && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="caption" color="text.secondary">Notes</Typography>
+                <Typography variant="body2">{poData.notes}</Typography>
+              </Box>
+            )}
+
+            <Typography variant="h6" sx={{ mb: 2 }}>Line Items</Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell align="right">Ordered Qty</TableCell>
+                    <TableCell align="right">Unit Cost</TableCell>
+                    <TableCell align="right">Line Total</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {poData.items?.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.item_name}</TableCell>
+                      <TableCell align="right">{Number(item.ordered_qty).toFixed(2)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.unit_cost)}</TableCell>
+                      <TableCell align="right">{formatCurrency(item.line_total)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={3} align="right"><strong>Total</strong></TableCell>
+                    <TableCell align="right"><strong>{formatCurrency(poData.total_cost)}</strong></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {poData.receiving_summary && poData.receiving_summary.total_received_value > 0 && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>Receiving Summary</Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Fully Received</Typography>
+                    <Typography variant="body1">{poData.receiving_summary.fully_received} items</Typography>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Partially Received</Typography>
+                    <Typography variant="body1">{poData.receiving_summary.partially_received} items</Typography>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Not Received</Typography>
+                    <Typography variant="body1">{poData.receiving_summary.not_received} items</Typography>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Typography variant="caption" color="text.secondary">Variance</Typography>
+                    <Typography variant="body1" color={Number(poData.receiving_summary.variance) < 0 ? 'error.main' : 'success.main'}>
+                      {formatCurrency(poData.receiving_summary.variance)}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Alert severity="error">Failed to load PO details</Alert>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// PO Update Status Dialog
+function UpdatePOStatusDialog({ open, onClose, po }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [status, setStatus] = useState('');
+  const [expectedDelivery, setExpectedDelivery] = useState('');
+  const [notes, setNotes] = useState('');
+
+  // Status workflow transitions
+  const statusTransitions = {
+    pending: ['approved', 'cancelled'],
+    approved: ['ordered', 'cancelled'],
+    ordered: ['partially_received', 'received', 'cancelled'],
+    partially_received: ['received', 'closed', 'cancelled'],
+    received: ['closed'],
+    closed: [],
+    cancelled: []
+  };
+
+  React.useEffect(() => {
+    if (po) {
+      setStatus(po.status);
+      setExpectedDelivery(po.expected_delivery || '');
+      setNotes(po.notes || '');
+    }
+  }, [po]);
+
+  const updateMutation = useMutation(
+    (data) => inventoryAPI.updatePurchaseOrder(po.id, data),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Purchase Order updated successfully', { variant: 'success' });
+        queryClient.invalidateQueries('purchaseOrders');
+        onClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(error.response?.data?.detail || 'Failed to update PO', { variant: 'error' });
+      }
+    }
+  );
+
+  const handleSubmit = () => {
+    const data = {};
+    if (status !== po.status) data.status = status;
+    if (expectedDelivery !== (po.expected_delivery || '')) data.expected_delivery = expectedDelivery || null;
+    if (notes !== (po.notes || '')) data.notes = notes || null;
+
+    if (Object.keys(data).length === 0) {
+      enqueueSnackbar('No changes to save', { variant: 'info' });
+      return;
+    }
+
+    updateMutation.mutate(data);
+  };
+
+  if (!po) return null;
+
+  const allowedStatuses = statusTransitions[po.status] || [];
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Update Purchase Order - {po.po_number}</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select value={status} onChange={(e) => setStatus(e.target.value)} label="Status">
+                <MenuItem value={po.status}>{po.status} (current)</MenuItem>
+                {allowedStatuses.map((s) => (
+                  <MenuItem key={s} value={s}>{s}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {allowedStatuses.length === 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                This PO is in a terminal state and cannot be changed.
+              </Typography>
+            )}
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Expected Delivery"
+              type="date"
+              value={expectedDelivery}
+              onChange={(e) => setExpectedDelivery(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              multiline
+              rows={3}
+            />
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={updateMutation.isLoading}>
+          {updateMutation.isLoading ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Duplicate PO Dialog
+function DuplicatePODialog({ open, onClose, po }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [formData, setFormData] = useState({
+    new_po_number: '',
+    po_date: new Date().toISOString().split('T')[0],
+    expected_delivery: '',
+    notes: ''
+  });
+
+  React.useEffect(() => {
+    if (po) {
+      setFormData({
+        new_po_number: `${po.po_number}-COPY`,
+        po_date: new Date().toISOString().split('T')[0],
+        expected_delivery: '',
+        notes: po.notes || ''
+      });
+    }
+  }, [po]);
+
+  const duplicateMutation = useMutation(
+    (data) => inventoryAPI.duplicatePurchaseOrder(po.id, data),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Purchase Order duplicated successfully', { variant: 'success' });
+        queryClient.invalidateQueries('purchaseOrders');
+        onClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(error.response?.data?.detail || 'Failed to duplicate PO', { variant: 'error' });
+      }
+    }
+  );
+
+  const handleSubmit = () => {
+    if (!formData.new_po_number.trim()) {
+      enqueueSnackbar('PO Number is required', { variant: 'error' });
+      return;
+    }
+    duplicateMutation.mutate(formData);
+  };
+
+  if (!po) return null;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Duplicate Purchase Order - {po.po_number}</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="New PO Number"
+              value={formData.new_po_number}
+              onChange={(e) => setFormData({ ...formData, new_po_number: e.target.value })}
+              required
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="PO Date"
+              type="date"
+              value={formData.po_date}
+              onChange={(e) => setFormData({ ...formData, po_date: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Expected Delivery"
+              type="date"
+              value={formData.expected_delivery}
+              onChange={(e) => setFormData({ ...formData, expected_delivery: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              multiline
+              rows={2}
+            />
+          </Grid>
+        </Grid>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          This will create a new PO with all items from the original order.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={duplicateMutation.isLoading}>
+          {duplicateMutation.isLoading ? 'Duplicating...' : 'Duplicate PO'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Receive PO Dialog
+function ReceivePODialog({ open, onClose, poId }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split('T')[0]);
+  const [closePO, setClosePO] = useState(false);
+  const [items, setItems] = useState([]);
+
+  const { data: poData, isLoading } = useQuery(
+    ['poDetailForReceive', poId],
+    () => inventoryAPI.getPurchaseOrderDetail(poId),
+    {
+      enabled: open && !!poId,
+      onSuccess: (data) => {
+        // Initialize items with PO line items
+        setItems(data.items.map(item => ({
+          po_item_id: item.id,
+          item_name: item.item_name,
+          ordered_qty: item.ordered_qty,
+          received_qty: item.ordered_qty, // Default to ordered qty
+          actual_unit_cost: item.unit_cost, // Default to PO price
+          batch_number: '',
+          expiry_date: '',
+          notes: ''
+        })));
+      }
+    }
+  );
+
+  const receiveMutation = useMutation(
+    (data) => inventoryAPI.receivePurchaseOrder(poId, data),
+    {
+      onSuccess: (result) => {
+        enqueueSnackbar(`Received ${result.items_received.length} items successfully`, { variant: 'success' });
+        queryClient.invalidateQueries('purchaseOrders');
+        onClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(error.response?.data?.detail || 'Failed to receive goods', { variant: 'error' });
+      }
+    }
+  );
+
+  const handleItemChange = (index, field, value) => {
+    const newItems = [...items];
+    newItems[index][field] = value;
+    setItems(newItems);
+  };
+
+  const handleSubmit = () => {
+    const itemsToReceive = items
+      .filter(item => parseFloat(item.received_qty) > 0)
+      .map(item => ({
+        po_item_id: item.po_item_id,
+        received_qty: parseFloat(item.received_qty),
+        actual_unit_cost: parseFloat(item.actual_unit_cost),
+        batch_number: item.batch_number || null,
+        expiry_date: item.expiry_date || null,
+        notes: item.notes || null
+      }));
+
+    if (itemsToReceive.length === 0) {
+      enqueueSnackbar('Please enter quantity for at least one item', { variant: 'error' });
+      return;
+    }
+
+    receiveMutation.mutate({
+      items: itemsToReceive,
+      receipt_date: receiptDate,
+      close_po: closePO
+    });
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <DialogTitle>Receive Goods - {poData?.po_number}</DialogTitle>
+      <DialogContent>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Box>
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Receipt Date"
+                  type="date"
+                  value={receiptDate}
+                  onChange={(e) => setReceiptDate(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox checked={closePO} onChange={(e) => setClosePO(e.target.checked)} />
+                  }
+                  label="Close PO after receiving (even if partial)"
+                />
+              </Grid>
+            </Grid>
+
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>Items to Receive</Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell align="right">Ordered</TableCell>
+                    <TableCell align="right">Received Qty</TableCell>
+                    <TableCell align="right">Actual Price</TableCell>
+                    <TableCell>Batch #</TableCell>
+                    <TableCell>Expiry</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {items.map((item, index) => (
+                    <TableRow key={item.po_item_id}>
+                      <TableCell>{item.item_name}</TableCell>
+                      <TableCell align="right">{Number(item.ordered_qty).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={item.received_qty}
+                          onChange={(e) => handleItemChange(index, 'received_qty', e.target.value)}
+                          inputProps={{ min: 0, step: '0.01' }}
+                          sx={{ width: 100 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={item.actual_unit_cost}
+                          onChange={(e) => handleItemChange(index, 'actual_unit_cost', e.target.value)}
+                          inputProps={{ min: 0, step: '0.01' }}
+                          sx={{ width: 100 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          value={item.batch_number}
+                          onChange={(e) => handleItemChange(index, 'batch_number', e.target.value)}
+                          sx={{ width: 100 }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          type="date"
+                          value={item.expiry_date}
+                          onChange={(e) => handleItemChange(index, 'expiry_date', e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ width: 140 }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={receiveMutation.isLoading}>
+          {receiveMutation.isLoading ? 'Receiving...' : 'Receive Goods'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// PO History Dialog
+function POHistoryDialog({ open, onClose, poId }) {
+  const { data, isLoading } = useQuery(
+    ['poHistory', poId],
+    () => inventoryAPI.getPOHistory(poId),
+    { enabled: open && !!poId }
+  );
+
+  const getActionLabel = (action) => {
+    const labels = {
+      created: 'Created',
+      status_changed: 'Status Changed',
+      updated: 'Updated',
+      items_added: 'Items Added',
+      items_updated: 'Items Updated',
+      items_deleted: 'Items Deleted',
+      received: 'Goods Received',
+      duplicated: 'Duplicated',
+      deleted: 'Deleted'
+    };
+    return labels[action] || action;
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>Purchase Order History</DialogTitle>
+      <DialogContent>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : data?.history?.length > 0 ? (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date/Time</TableCell>
+                  <TableCell>Action</TableCell>
+                  <TableCell>Status Change</TableCell>
+                  <TableCell>Changed By</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.history.map((h) => (
+                  <TableRow key={h.id}>
+                    <TableCell>{new Date(h.changed_at).toLocaleString()}</TableCell>
+                    <TableCell>{getActionLabel(h.action)}</TableCell>
+                    <TableCell>
+                      {h.previous_status && h.new_status ? (
+                        <span>{h.previous_status} → {h.new_status}</span>
+                      ) : h.new_status ? (
+                        <span>→ {h.new_status}</span>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>{h.changed_by_name || 'System'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Typography color="text.secondary">No history available</Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// Delete PO Confirmation Dialog
+function DeletePODialog({ open, onClose, po }) {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const deleteMutation = useMutation(
+    () => inventoryAPI.deletePurchaseOrder(po.id),
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Purchase Order deleted successfully', { variant: 'success' });
+        queryClient.invalidateQueries('purchaseOrders');
+        onClose();
+      },
+      onError: (error) => {
+        enqueueSnackbar(error.response?.data?.detail || 'Failed to delete PO', { variant: 'error' });
+      }
+    }
+  );
+
+  if (!po) return null;
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm">
+      <DialogTitle>Delete Purchase Order</DialogTitle>
+      <DialogContent>
+        <Typography>
+          Are you sure you want to delete PO <strong>{po.po_number}</strong>?
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 1 }}>
+          This action cannot be undone.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isLoading}
+        >
+          {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 function PurchaseOrdersPage() {
+  const queryClient = useQueryClient();
+  const { enqueueSnackbar } = useSnackbar();
   const { data, isLoading, error } = useQuery('purchaseOrders', () =>
     inventoryAPI.getPurchaseOrders({ status: 'All', days_back: 30 })
   );
+
+  // Dialog states
   const [openCreatePODialog, setOpenCreatePODialog] = useState(false);
+  const [openDetailDialog, setOpenDetailDialog] = useState(false);
+  const [openUpdateDialog, setOpenUpdateDialog] = useState(false);
+  const [openDuplicateDialog, setOpenDuplicateDialog] = useState(false);
+  const [openReceiveDialog, setOpenReceiveDialog] = useState(false);
+  const [openHistoryDialog, setOpenHistoryDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [selectedPO, setSelectedPO] = useState(null);
+
+  // Action handlers
+  const handleView = (po) => {
+    setSelectedPO(po);
+    setOpenDetailDialog(true);
+  };
+
+  const handleEdit = (po) => {
+    setSelectedPO(po);
+    setOpenUpdateDialog(true);
+  };
+
+  const handleDuplicate = (po) => {
+    setSelectedPO(po);
+    setOpenDuplicateDialog(true);
+  };
+
+  const handleReceive = (po) => {
+    setSelectedPO(po);
+    setOpenReceiveDialog(true);
+  };
+
+  const handleHistory = (po) => {
+    setSelectedPO(po);
+    setOpenHistoryDialog(true);
+  };
+
+  const handleDelete = (po) => {
+    setSelectedPO(po);
+    setOpenDeleteDialog(true);
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'warning',
+      approved: 'info',
+      ordered: 'primary',
+      partially_received: 'secondary',
+      received: 'success',
+      closed: 'default',
+      cancelled: 'error'
+    };
+    return colors[status] || 'default';
+  };
+
+  const canReceive = (status) => ['ordered', 'partially_received'].includes(status);
+  const canDelete = (status) => ['pending', 'cancelled'].includes(status);
+  const canEdit = (status) => !['closed', 'cancelled'].includes(status);
 
   if (isLoading) {
     return (
@@ -1110,11 +1849,14 @@ function PurchaseOrdersPage() {
         </Button>
       </Box>
 
-      {/* Create PO Dialog */}
-      <CreatePODialog
-        open={openCreatePODialog}
-        onClose={() => setOpenCreatePODialog(false)}
-      />
+      {/* Dialogs */}
+      <CreatePODialog open={openCreatePODialog} onClose={() => setOpenCreatePODialog(false)} />
+      <PODetailDialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} poId={selectedPO?.id} />
+      <UpdatePOStatusDialog open={openUpdateDialog} onClose={() => setOpenUpdateDialog(false)} po={selectedPO} />
+      <DuplicatePODialog open={openDuplicateDialog} onClose={() => setOpenDuplicateDialog(false)} po={selectedPO} />
+      <ReceivePODialog open={openReceiveDialog} onClose={() => setOpenReceiveDialog(false)} poId={selectedPO?.id} />
+      <POHistoryDialog open={openHistoryDialog} onClose={() => setOpenHistoryDialog(false)} poId={selectedPO?.id} />
+      <DeletePODialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)} po={selectedPO} />
 
       <Card>
         <CardContent>
@@ -1129,24 +1871,81 @@ function PurchaseOrdersPage() {
                   <TableCell>Status</TableCell>
                   <TableCell>Total Cost</TableCell>
                   <TableCell>Items</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {data?.pos?.map((po) => (
                   <TableRow key={po.id}>
-                    <TableCell>{po.po_number}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => handleView(po)}
+                        sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+                      >
+                        {po.po_number}
+                      </Button>
+                    </TableCell>
                     <TableCell>{po.supplier_name}</TableCell>
                     <TableCell>{new Date(po.po_date).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell>
-                      <Chip label={po.status} size="small" />
+                      <Chip label={po.status} size="small" color={getStatusColor(po.status)} />
                     </TableCell>
                     <TableCell>{formatCurrency(po.total_cost)}</TableCell>
                     <TableCell>{po.items_count}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="small" onClick={() => handleView(po)}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {canEdit(po.status) && (
+                          <Tooltip title="Edit">
+                            <IconButton size="small" onClick={() => handleEdit(po)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Duplicate">
+                          <IconButton size="small" onClick={() => handleDuplicate(po)}>
+                            <ContentCopyIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {canReceive(po.status) && (
+                          <Tooltip title="Receive Goods">
+                            <IconButton size="small" color="primary" onClick={() => handleReceive(po)}>
+                              <InventoryIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="History">
+                          <IconButton size="small" onClick={() => handleHistory(po)}>
+                            <HistoryIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {canDelete(po.status) && (
+                          <Tooltip title="Delete">
+                            <IconButton size="small" color="error" onClick={() => handleDelete(po)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 ))}
+                {(!data?.pos || data.pos.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      <Typography color="text.secondary">No purchase orders found</Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>
