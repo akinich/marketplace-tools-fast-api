@@ -1,10 +1,16 @@
 /**
  * Telegram Notifications Settings Page
- * Version: 1.2.0
+ * Version: 1.2.1
  * Last Updated: 2025-11-21
  *
  * Changelog:
  * ----------
+ * v1.2.1 (2025-11-21):
+ *   - Fix: Loading state now properly handles errors (error check before loading check)
+ *   - Added retry logic (2 retries with 1s delay) for failed API requests
+ *   - Added error logging for better debugging
+ *   - Added reload button when error occurs
+ *
  * v1.2.0 (2025-11-21):
  *   - Fix: Toggle states now properly reflect database values on load
  *   - Added toBool() helper for proper string-to-boolean conversion
@@ -121,6 +127,11 @@ function TelegramSettings() {
           notify_low_stock_daily_summary: toBool(data.notify_low_stock_daily_summary, true),
         });
       },
+      onError: (error) => {
+        console.error('Failed to load Telegram settings:', error);
+      },
+      retry: 2, // Retry failed requests twice
+      retryDelay: 1000, // Wait 1 second between retries
       staleTime: 30 * 1000, // 30 seconds
     }
   );
@@ -291,19 +302,29 @@ function TelegramSettings() {
   // RENDER
   // ========================================================================
 
+  // Check for errors first (before loading state)
+  if (settingsError) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error">
+          Failed to load settings: {settingsError.message}
+        </Alert>
+        <Button
+          variant="outlined"
+          onClick={() => window.location.reload()}
+          sx={{ mt: 2 }}
+        >
+          Reload Page
+        </Button>
+      </Box>
+    );
+  }
+
   if (loadingSettings || !settings) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
       </Box>
-    );
-  }
-
-  if (settingsError) {
-    return (
-      <Alert severity="error">
-        Failed to load settings: {settingsError.message}
-      </Alert>
     );
   }
 
