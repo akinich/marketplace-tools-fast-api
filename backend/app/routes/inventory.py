@@ -7,6 +7,15 @@ Last Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.5.0 (2025-11-21):
+  - Added GET /purchase-orders/{po_id} for single PO details with receiving info
+  - Added DELETE /purchase-orders/{po_id} for deleting pending/cancelled POs
+  - Added POST /purchase-orders/{po_id}/duplicate for duplicating POs
+  - Added POST /purchase-orders/{po_id}/receive for receiving goods
+  - Added POST/PUT/DELETE /purchase-orders/{po_id}/items for line item CRUD
+  - Added GET /purchase-orders/{po_id}/history for audit trail
+  - Updated PUT /purchase-orders/{po_id} with status workflow validation
+
 v1.4.0 (2025-11-21):
   - Added hard delete endpoint (DELETE /items/{item_id}/permanent)
   - Only inactive items can be permanently deleted
@@ -361,16 +370,156 @@ async def create_purchase_order(
 @router.put(
     "/purchase-orders/{po_id}",
     summary="Update Purchase Order",
-    description="Update purchase order status/details",
+    description="Update purchase order status/details with workflow validation",
 )
 async def update_purchase_order(
     po_id: int,
     request: UpdatePORequest,
     user: CurrentUser = Depends(require_module_access("inventory")),
 ):
-    """Update purchase order"""
-    po = await inventory_service.update_purchase_order_status(po_id, request)
+    """Update purchase order with status workflow validation"""
+    po = await inventory_service.update_purchase_order_with_validation(
+        po_id, request, user.id, user.full_name
+    )
     return po
+
+
+@router.get(
+    "/purchase-orders/{po_id}",
+    response_model=PODetailWithReceiving,
+    summary="Get Purchase Order Detail",
+    description="Get single purchase order with all line items and receiving info",
+)
+async def get_purchase_order_detail(
+    po_id: int,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Get PO detail with items and receiving"""
+    result = await inventory_service.get_purchase_order_detail(po_id)
+    return result
+
+
+@router.delete(
+    "/purchase-orders/{po_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete Purchase Order",
+    description="Delete a purchase order (only pending or cancelled)",
+)
+async def delete_purchase_order(
+    po_id: int,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Delete PO (pending/cancelled only)"""
+    result = await inventory_service.delete_purchase_order(
+        po_id, user.id, user.full_name
+    )
+    return result
+
+
+@router.post(
+    "/purchase-orders/{po_id}/duplicate",
+    status_code=status.HTTP_201_CREATED,
+    summary="Duplicate Purchase Order",
+    description="Create a copy of an existing purchase order",
+)
+async def duplicate_purchase_order(
+    po_id: int,
+    request: DuplicatePORequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Duplicate an existing PO"""
+    result = await inventory_service.duplicate_purchase_order(
+        po_id, request, user.id, user.full_name
+    )
+    return result
+
+
+@router.post(
+    "/purchase-orders/{po_id}/receive",
+    response_model=ReceivePOResponse,
+    summary="Receive Goods",
+    description="Receive goods for a purchase order, creating inventory batches",
+)
+async def receive_purchase_order(
+    po_id: int,
+    request: ReceivePORequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Receive goods for PO"""
+    result = await inventory_service.receive_purchase_order(
+        po_id, request, user.id, user.full_name
+    )
+    return result
+
+
+@router.post(
+    "/purchase-orders/{po_id}/items",
+    response_model=POItemsUpdateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add Items to PO",
+    description="Add new items to an existing purchase order (pending only)",
+)
+async def add_po_items(
+    po_id: int,
+    request: AddPOItemsRequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Add items to PO"""
+    result = await inventory_service.add_po_items(
+        po_id, request, user.id, user.full_name
+    )
+    return result
+
+
+@router.put(
+    "/purchase-orders/{po_id}/items",
+    response_model=POItemsUpdateResponse,
+    summary="Update PO Items",
+    description="Update items on an existing purchase order (pending only)",
+)
+async def update_po_items(
+    po_id: int,
+    request: UpdatePOItemsRequest,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Update PO items"""
+    result = await inventory_service.update_po_items(
+        po_id, request, user.id, user.full_name
+    )
+    return result
+
+
+@router.delete(
+    "/purchase-orders/{po_id}/items/{item_id}",
+    response_model=POItemsUpdateResponse,
+    summary="Delete PO Item",
+    description="Delete an item from a purchase order (pending only)",
+)
+async def delete_po_item(
+    po_id: int,
+    item_id: int,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Delete item from PO"""
+    result = await inventory_service.delete_po_item(
+        po_id, item_id, user.id, user.full_name
+    )
+    return result
+
+
+@router.get(
+    "/purchase-orders/{po_id}/history",
+    response_model=POHistoryResponse,
+    summary="Get PO History",
+    description="Get purchase order audit history",
+)
+async def get_po_history(
+    po_id: int,
+    user: CurrentUser = Depends(require_module_access("inventory")),
+):
+    """Get PO audit history"""
+    result = await inventory_service.get_po_history(po_id)
+    return result
 
 
 # ============================================================================
