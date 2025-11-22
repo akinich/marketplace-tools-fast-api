@@ -2213,7 +2213,6 @@ async def create_stock_adjustment(
     async with DatabaseTransaction() as conn:
         # Create adjustment record
         adjustment_id = await execute_query_tx(
-            conn,
             """
             INSERT INTO stock_adjustments (
                 item_master_id, adjustment_type, quantity_change,
@@ -2230,19 +2229,19 @@ async def create_stock_adjustment(
             request.reason,
             request.notes,
             user_id,
+            conn=conn,
         )
 
         # Update item current_qty
         await execute_query_tx(
-            conn,
             "UPDATE item_master SET current_qty = $1, updated_at = NOW() WHERE id = $2",
             new_qty,
             request.item_master_id,
+            conn=conn,
         )
 
         # Log transaction
         await execute_query_tx(
-            conn,
             """
             INSERT INTO inventory_transactions (
                 item_master_id, transaction_type, quantity_change,
@@ -2255,6 +2254,7 @@ async def create_stock_adjustment(
             new_qty,
             user_id,
             f"{request.adjustment_type}: {request.reason}",
+            conn=conn,
         )
 
     return {
