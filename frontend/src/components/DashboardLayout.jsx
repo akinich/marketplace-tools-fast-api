@@ -1,10 +1,20 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.4.0
- * Last Updated: 2025-11-21
+ * Version: 1.6.0
+ * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v1.6.0 (2025-11-22):
+ *   - Auto-expand parent module in sidebar based on current URL path
+ *   - Fixes issue where refreshing a sub-module page (e.g., /admin/users) collapsed the sidebar
+ *   - Parent module now stays expanded when navigating to or refreshing sub-module pages
+ *
+ * v1.5.0 (2025-11-22):
+ *   - Added admin_units route mapping for Units of Measurement settings
+ *   - Added admin_telegram route mapping for Telegram Notifications settings
+ *   - Both admin sub-modules now accessible from navigation sidebar
+ *
  * v1.4.0 (2025-11-21):
  *   - Added "My Profile" option in user menu dropdown
  *   - Added Person icon import
@@ -215,6 +225,26 @@ export default function DashboardLayout() {
     fetchModules();
   }, []);
 
+  // Auto-expand parent module based on current path
+  useEffect(() => {
+    if (allModules.length === 0) return;
+
+    // Check if current path matches a sub-module
+    const currentPath = location.pathname;
+
+    // Find which parent module should be expanded
+    const pathParts = currentPath.split('/').filter(Boolean);
+    if (pathParts.length >= 2) {
+      const parentKey = pathParts[0]; // e.g., 'admin', 'inventory', 'biofloc'
+
+      // Expand this parent module
+      setExpandedModules((prev) => ({
+        ...prev,
+        [parentKey]: true,
+      }));
+    }
+  }, [location.pathname, allModules]);
+
   // Separate top-level modules and sub-modules
   const topLevelModules = allModules.filter((m) => !m.parent_module_id && m.module_key !== 'dashboard');
   const getSubModules = (parentModuleId) => {
@@ -277,6 +307,8 @@ export default function DashboardLayout() {
       admin_modules: '/admin/modules',
       admin_activity: '/admin/activity',
       admin_security: '/admin/security',
+      admin_units: '/admin/units',
+      admin_telegram: '/admin/telegram',
     };
 
     // Inventory sub-modules
