@@ -1,10 +1,15 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.4.0
- * Last Updated: 2025-11-21
+ * Version: 1.5.0
+ * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v1.5.0 (2025-11-22):
+ *   - Added admin_units route mapping for Units of Measurement settings
+ *   - Added admin_telegram route mapping for Telegram Notifications settings
+ *   - Both admin sub-modules now accessible from navigation sidebar
+ *
  * v1.4.0 (2025-11-21):
  *   - Added "My Profile" option in user menu dropdown
  *   - Added Person icon import
@@ -277,6 +282,8 @@ export default function DashboardLayout() {
       admin_modules: '/admin/modules',
       admin_activity: '/admin/activity',
       admin_security: '/admin/security',
+      admin_units: '/admin/units',
+      admin_telegram: '/admin/telegram',
     };
 
     // Inventory sub-modules
