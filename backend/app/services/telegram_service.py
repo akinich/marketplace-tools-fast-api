@@ -1,11 +1,15 @@
 """
 Telegram Notification Service
-Version: 1.2.1
+Version: 1.2.2
 Created: 2025-11-20
 Updated: 2025-11-21
 
 Changelog:
 ----------
+v1.2.2 (2025-11-21):
+  - Updated currency symbol from USD ($) to INR (₹) in PO notifications
+  - Changed notify_po_created and notify_po_status_changed message formats
+
 v1.2.1 (2025-11-21):
   - Fix: Changed update_setting to use UPSERT (INSERT ON CONFLICT)
   - Settings are now created if they don't exist in database
@@ -458,7 +462,7 @@ async def notify_po_created(po: Dict) -> bool:
 *Supplier:* {po['supplier_name']}
 *PO Date:* {po['po_date']}
 *Expected Delivery:* {po.get('expected_delivery') or 'Not specified'}
-*Total Cost:* ${po['total_cost']:,.2f}
+*Total Cost:* ₹{po['total_cost']:,.2f}
 
 *Items:* {po.get('item_count', '?')} item(s)
 *Status:* {po['status'].title()}
@@ -490,7 +494,7 @@ async def notify_po_status_changed(po: Dict, old_status: str, new_status: str) -
 *Supplier:* {po['supplier_name']}
 *Old Status:* {status_emoji.get(old_status, '')} {old_status.title()}
 *New Status:* {status_emoji.get(new_status, '')} {new_status.title()}
-*Total Cost:* ${po['total_cost']:,.2f}
+*Total Cost:* ₹{po['total_cost']:,.2f}
 
 *PO ID:* #{po['id']}
 """
