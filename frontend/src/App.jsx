@@ -1,8 +1,13 @@
 /**
  * Main App Component
- * Version: 1.3.0
+ * Version: 1.3.1
  *
  * Changelog:
+ * v1.3.1 (2025-11-21):
+ *   - BUGFIX: Removed lazy loading from DashboardLayout to fix blank page issue
+ *   - DashboardLayout is now eagerly loaded as a layout component
+ *   - Fixes nested Suspense boundary issue with lazy-loaded child routes
+ *
  * v1.3.0 (2025-11-21):
  *   - Added route-based code splitting with React.lazy()
  *   - Added Suspense boundaries for lazy-loaded components
@@ -21,12 +26,14 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import useAuthStore from './store/authStore';
 
+// Layout component - NOT lazy-loaded (always needed for protected routes)
+import DashboardLayout from './components/DashboardLayout';
+
 // Lazy-loaded Pages (code-split by route)
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
-const DashboardLayout = lazy(() => import('./components/DashboardLayout'));
 const DashboardHome = lazy(() => import('./pages/DashboardHome'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const InventoryModule = lazy(() => import('./pages/InventoryModule'));
