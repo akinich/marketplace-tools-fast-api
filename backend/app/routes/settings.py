@@ -21,6 +21,7 @@ v1.0.0 (2025-11-22):
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Dict, Any, Optional
 import logging
+import json
 
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import require_admin
@@ -36,6 +37,44 @@ from app.database import get_db
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+
+def _convert_setting_row(row: Dict) -> Dict:
+    """Convert database row to proper format for Pydantic validation"""
+    result = dict(row)
+
+    # Convert validation_rules from JSONB string to dict
+    if 'validation_rules' in result and result['validation_rules']:
+        if isinstance(result['validation_rules'], str):
+            result['validation_rules'] = json.loads(result['validation_rules'])
+        elif result['validation_rules'] == '{}':
+            result['validation_rules'] = {}
+    else:
+        result['validation_rules'] = {}
+
+    # Convert updated_by UUID to string
+    if 'updated_by' in result and result['updated_by']:
+        result['updated_by'] = str(result['updated_by'])
+
+    return result
+
+
+def _convert_audit_log_row(row: Dict) -> Dict:
+    """Convert audit log database row to proper format"""
+    result = dict(row)
+
+    # Ensure changed_by is a string (could be None)
+    if 'changed_by' in result and result['changed_by']:
+        result['changed_by'] = str(result['changed_by'])
+    else:
+        result['changed_by'] = 'Unknown'
+
+    return result
 
 
 # ============================================================================
@@ -66,7 +105,7 @@ async def get_all_settings(
                 ORDER BY category, setting_key
                 """
             )
-            return [dict(row) for row in rows]
+            return [_convert_setting_row(dict(row)) for row in rows]
     except Exception as e:
         logger.error(f"Failed to fetch settings: {e}")
         raise HTTPException(
@@ -137,7 +176,7 @@ async def get_settings_by_category(
         pool = get_db()
         async with pool.acquire() as conn:
             settings = await settings_service.get_settings_by_category(conn, category)
-            return settings
+            return [_convert_setting_row(s) for s in settings]
     except Exception as e:
         logger.error(f"Failed to fetch settings for category {category}: {e}")
         raise HTTPException(
@@ -168,7 +207,7 @@ async def update_setting(
                 current_user.id
             )
             logger.info(f"Setting '{setting_key}' updated by user {current_user.email}")
-            return updated
+            return _convert_setting_row(updated)
     except ValueError as e:
         logger.warning(f"Validation error updating setting {setting_key}: {e}")
         raise HTTPException(
@@ -199,9 +238,9 @@ async def get_audit_log(
         pool = get_db()
         async with pool.acquire() as conn:
             logs = await settings_service.get_audit_log(conn, setting_key, limit)
-            return logs
+            return [_convert_audit_log_row(log) for log in logs]
     except Exception as e:
-        logger.error(f"Failed to fetch audit log: {e}")
+        logger.error(f"Failed to fetch audit log: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch audit log"
