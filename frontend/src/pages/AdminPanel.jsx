@@ -1,10 +1,16 @@
 /**
  * Admin Panel - User Management, Modules, Permissions & Activity Logs
- * Version: 1.7.0
- * Last Updated: 2025-11-20
+ * Version: 1.8.0
+ * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v1.8.0 (2025-11-22):
+ *   - Added Units of Measurement settings route (/admin/units)
+ *   - Integrated UnitsSettings component for managing standardized units
+ *   - Allows admins to create, edit, delete, and deactivate measurement units
+ *   - Smart delete logic prevents deletion of units in use by items
+ *
  * v1.7.0 (2025-11-20):
  *   - Added Telegram Notifications settings route (/admin/telegram)
  *   - Integrated TelegramSettings component for bot configuration
@@ -110,6 +116,7 @@ import { adminAPI } from '../api';
 import { useSnackbar } from 'notistack';
 import TelegramSettings from './TelegramSettings';
 import SecurityDashboard from './SecurityDashboard';
+import UnitsSettings from '../components/UnitsSettings';
 
 // Create User Dialog Component
 function CreateUserDialog({ open, onClose }) {
@@ -1320,6 +1327,7 @@ export default function AdminPanel() {
       <Route path="users" element={<UserManagementPage />} />
       <Route path="modules" element={<ModuleManagementPage />} />
       <Route path="activity" element={<ActivityLogsPage />} />
+      <Route path="units" element={<UnitsSettings />} />
       <Route path="telegram" element={<TelegramSettings />} />
       <Route path="security" element={<SecurityDashboard />} />
     </Routes>
