@@ -90,14 +90,30 @@ function SettingsPage() {
   };
 
   const parseSettingValue = (setting) => {
-    const value = setting.setting_value;
+    let value = setting.setting_value;
+
+    // Parse JSON string if needed
+    if (typeof value === 'string') {
+      try {
+        value = JSON.parse(value);
+      } catch (e) {
+        // If JSON parse fails, use the string as-is
+      }
+    }
 
     if (setting.data_type === 'boolean') {
+      // Handle boolean values properly
+      if (typeof value === 'boolean') {
+        return value;
+      }
+      if (typeof value === 'string') {
+        return value.toLowerCase() === 'true';
+      }
       return Boolean(value);
     } else if (setting.data_type === 'integer') {
-      return parseInt(value, 10);
+      return parseInt(value, 10) || 0;
     } else if (setting.data_type === 'float') {
-      return parseFloat(value);
+      return parseFloat(value) || 0;
     } else if (setting.data_type === 'string') {
       return String(value);
     } else {
