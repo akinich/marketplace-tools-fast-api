@@ -2,8 +2,8 @@
 ================================================================================
 Farm Management System - Background Task Scheduler
 ================================================================================
-Version: 2.0.0
-Last Updated: 2025-11-20
+Version: 2.1.0
+Last Updated: 2025-11-22
 
 Purpose:
 --------
@@ -14,6 +14,7 @@ Tasks:
 1. Auto-expire old inventory reservations (every 15 minutes)
 2. Low stock first alerts (every hour)
 3. Low stock daily summary (daily at 9 AM)
+4. Process email queue (every 5 minutes)
 
 ================================================================================
 """
@@ -24,8 +25,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
-from app.database import fetch_one, fetch_all, execute_query
-from app.services import telegram_service
+from app.database import fetch_one, fetch_all, execute_query, get_db_connection
+from app.services import telegram_service, email_service
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,23 @@ async def send_low_stock_daily_summary():
         logger.error(f"❌ Error sending daily low stock summary: {e}", exc_info=True)
 
 
+async def process_email_queue():
+    """
+    Process pending emails in the queue.
+    Runs every 5 minutes.
+    """
+    try:
+        logger.debug("Processing email queue...")
+
+        conn = await get_db_connection()
+        await email_service.process_email_queue(conn, batch_size=20)
+
+        logger.debug("Email queue processing completed")
+
+    except Exception as e:
+        logger.error(f"❌ Error processing email queue: {e}", exc_info=True)
+
+
 def start_scheduler():
     """
     Start the background scheduler with all scheduled tasks.
@@ -173,12 +191,23 @@ def start_scheduler():
             max_instances=1,
         )
 
+        # Task 4: Process email queue every 5 minutes
+        scheduler.add_job(
+            process_email_queue,
+            trigger=IntervalTrigger(minutes=5),
+            id="process_email_queue",
+            name="Process email queue",
+            replace_existing=True,
+            max_instances=1,
+        )
+
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
         logger.info("   - Expire reservations: Every 15 minutes")
         logger.info("   - Low stock first alerts: Every hour")
         logger.info("   - Low stock daily summary: Daily at 9:00 AM")
+        logger.info("   - Process email queue: Every 5 minutes")
 
     except Exception as e:
         logger.error(f"❌ Failed to start scheduler: {e}", exc_info=True)
