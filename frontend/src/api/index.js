@@ -40,6 +40,11 @@ export const dashboardAPI = {
     const response = await apiClient.get('/dashboard/modules');
     return response.data;
   },
+
+  getWidgets: async () => {
+    const response = await apiClient.get('/dashboard/widgets');
+    return response.data;
+  },
 };
 
 // ============================================================================
