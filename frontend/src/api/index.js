@@ -1,10 +1,16 @@
 /**
  * API Services Export
- * Version: 1.2.0
- * Last Updated: 2025-11-21
+ * Version: 1.3.0
+ * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v1.3.0 (2025-11-22):
+ *   - Added unitsAPI for managing units of measurement
+ *   - CRUD operations: getUnits, createUnit, updateUnit, deleteUnit
+ *   - Soft delete: deactivateUnit, reactivateUnit
+ *   - Get categories endpoint for grouping units
+ *
  * v1.2.0 (2025-11-21):
  *   - Added hardDeleteItem API function for permanent deletion of inactive items
  *   - DELETE /inventory/items/{itemId}/permanent
@@ -418,6 +424,59 @@ export const inventoryAPI = {
 };
 
 // ============================================================================
+// UNITS API
+// ============================================================================
+export const unitsAPI = {
+  // Get units list
+  getUnits: async (params = {}) => {
+    const response = await apiClient.get('/units', { params });
+    return response.data;
+  },
+
+  // Get unit categories
+  getCategories: async () => {
+    const response = await apiClient.get('/units/categories');
+    return response.data;
+  },
+
+  // Get single unit
+  getUnit: async (unitId) => {
+    const response = await apiClient.get(`/units/${unitId}`);
+    return response.data;
+  },
+
+  // Create unit
+  createUnit: async (data) => {
+    const response = await apiClient.post('/units', data);
+    return response.data;
+  },
+
+  // Update unit
+  updateUnit: async (unitId, data) => {
+    const response = await apiClient.put(`/units/${unitId}`, data);
+    return response.data;
+  },
+
+  // Delete unit (permanent - only if not in use)
+  deleteUnit: async (unitId) => {
+    const response = await apiClient.delete(`/units/${unitId}`);
+    return response.data;
+  },
+
+  // Deactivate unit (soft delete)
+  deactivateUnit: async (unitId) => {
+    const response = await apiClient.post(`/units/${unitId}/deactivate`);
+    return response.data;
+  },
+
+  // Reactivate unit
+  reactivateUnit: async (unitId) => {
+    const response = await apiClient.post(`/units/${unitId}/reactivate`);
+    return response.data;
+  },
+};
+
+// ============================================================================
 // TICKETS API
 // ============================================================================
 export const ticketsAPI = {
@@ -598,12 +657,13 @@ export const telegramAPI = {
 };
 
 // Export all APIs
-export { authAPI, bioflocAPI, docsAPI, apiClient };
+export { authAPI, bioflocAPI, docsAPI, unitsAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
   admin: adminAPI,
   inventory: inventoryAPI,
+  units: unitsAPI,
   biofloc: bioflocAPI,
   tickets: ticketsAPI,
   development: developmentAPI,
