@@ -5,6 +5,46 @@ All notable changes to the Farm Management System will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2025-11-22
+
+### Added - Admin Sub-Modules Navigation & UX Improvements
+
+#### Navigation Enhancements
+- **Admin Panel Sub-Modules** (DashboardLayout v1.6.0)
+  - Added navigation structure for admin sub-modules
+  - Admin panel now expandable with organized sub-sections:
+    * 👥 User Management
+    * ⚙️ Module Management
+    * 📜 Activity Logs
+    * 🔒 Security Dashboard
+    * 📏 Units of Measurement
+    * 📱 Telegram Notifications
+  - Database migration: `sql_scripts/v1.12.0_admin_submodules.sql`
+
+#### UX Improvements
+- **Auto-expand sidebar on page refresh**
+  - Parent module automatically expands based on current URL
+  - Fixes issue where refreshing `/admin/users` collapsed the sidebar
+  - Proper active state indication for current sub-module
+  - Works for all modules: admin, inventory, biofloc, etc.
+
+### Fixed - Build Errors & Navigation Issues
+
+#### Build Fixes
+- **Frontend build error**: Removed duplicate export of `unitsAPI` in `frontend/src/api/index.js`
+  - Error: "Duplicate export 'unitsAPI'" causing Rollup build failure
+  - Fixed by removing `unitsAPI` from re-export statement (already exported on declaration)
+
+- **Backend build error**: Fixed incorrect import path in units routes
+  - Changed: `from app.middleware.auth import get_current_user`
+  - To: `from app.auth.dependencies import get_current_user`
+  - Matches pattern used by all other route files
+
+#### Navigation Fixes
+- **Admin sub-modules display order**: Fixed and standardized order (1-6)
+- **Duplicate telegram module**: Deactivated standalone module, kept only `admin_telegram`
+- **Route mappings**: Added `admin_units` and `admin_telegram` to DashboardLayout route map
+
 ## [1.10.0] - 2025-11-22
 
 ### Added - Units of Measurement System
