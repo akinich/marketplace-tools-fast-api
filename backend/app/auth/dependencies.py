@@ -90,7 +90,8 @@ async def get_current_user(token: str = Depends(get_token)) -> CurrentUser:
     2. Verifies and decodes JWT token
     3. Fetches user from database
     4. Checks if user is active
-    5. Returns CurrentUser object
+    5. **Validates user has at least one active session**
+    6. Returns CurrentUser object
 
     Usage:
         @router.get("/protected")
@@ -104,7 +105,7 @@ async def get_current_user(token: str = Depends(get_token)) -> CurrentUser:
         CurrentUser object
 
     Raises:
-        HTTPException: If token invalid, expired, or user not found/inactive
+        HTTPException: If token invalid, expired, user not found/inactive, or no active sessions
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -153,6 +154,24 @@ async def get_current_user(token: str = Depends(get_token)) -> CurrentUser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive. Please contact administrator.",
+        )
+
+    # Check if user has at least one active session
+    active_session = await fetch_one(
+        """
+        SELECT id FROM user_sessions
+        WHERE user_id = $1 AND is_active = TRUE AND expires_at > NOW()
+        LIMIT 1
+        """,
+        user_id
+    )
+
+    if not active_session:
+        logger.warning(f"No active session for user: {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     # Convert UUID to string for Pydantic validation

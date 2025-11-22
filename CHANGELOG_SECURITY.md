@@ -89,6 +89,7 @@ Dashboard shows:
 - Users with active sessions
 
 ### Bug Fixes & Improvements
+- **Session Validation on Every Request:** Auth dependency now checks for active sessions on every API call, immediately kicking out users when sessions are revoked
 - **Session Revocation on Logout:** Logout now properly revokes all active sessions in the database, fixing issue where sessions showed as active after logout
 - **Column Names:** Fixed SQL migration to use correct column names (`is_active`, `parent_module_id`)
 - **React Query Import:** Fixed SecurityDashboard to use `react-query` instead of `@tanstack/react-query`
