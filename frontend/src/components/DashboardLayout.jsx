@@ -1,10 +1,15 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.6.0
+ * Version: 1.7.0
  * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v1.7.0 (2025-11-22):
+ *   - Added Settings menu item to sidebar navigation (Admin only)
+ *   - Settings accessible between Dashboard and dynamic modules
+ *   - Admin role check with proper navigation and selection highlighting
+ *
  * v1.6.0 (2025-11-22):
  *   - Auto-expand parent module in sidebar based on current URL path
  *   - Fixes issue where refreshing a sub-module page (e.g., /admin/users) collapsed the sidebar
@@ -84,6 +89,7 @@ import {
   ExpandLess,
   ExpandMore,
   Warning as WarningIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
@@ -377,6 +383,21 @@ export default function DashboardLayout() {
             <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
+
+        {/* Settings (Admin Only) */}
+        {user?.role?.toLowerCase() === 'admin' && (
+          <ListItem disablePadding>
+            <ListItemButton
+              selected={location.pathname === '/settings'}
+              onClick={() => navigate('/settings')}
+            >
+              <ListItemIcon>
+                <SettingsIcon />
+              </ListItemIcon>
+              <ListItemText primary="Settings" />
+            </ListItemButton>
+          </ListItem>
+        )}
 
         {/* Dynamic Modules (only top-level, exclude dashboard) */}
         {topLevelModules.map((module) => {
