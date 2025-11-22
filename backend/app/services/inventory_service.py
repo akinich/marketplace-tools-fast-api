@@ -1587,17 +1587,8 @@ async def receive_purchase_order(po_id: int, request, user_id: str, user_name: s
                 )
                 batches_created.append(batch_id)
 
-                # Update item current_qty
-                await execute_query_tx(
-                    """
-                    UPDATE item_master
-                    SET current_qty = current_qty + $1, updated_at = NOW()
-                    WHERE id = $2
-                    """,
-                    recv_item.received_qty,
-                    po_item["item_master_id"],
-                    conn=conn
-                )
+                # NOTE: item_master.current_qty is automatically updated by database trigger
+                # when batch is inserted. No manual update needed.
 
                 # Log transaction
                 await execute_query_tx(
