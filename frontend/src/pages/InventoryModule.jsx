@@ -1497,6 +1497,8 @@ function ReceivePODialog({ open, onClose, poId }) {
       onSuccess: (result) => {
         enqueueSnackbar(`Received ${result.items_received.length} items successfully`, { variant: 'success' });
         queryClient.invalidateQueries('purchaseOrders');
+        queryClient.invalidateQueries('inventoryItems');
+        queryClient.invalidateQueries('inventoryDashboard');
         onClose();
       },
       onError: (error) => {
