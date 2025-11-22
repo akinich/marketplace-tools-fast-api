@@ -112,9 +112,15 @@ async def get_dashboard_widgets(user: CurrentUser = Depends(get_current_user)) -
         "tickets": { ... tickets stats ... }
     }
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     # Get user's accessible modules
     modules = await admin_service.get_user_accessible_modules(user.id)
     module_keys = {m["module_key"] for m in modules}
+
+    # Debug logging
+    logger.info(f"User {user.email} (role: {user.role}) - Accessible modules: {module_keys}")
 
     widgets = {}
 
