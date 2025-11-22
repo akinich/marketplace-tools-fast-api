@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Ticket Routes
 ================================================================================
-Version: 1.1.0
-Last Updated: 2025-11-20
+Version: 1.2.0
+Last Updated: 2025-11-22
 
 Changelog:
 ----------
+v1.2.0 (2025-11-22):
+  - Integrated WebSocket real-time notifications for ticket events
+  - Emit ticket.created event when new tickets are created
+  - Emit ticket.updated event when tickets are updated or closed
+  - Real-time broadcasting to all connected clients
+
 v1.1.0 (2025-11-20):
   - Added DELETE /tickets/{ticket_id} endpoint for ticket deletion
   - Users can delete their own tickets
@@ -58,6 +64,7 @@ from app.schemas.tickets import (
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
 from app.services import tickets_service
+from app.websocket import events as ws_events
 
 router = APIRouter()
 
@@ -138,7 +145,18 @@ async def create_ticket(
     Any authenticated user can create tickets.
     Priority is not set at creation - only admins can assign priority later.
     """
-    return await tickets_service.create_ticket(request, current_user.id)
+    ticket = await tickets_service.create_ticket(request, current_user.id)
+
+    # Emit WebSocket event
+    await ws_events.emit_ticket_created({
+        "id": ticket.get('id'),
+        "title": ticket.get('title'),
+        "priority": ticket.get('priority'),
+        "status": ticket.get('status'),
+        "type": ticket.get('type')
+    })
+
+    return ticket
 
 
 @router.put("/{ticket_id}", response_model=TicketDetailResponse)
@@ -153,12 +171,23 @@ async def update_ticket(
     Cannot update closed tickets.
     """
     is_admin = current_user.role.lower() == "admin"
-    return await tickets_service.update_ticket(
+    ticket = await tickets_service.update_ticket(
         ticket_id,
         request,
         current_user.id,
         is_admin=is_admin
     )
+
+    # Emit WebSocket event
+    await ws_events.emit_ticket_updated({
+        "id": ticket.get('id'),
+        "title": ticket.get('title'),
+        "priority": ticket.get('priority'),
+        "status": ticket.get('status'),
+        "type": ticket.get('type')
+    })
+
+    return ticket
 
 
 @router.put("/{ticket_id}/admin", response_model=TicketDetailResponse)
@@ -171,11 +200,22 @@ async def admin_update_ticket(
     Admin update for ticket.
     Admins can update any field including status and priority.
     """
-    return await tickets_service.admin_update_ticket(
+    ticket = await tickets_service.admin_update_ticket(
         ticket_id,
         request,
         admin.id
     )
+
+    # Emit WebSocket event
+    await ws_events.emit_ticket_updated({
+        "id": ticket.get('id'),
+        "title": ticket.get('title'),
+        "priority": ticket.get('priority'),
+        "status": ticket.get('status'),
+        "type": ticket.get('type')
+    })
+
+    return ticket
 
 
 @router.post("/{ticket_id}/close", response_model=TicketDetailResponse)
@@ -190,11 +230,22 @@ async def close_ticket(
     Optionally include a closing comment.
     """
     comment = request.comment if request else None
-    return await tickets_service.close_ticket(
+    ticket = await tickets_service.close_ticket(
         ticket_id,
         admin.id,
         comment=comment
     )
+
+    # Emit WebSocket event
+    await ws_events.emit_ticket_updated({
+        "id": ticket.get('id'),
+        "title": ticket.get('title'),
+        "priority": ticket.get('priority'),
+        "status": ticket.get('status'),
+        "type": ticket.get('type')
+    })
+
+    return ticket
 
 
 @router.delete("/{ticket_id}")

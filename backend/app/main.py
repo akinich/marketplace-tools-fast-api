@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - FastAPI Main Application
 ================================================================================
-Version: 1.2.0
-Last Updated: 2025-11-21
+Version: 1.3.0
+Last Updated: 2025-11-22
 
 Changelog:
 ----------
+v1.3.0 (2025-11-22):
+  - Added WebSocket real-time notification system
+  - WebSocket endpoint for bidirectional communication
+  - Real-time ticket notifications (create, update, close)
+  - Connection manager for tracking active WebSocket connections
+  - Event emitters for broadcasting updates to clients
+
 v1.2.0 (2025-11-21):
   - Enhanced inventory item master module with new features
   - Added default_price field support across item master operations
@@ -253,7 +260,7 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram, security, units
+from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram, security, units, websocket
 from app.routes import settings as settings_router
 
 # Mount routers
@@ -269,6 +276,7 @@ app.include_router(development.router, prefix=f"{settings.API_PREFIX}/developmen
 app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram Notifications"])
 app.include_router(docs.router, prefix=f"{settings.API_PREFIX}", tags=["Documentation"])
 app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settings", tags=["Settings"])
+app.include_router(websocket.router, tags=["WebSocket"])
 
 
 # ============================================================================
