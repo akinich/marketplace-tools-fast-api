@@ -2307,7 +2307,7 @@ async def get_stock_adjustments_list(
             sa.new_qty,
             sa.reason,
             sa.notes,
-            sa.adjusted_by,
+            sa.adjusted_by::text,
             up.full_name as adjusted_by_name,
             sa.adjustment_date
         FROM stock_adjustments sa
