@@ -25,7 +25,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
-from app.database import fetch_one, fetch_all, execute_query, get_db_connection
+from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, email_service
 
 logger = logging.getLogger(__name__)
@@ -143,8 +143,9 @@ async def process_email_queue():
     try:
         logger.debug("Processing email queue...")
 
-        conn = await get_db_connection()
-        await email_service.process_email_queue(conn, batch_size=20)
+        pool = get_db()
+        async with pool.acquire() as conn:
+            await email_service.process_email_queue(conn, batch_size=20)
 
         logger.debug("Email queue processing completed")
 
