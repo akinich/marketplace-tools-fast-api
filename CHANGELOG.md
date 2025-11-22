@@ -5,6 +5,79 @@ All notable changes to the Farm Management System will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2025-11-22
+
+### Added - Units of Measurement System
+
+#### Backend & Database
+- **Created standardized units of measurement system**
+  - Database table `unit_of_measurements` with 25 pre-populated units
+  - Categories: weight, volume, count, length, area
+  - Fields: unit_name, abbreviation, category, is_active
+  - Migration: `sql_scripts/v1.11.0_unit_of_measurements.sql`
+
+- **Full CRUD API for units management**
+  - New service: `backend/app/services/units_service.py` (v1.0.0)
+  - New routes: `backend/app/routes/units.py`
+  - New schemas: `backend/app/schemas/units.py`
+  - Endpoints:
+    * GET `/api/v1/units` - List units with filtering
+    * GET `/api/v1/units/categories` - List categories with counts
+    * GET `/api/v1/units/{id}` - Get single unit
+    * POST `/api/v1/units` - Create new unit
+    * PUT `/api/v1/units/{id}` - Update unit
+    * DELETE `/api/v1/units/{id}` - Permanent delete (if not in use)
+    * POST `/api/v1/units/{id}/deactivate` - Soft delete
+    * POST `/api/v1/units/{id}/reactivate` - Restore unit
+
+- **Smart delete logic**
+  - Units linked to items: Can only be deactivated
+  - Units not in use: Can be permanently deleted
+  - Returns item_count with each unit for smart UI decisions
+  - Auto-updates item_master when unit names change
+
+#### Frontend
+- **Item Master Form Enhancement** (InventoryModule v3.1.0)
+  - Replaced unit text input with Autocomplete dropdown
+  - Shows all active units from database
+  - Supports free text entry for custom units (freeSolo)
+  - Better UX with standardized options
+
+- **Units Management Settings Page** (UnitsSettings v1.0.0)
+  - New admin page: `/admin/units`
+  - Create, edit, delete, and deactivate units
+  - Table view with active/inactive sections
+  - Visual indicators for units in use
+  - Smart action buttons based on item_count
+  - Category-based organization
+  - Real-time updates with React Query
+
+- **Frontend API Integration** (api/index.js v1.3.0)
+  - Added `unitsAPI` with all CRUD operations
+  - Integrated with React Query for caching
+  - Automatic cache invalidation
+
+### Changed
+- **Inventory Module**
+  - Unit field now uses standardized dropdown instead of free text
+  - Improved data consistency across inventory items
+  - Admin Panel (v1.8.0) now includes Units settings route
+
+### Design Decisions
+- Database-backed approach for flexibility
+- Can add/edit units without code changes
+- Supports future features (unit conversions, metadata)
+- Follows same soft-delete pattern as other entities
+- Category system allows grouping similar units
+
+### Migration Notes
+- **Run migration:** `sql_scripts/v1.11.0_unit_of_measurements.sql`
+- No data migration needed for existing items
+- Existing item units remain as-is (free text)
+- New items will use standardized units from dropdown
+
+---
+
 ## [1.9.0] - 2025-11-22
 
 ### Fixed - Inventory Module Critical Issues

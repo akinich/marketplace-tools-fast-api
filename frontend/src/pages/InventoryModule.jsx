@@ -1,10 +1,17 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 3.0.0
- * Last Updated: 2025-11-21
+ * Version: 3.1.0
+ * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v3.1.0 (2025-11-22):
+ *   - FEATURE: Unit of Measurement dropdown with standardized units
+ *   - Replaced unit text input with Autocomplete component
+ *   - Integrated with unitsAPI for fetching active units
+ *   - Supports free text entry for custom units (freeSolo)
+ *   - Auto-refresh inventory after PO receiving (cache invalidation fix)
+ *
  * v3.0.0 (2025-11-21):
  *   - MAJOR: Complete Purchase Order management overhaul
  *   - FEATURE: Auto-fill default price from item master when selecting items
@@ -158,6 +165,7 @@ import {
   Tooltip,
   Checkbox,
   FormControlLabel,
+  Autocomplete,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -176,7 +184,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useSnackbar } from 'notistack';
-import { inventoryAPI } from '../api';
+import { inventoryAPI, unitsAPI } from '../api';
 import { formatCurrency } from '../utils/formatters';
 
 // Add Item Dialog Component
@@ -197,9 +205,10 @@ function AddItemDialog({ open, onClose, onSuccess }) {
 
   const [errors, setErrors] = useState({});
 
-  // Fetch categories and suppliers for dropdowns
+  // Fetch categories, suppliers, and units for dropdowns
   const { data: categoriesData } = useQuery('categories', inventoryAPI.getCategories);
   const { data: suppliersData } = useQuery('suppliers', inventoryAPI.getSuppliers);
+  const { data: unitsData } = useQuery('units', () => unitsAPI.getUnits({ include_inactive: false }));
 
   const createItemMutation = useMutation(
     (data) => inventoryAPI.createItem(data),
@@ -334,15 +343,26 @@ function AddItemDialog({ open, onClose, onSuccess }) {
             <FormHelperText>Select from existing categories. Create new categories in the Categories sub-module first.</FormHelperText>
           </FormControl>
 
-          <TextField
-            label="Unit of Measurement"
-            required
-            fullWidth
+          <Autocomplete
+            freeSolo
+            options={unitsData?.units?.map((u) => u.unit_name) || []}
             value={formData.unit}
-            onChange={handleChange('unit')}
-            error={!!errors.unit}
-            helperText={errors.unit || 'e.g., kg, liters, pieces, bags'}
-            placeholder="e.g., kg"
+            onChange={(event, newValue) => {
+              setFormData({ ...formData, unit: newValue || '' });
+            }}
+            onInputChange={(event, newInputValue) => {
+              setFormData({ ...formData, unit: newInputValue });
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Unit of Measurement"
+                required
+                error={!!errors.unit}
+                helperText={errors.unit || 'Select or type a custom unit (e.g., kg, liters, pieces)'}
+                placeholder="e.g., kg"
+              />
+            )}
           />
 
           <FormControl fullWidth>
