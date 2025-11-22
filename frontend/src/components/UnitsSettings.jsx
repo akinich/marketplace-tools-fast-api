@@ -1,7 +1,18 @@
 /**
  * Units of Measurement Settings
- * Version: 1.0.0
- * Manage standardized units for inventory items
+ * Version: 1.1.0
+ * Last Updated: 2025-11-22
+ *
+ * Changelog:
+ * ----------
+ * v1.1.0 (2025-11-22):
+ *   - Added both Deactivate and Delete buttons for unused units
+ *   - Admin can now choose between deactivating or permanently deleting units with no items
+ *   - Units in use still show only Deactivate button (cannot delete)
+ *
+ * v1.0.0 (2025-11-22):
+ *   - Initial release - manage standardized units for inventory items
+ *   - Full CRUD operations with smart delete logic
  */
 
 import React, { useState } from 'react';
@@ -364,7 +375,15 @@ export default function UnitsSettings() {
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    {unit.item_count === 0 ? (
+                    <Tooltip title={unit.item_count > 0 ? "Deactivate (in use - cannot delete)" : "Deactivate"}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleToggleActive(unit)}
+                      >
+                        <DeactivateIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {unit.item_count === 0 && (
                       <Tooltip title="Delete (permanent)">
                         <IconButton
                           size="small"
@@ -372,15 +391,6 @@ export default function UnitsSettings() {
                           onClick={() => handleDelete(unit)}
                         >
                           <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : (
-                      <Tooltip title="Deactivate (in use - cannot delete)">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleToggleActive(unit)}
-                        >
-                          <DeactivateIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     )}

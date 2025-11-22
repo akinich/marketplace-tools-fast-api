@@ -1,10 +1,15 @@
 /**
  * Inventory Module - Items, Stock, Purchase Orders, Alerts
- * Version: 3.1.0
+ * Version: 3.2.0
  * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v3.2.0 (2025-11-22):
+ *   - BUGFIX: Auto-update unit item counts when items are created/deleted
+ *   - Added cache invalidation for 'units' query in create/delete/hardDelete mutations
+ *   - Units settings page now shows updated item counts without manual refresh
+ *
  * v3.1.0 (2025-11-22):
  *   - FEATURE: Unit of Measurement dropdown with standardized units
  *   - Replaced unit text input with Autocomplete component
@@ -217,6 +222,7 @@ function AddItemDialog({ open, onClose, onSuccess }) {
         enqueueSnackbar('Item created successfully', { variant: 'success' });
         queryClient.invalidateQueries('inventoryItems');
         queryClient.invalidateQueries('inventoryDashboard');
+        queryClient.invalidateQueries('units'); // Update unit item counts
         handleClose();
         if (onSuccess) onSuccess();
       },
@@ -452,6 +458,7 @@ function ItemsPage() {
         enqueueSnackbar('Item deactivated successfully', { variant: 'success' });
         queryClient.invalidateQueries('inventoryItems');
         queryClient.invalidateQueries('inventoryDashboard');
+        queryClient.invalidateQueries('units'); // Update unit item counts
         setDeleteConfirmDialog({ open: false, item: null });
       },
       onError: (error) => {
@@ -470,6 +477,7 @@ function ItemsPage() {
         enqueueSnackbar('Item permanently deleted', { variant: 'success' });
         queryClient.invalidateQueries('inventoryItems');
         queryClient.invalidateQueries('inventoryDashboard');
+        queryClient.invalidateQueries('units'); // Update unit item counts
         setHardDeleteDialog({ open: false, item: null });
       },
       onError: (error) => {
