@@ -2,11 +2,28 @@
 ================================================================================
 Farm Management System - Inventory Service Layer
 ================================================================================
-Version: 1.8.4
-Last Updated: 2025-11-21
+Version: 1.9.0
+Last Updated: 2025-11-22
 
 Changelog:
 ----------
+v1.9.0 (2025-11-22):
+  - CRITICAL FIX: Fixed stock adjustment errors - corrected execute_query_tx parameter order
+  - CRITICAL FIX: Fixed inventory value not updating on stock adjustments
+    - Stock adjustments now properly update batches using FIFO methodology
+    - Decrease adjustments deduct from oldest batches first
+    - Increase adjustments add to most recent batch or create adjustment batch
+    - Maintains accurate inventory valuation (qty × unit_cost)
+  - CRITICAL FIX: Fixed PO receiving doubling quantities
+    - Removed duplicate manual update of item_master.current_qty
+    - Database trigger now handles quantity updates automatically
+  - BUGFIX: Cast adjusted_by UUID to text in get_stock_adjustments_list query
+  - Added inventory batch reconciliation utility for fixing historical data
+    - SQL script: sql_scripts/fix_batch_quantities_after_adjustments.sql
+    - Python utility: backend/app/utils/fix_inventory_batches.py
+  - Enhanced create_stock_adjustment() with proper batch management
+  - All transaction-aware functions now use conn=conn as keyword argument
+
 v1.8.4 (2025-11-21):
   - BUGFIX: Explicit CAST to INTEGER for has_transactions to ensure proper type serialization
 
@@ -1587,17 +1604,8 @@ async def receive_purchase_order(po_id: int, request, user_id: str, user_name: s
                 )
                 batches_created.append(batch_id)
 
-                # Update item current_qty
-                await execute_query_tx(
-                    """
-                    UPDATE item_master
-                    SET current_qty = current_qty + $1, updated_at = NOW()
-                    WHERE id = $2
-                    """,
-                    recv_item.received_qty,
-                    po_item["item_master_id"],
-                    conn=conn
-                )
+                # NOTE: item_master.current_qty is automatically updated by database trigger
+                # when batch is inserted. No manual update needed.
 
                 # Log transaction
                 await execute_query_tx(
