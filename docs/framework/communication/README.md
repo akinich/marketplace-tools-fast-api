@@ -43,9 +43,10 @@ Communication (Parent Module)
 | **parent_module_id** | `communication` module ID |
 
 **Migration Notes:**
-- This module was migrated from the existing standalone `telegram` module
+- This module was migrated from the existing `admin_telegram` module
+- Module key changed from `admin_telegram` to `com_telegram`
 - All existing user permissions were preserved during migration
-- Module key changed from `telegram` to `com_telegram`
+- **Note:** An initial migration error moved the wrong module; this was corrected via patch (v1.0.1)
 
 #### 2. Email (SMTP) (`com_smtp`)
 
@@ -148,6 +149,22 @@ Communication (Parent Module)
    - Includes a verification query to confirm successful migration
    - Returns all Communication-related modules with their structure
 
+### Migration Patch (Version 1.0.1)
+
+**Patch File:** `backend/migrations/007_communication_module_patch.sql`
+
+**Issue Fixed:**
+The original migration incorrectly moved the old inactive `telegram` module (id: 54) under Communication instead of the active `admin_telegram` module (id: 61).
+
+**Patch Actions:**
+1. Renamed the old inactive telegram module to `telegram_legacy`
+2. Moved the active `admin_telegram` module under Communication as `com_telegram`
+3. Preserved all module IDs and permissions
+
+**Result:**
+- ✅ `com_telegram` (id: 61) - Active telegram module under Communication
+- ✅ `telegram_legacy` (id: 54) - Old inactive module, standalone
+
 ## Permissions Model
 
 ### Admin Users
@@ -182,15 +199,17 @@ Future implementations can grant granular permissions:
 | ID | Module Key | Module Name | Type | Parent | Active |
 |----|------------|-------------|------|--------|--------|
 | 67 | communication | Communication | Parent | NULL | ✅ |
-| 54 | com_telegram | Telegram Notifications | Child | Communication | ⚠️ |
+| 61 | com_telegram | Telegram Notifications | Child | Communication | ✅ |
 | 68 | com_smtp | Email (SMTP) | Child | Communication | ✅ |
 | 69 | com_webhooks | Webhooks | Child | Communication | ✅ |
 | 70 | com_api_keys | API Keys | Child | Communication | ✅ |
 | 71 | com_websockets | Real-time (WebSocket) | Child | Communication | ✅ |
+| 54 | telegram_legacy | Telegram Notifications | Standalone | NULL | ❌ |
 
 **Notes:**
-- Telegram module (`com_telegram`) is inactive - this preserves the previous state
-- All other modules are active by default
+- **After Patch (v1.0.1):** Correct `admin_telegram` module (id: 61) moved under Communication
+- `telegram_legacy` (id: 54) is the old inactive module, kept standalone for reference
+- All communication modules are active except telegram_legacy
 
 ### Verification Query
 

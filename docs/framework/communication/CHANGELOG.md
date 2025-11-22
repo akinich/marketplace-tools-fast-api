@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2025-11-22
+
+### Fixed
+
+#### Telegram Module Migration Correction
+
+**Issue:**
+The original migration (v1.0.0) incorrectly moved the old inactive `telegram` module (id: 54) under Communication instead of the active `admin_telegram` module (id: 61).
+
+**Root Cause:**
+Migration script targeted `telegram` module key instead of `admin_telegram` module key.
+
+**Resolution:**
+- Created patch migration file: `007_communication_module_patch.sql`
+- Renamed old telegram module (id: 54) to `telegram_legacy`
+- Moved correct `admin_telegram` module (id: 61) under Communication as `com_telegram`
+- Preserved all module IDs and user permissions
+
+**Result After Patch:**
+- ✅ `com_telegram` (id: 61) - Active telegram module under Communication
+- ✅ `telegram_legacy` (id: 54) - Old inactive module, standalone
+- ✅ All permissions maintained
+- ✅ No data loss
+
+**Files Changed:**
+- Added: `backend/migrations/007_communication_module_patch.sql`
+- Updated: Documentation to reflect corrected module IDs
+
+**Impact:**
+- No breaking changes
+- Existing permissions preserved
+- Corrects module hierarchy to intended state
+
+**Testing:**
+- ✅ Patch successfully applied in production
+- ✅ Verification query confirms correct structure
+- ✅ All Communication modules functional
+
+---
+
 ## [1.0.0] - 2025-11-22
 
 ### Added

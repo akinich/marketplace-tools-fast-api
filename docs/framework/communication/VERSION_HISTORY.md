@@ -1,5 +1,77 @@
 # Communication Module - Version History
 
+## Version 1.0.1 (2025-11-22)
+
+### Patch Release - Telegram Module Migration Fix
+
+**Status:** ✅ Completed & Tested
+
+**Migration:** `007_communication_module_patch.sql`
+
+### Issue Fixed
+
+**Problem:**
+Version 1.0.0 incorrectly migrated the old inactive `telegram` module (id: 54) under Communication instead of the active `admin_telegram` module (id: 61).
+
+**Root Cause:**
+The migration script searched for `module_key = 'telegram'` but should have searched for `module_key = 'admin_telegram'`.
+
+### Changes Made
+
+#### Module Corrections
+- ✅ Renamed old telegram module (id: 54) to `telegram_legacy`
+- ✅ Set `telegram_legacy` as standalone (removed parent)
+- ✅ Moved `admin_telegram` (id: 61) under Communication
+- ✅ Renamed `admin_telegram` to `com_telegram`
+- ✅ Preserved all module IDs and permissions
+
+#### Documentation Updates
+- ✅ Updated README with patch information
+- ✅ Updated CHANGELOG with fix details
+- ✅ Corrected module ID references throughout docs
+- ✅ Added patch migration file documentation
+
+### Final Module Structure
+
+| Module Key | ID | Type | Parent | Active |
+|------------|-----|------|--------|--------|
+| communication | 67 | Parent | NULL | ✅ |
+| com_telegram | 61 | Child | Communication | ✅ |
+| com_smtp | 68 | Child | Communication | ✅ |
+| com_webhooks | 69 | Child | Communication | ✅ |
+| com_api_keys | 70 | Child | Communication | ✅ |
+| com_websockets | 71 | Child | Communication | ✅ |
+| telegram_legacy | 54 | Standalone | NULL | ❌ |
+
+### Impact
+
+- **Breaking Changes:** None
+- **Data Loss:** None
+- **Permission Changes:** None (all preserved)
+- **User Impact:** None (seamless correction)
+
+### Testing Results
+
+**Test Date:** 2025-11-22
+
+**Patch Execution:** ✅ Success
+
+**Verification:**
+- ✅ Correct telegram module (id: 61) now under Communication
+- ✅ Legacy telegram module (id: 54) isolated as `telegram_legacy`
+- ✅ All other modules unaffected
+- ✅ Module hierarchy correct
+- ✅ All permissions intact
+
+### Git Commits
+
+```
+[commit hash] - fix: Apply telegram module migration patch
+[commit hash] - docs: Update documentation with patch details
+```
+
+---
+
 ## Version 1.0.0 (2025-11-22)
 
 ### Initial Release - Database Foundation
