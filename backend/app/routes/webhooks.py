@@ -5,6 +5,7 @@ Version: 1.0.0
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 import secrets
+import json
 
 from app.database import get_db
 from app.auth.dependencies import require_admin
@@ -54,7 +55,7 @@ async def create_webhook(
             str(webhook.url),
             secret,
             webhook.events,
-            webhook.custom_headers,
+            json.dumps(webhook.custom_headers),
             webhook.description,
             webhook.is_active,
             webhook.timeout_seconds,
@@ -100,7 +101,7 @@ async def update_webhook(
             webhook.name,
             str(webhook.url),
             webhook.events,
-            webhook.custom_headers,
+            json.dumps(webhook.custom_headers),
             webhook.description,
             webhook.is_active,
             webhook.timeout_seconds,
