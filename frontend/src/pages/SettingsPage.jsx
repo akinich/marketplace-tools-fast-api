@@ -2,11 +2,16 @@
  * ============================================================================
  * Farm Management System - Settings Page
  * ============================================================================
- * Version: 1.1.0
- * Last Updated: 2025-11-22
+ * Version: 1.2.0
+ * Last Updated: 2025-11-23
  *
  * Changelog:
  * ----------
+ * v1.2.0 (2025-11-23):
+ *   - Added Telegram tab for telegram_bot_token configuration
+ *   - Added Integrations tab for Supabase URL and service key
+ *   - Support for database-first settings with environment fallback
+ *
  * v1.1.0 (2025-11-22):
  *   - Added Audit Log tab to view settings change history
  *   - Display audit log with setting key, old/new values, user, and timestamp
@@ -50,6 +55,8 @@ import { settingsAPI } from '../api/settings';
 
 const CATEGORY_LABELS = {
   auth: 'Authentication',
+  telegram: 'Telegram',
+  integrations: 'Integrations',
   email: 'Email / SMTP',
   webhooks: 'Webhooks',
   app: 'Application',
