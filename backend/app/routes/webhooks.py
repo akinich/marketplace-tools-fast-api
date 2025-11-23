@@ -8,6 +8,7 @@ import secrets
 
 from app.database import get_db
 from app.auth.dependencies import require_admin
+from app.schemas.auth import CurrentUser
 from app.models.webhooks import (
     WebhookSchema,
     WebhookResponse,
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 @router.get("/", response_model=List[WebhookResponse])
 async def list_webhooks(
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """List all webhooks"""
     pool = get_db()
@@ -31,7 +32,7 @@ async def list_webhooks(
 @router.post("/", response_model=WebhookResponse)
 async def create_webhook(
     webhook: WebhookSchema,
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Create a new webhook"""
     # Generate secret
@@ -59,7 +60,7 @@ async def create_webhook(
             webhook.timeout_seconds,
             webhook.retry_attempts,
             webhook.retry_delay_seconds,
-            current_user['user_id']
+            current_user.id
         )
 
         return dict(created)
@@ -67,7 +68,7 @@ async def create_webhook(
 @router.get("/{webhook_id}", response_model=WebhookResponse)
 async def get_webhook(
     webhook_id: int,
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Get webhook details"""
     pool = get_db()
@@ -81,7 +82,7 @@ async def get_webhook(
 async def update_webhook(
     webhook_id: int,
     webhook: WebhookSchema,
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Update webhook"""
     pool = get_db()
@@ -105,7 +106,7 @@ async def update_webhook(
             webhook.timeout_seconds,
             webhook.retry_attempts,
             webhook.retry_delay_seconds,
-            current_user['user_id']
+            current_user.id
         )
 
         if not updated:
@@ -116,7 +117,7 @@ async def update_webhook(
 @router.delete("/{webhook_id}")
 async def delete_webhook(
     webhook_id: int,
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Delete webhook"""
     pool = get_db()
@@ -129,7 +130,7 @@ async def delete_webhook(
 @router.post("/test")
 async def test_webhook(
     request: WebhookTestRequest,
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Test a webhook"""
     pool = get_db()
@@ -149,7 +150,7 @@ async def get_webhook_deliveries(
     webhook_id: int,
     limit: int = 50,
     status: Optional[str] = None,
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Get delivery logs for a webhook"""
     pool = get_db()
@@ -179,7 +180,7 @@ async def get_webhook_deliveries(
 
 @router.get("/events/available")
 async def get_available_events(
-    current_user: dict = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin)
 ):
     """Get list of available webhook events"""
     return {"events": webhook_service.AVAILABLE_EVENTS}
