@@ -26,7 +26,7 @@ from typing import List, Dict, Any
 
 from app.schemas.dashboard import *
 from app.schemas.auth import CurrentUser
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_current_user_or_api_key
 from app.services import admin_service, inventory_service, biofloc_service, tickets_service
 
 router = APIRouter()
@@ -41,12 +41,15 @@ router = APIRouter()
     "/summary",
     response_model=DashboardSummaryResponse,
     summary="Dashboard Summary",
-    description="Get farm-wide KPIs and metrics",
+    description="Get farm-wide KPIs and metrics (supports JWT and API key auth)",
 )
-async def get_dashboard_summary(user: CurrentUser = Depends(get_current_user)):
+async def get_dashboard_summary(user: dict = Depends(get_current_user_or_api_key)):
     """
     Get main dashboard summary with farm-wide metrics.
     Aggregates data from inventory and admin modules.
+
+    Authentication: Accepts both JWT tokens and API keys (X-API-Key header)
+    Required scope (for API keys): dashboard:read
     """
     # Get inventory metrics
     inventory_stats = await inventory_service.get_inventory_dashboard()
