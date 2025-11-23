@@ -18,7 +18,7 @@ from app.models.webhooks import (
 )
 from app.services import webhook_service
 
-router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+router = APIRouter()
 
 @router.get("/", response_model=List[WebhookResponse])
 async def list_webhooks(
