@@ -7,7 +7,7 @@ from typing import List, Optional
 import secrets
 
 from app.database import get_db
-from app.dependencies import require_admin
+from app.auth.dependencies import require_admin
 from app.models.webhooks import (
     WebhookSchema,
     WebhookResponse,
