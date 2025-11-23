@@ -452,7 +452,8 @@ async def get_current_user_or_api_key(
                 'email': user_info['email'],
                 'role': user_info['role_name'],
                 'auth_method': 'api_key',
-                'api_key_id': user_info['api_key_id']
+                'api_key_id': user_info['api_key_id'],
+                'scopes': user_info['scopes']
             }
 
     # Fall back to JWT
