@@ -28,7 +28,13 @@ async def list_webhooks(
     pool = get_db()
     async with pool.acquire() as conn:
         webhooks = await conn.fetch("SELECT * FROM webhooks ORDER BY created_at DESC")
-        return [dict(w) for w in webhooks]
+        results = []
+        for w in webhooks:
+            result = dict(w)
+            if isinstance(result['custom_headers'], str):
+                result['custom_headers'] = json.loads(result['custom_headers'])
+            results.append(result)
+        return results
 
 @router.post("/", response_model=WebhookResponse)
 async def create_webhook(
@@ -64,7 +70,11 @@ async def create_webhook(
             current_user.id
         )
 
-        return dict(created)
+        # Convert JSONB back to dict for response
+        result = dict(created)
+        if isinstance(result['custom_headers'], str):
+            result['custom_headers'] = json.loads(result['custom_headers'])
+        return result
 
 @router.get("/{webhook_id}", response_model=WebhookResponse)
 async def get_webhook(
@@ -77,7 +87,10 @@ async def get_webhook(
         webhook = await conn.fetchrow("SELECT * FROM webhooks WHERE id = $1", webhook_id)
         if not webhook:
             raise HTTPException(status_code=404, detail="Webhook not found")
-        return dict(webhook)
+        result = dict(webhook)
+        if isinstance(result['custom_headers'], str):
+            result['custom_headers'] = json.loads(result['custom_headers'])
+        return result
 
 @router.put("/{webhook_id}", response_model=WebhookResponse)
 async def update_webhook(
@@ -113,7 +126,10 @@ async def update_webhook(
         if not updated:
             raise HTTPException(status_code=404, detail="Webhook not found")
 
-        return dict(updated)
+        result = dict(updated)
+        if isinstance(result['custom_headers'], str):
+            result['custom_headers'] = json.loads(result['custom_headers'])
+        return result
 
 @router.delete("/{webhook_id}")
 async def delete_webhook(
