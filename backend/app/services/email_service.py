@@ -1,11 +1,13 @@
 """
 Email Service - Multi-provider email sending with templates and queue
 
-Supports:
+Supports 6 providers:
 - SMTP (traditional SMTP servers - for Railway, VPS, etc.)
-- SendGrid API (for Render and cloud hosting where SMTP is blocked)
-- Mailgun API (alternative to SendGrid)
-- AWS SES API (enterprise option)
+- SendGrid (100 emails/day free - Enterprise trusted)
+- Resend (100 emails/day free - Modern, developer-friendly)
+- Brevo (300 emails/day free - Best free tier!)
+- Mailgun (5000 emails/3 months - Pay-as-you-go after)
+- AWS SES (Pay-per-use - Enterprise, not implemented)
 """
 import aiosmtplib
 import httpx
@@ -266,6 +268,12 @@ async def _send_email_via_provider(
     elif provider == 'sendgrid':
         settings = await _get_sendgrid_settings(conn)
         await _send_via_sendgrid(settings, to_email, subject, plain_body, html_body, cc_emails)
+    elif provider == 'resend':
+        settings = await _get_resend_settings(conn)
+        await _send_via_resend(settings, to_email, subject, plain_body, html_body, cc_emails)
+    elif provider == 'brevo':
+        settings = await _get_brevo_settings(conn)
+        await _send_via_brevo(settings, to_email, subject, plain_body, html_body, cc_emails)
     elif provider == 'mailgun':
         settings = await _get_mailgun_settings(conn)
         await _send_via_mailgun(settings, to_email, subject, plain_body, html_body, cc_emails)
@@ -415,6 +423,123 @@ async def _send_via_sendgrid(
             raise Exception(f"SendGrid API error: {response.status_code} - {response.text}")
 
     logger.debug(f"Email sent via SendGrid API to {to_email}")
+
+# ============================================================================
+# RESEND PROVIDER
+# ============================================================================
+
+async def _get_resend_settings(conn: Connection) -> Dict[str, Any]:
+    """Get Resend configuration from settings"""
+    return {
+        'api_key': await settings_service.get_setting(conn, 'email.resend_api_key', ''),
+        'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+    }
+
+async def _send_via_resend(
+    resend_settings: Dict[str, Any],
+    to_email: str,
+    subject: str,
+    plain_body: str,
+    html_body: Optional[str] = None,
+    cc_emails: Optional[List[str]] = None
+):
+    """Send email via Resend API"""
+    if not resend_settings['api_key']:
+        raise ValueError("Resend API key is not configured")
+
+    # Build email payload (Resend has the simplest API!)
+    payload = {
+        "from": f"{resend_settings['from_name']} <{resend_settings['from_email']}>",
+        "to": [to_email],
+        "subject": subject,
+    }
+
+    # Resend prefers HTML, fallback to text
+    if html_body:
+        payload["html"] = html_body
+    else:
+        payload["text"] = plain_body
+
+    if cc_emails:
+        payload["cc"] = cc_emails
+
+    # Send via Resend API
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.resend.com/emails",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {resend_settings['api_key']}",
+                "Content-Type": "application/json"
+            },
+            timeout=30
+        )
+
+        if response.status_code not in (200, 201):
+            raise Exception(f"Resend API error: {response.status_code} - {response.text}")
+
+    logger.debug(f"Email sent via Resend API to {to_email}")
+
+# ============================================================================
+# BREVO PROVIDER
+# ============================================================================
+
+async def _get_brevo_settings(conn: Connection) -> Dict[str, Any]:
+    """Get Brevo configuration from settings"""
+    return {
+        'api_key': await settings_service.get_setting(conn, 'email.brevo_api_key', ''),
+        'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+    }
+
+async def _send_via_brevo(
+    brevo_settings: Dict[str, Any],
+    to_email: str,
+    subject: str,
+    plain_body: str,
+    html_body: Optional[str] = None,
+    cc_emails: Optional[List[str]] = None
+):
+    """Send email via Brevo API"""
+    if not brevo_settings['api_key']:
+        raise ValueError("Brevo API key is not configured")
+
+    # Build email payload
+    payload = {
+        "sender": {
+            "email": brevo_settings['from_email'],
+            "name": brevo_settings['from_name']
+        },
+        "to": [{"email": to_email}],
+        "subject": subject,
+    }
+
+    # Brevo prefers HTML
+    if html_body:
+        payload["htmlContent"] = html_body
+    else:
+        payload["textContent"] = plain_body
+
+    if cc_emails:
+        payload["cc"] = [{"email": email} for email in cc_emails]
+
+    # Send via Brevo API
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.brevo.com/v3/smtp/email",
+            json=payload,
+            headers={
+                "api-key": brevo_settings['api_key'],
+                "Content-Type": "application/json"
+            },
+            timeout=30
+        )
+
+        if response.status_code not in (200, 201):
+            raise Exception(f"Brevo API error: {response.status_code} - {response.text}")
+
+    logger.debug(f"Email sent via Brevo API to {to_email}")
 
 # ============================================================================
 # MAILGUN PROVIDER
