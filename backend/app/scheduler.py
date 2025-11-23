@@ -37,7 +37,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
-from app.database import fetch_one, fetch_all, execute_query, get_db_connection, get_db
+from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service
 
 logger = logging.getLogger(__name__)
@@ -155,8 +155,9 @@ async def process_webhook_queue():
     try:
         logger.debug("Processing webhook delivery queue...")
 
-        conn = await get_db_connection()
-        await webhook_service.process_webhook_queue(conn, batch_size=20)
+        pool = get_db()
+        async with pool.acquire() as conn:
+            await webhook_service.process_webhook_queue(conn, batch_size=20)
 
         logger.debug("Webhook queue processing completed")
 
