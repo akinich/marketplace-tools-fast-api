@@ -203,9 +203,21 @@ async def process_email_queue(conn: Connection, batch_size: int = 10):
 
 async def test_smtp_connection(conn: Connection, test_email: str) -> Dict[str, Any]:
     """Test SMTP configuration by sending a test email"""
-    smtp_settings = await _get_smtp_settings(conn)
-
     try:
+        logger.info(f"Testing SMTP connection, sending to {test_email}")
+        smtp_settings = await _get_smtp_settings(conn)
+
+        # Log settings (without password)
+        logger.info(f"SMTP Settings - Host: {smtp_settings['host']}, Port: {smtp_settings['port']}, TLS: {smtp_settings['use_tls']}, User: {smtp_settings['username']}")
+
+        # Validate settings
+        if not smtp_settings['host']:
+            raise ValueError("SMTP host is not configured")
+        if not smtp_settings['username']:
+            raise ValueError("SMTP username is not configured")
+        if not smtp_settings['password']:
+            raise ValueError("SMTP password is not configured")
+
         await _send_smtp_email(
             smtp_settings,
             to_email=test_email,
@@ -214,8 +226,10 @@ async def test_smtp_connection(conn: Connection, test_email: str) -> Dict[str, A
             html_body="<h2>SMTP Test Email</h2><p>This is a test email from your Farm Management System.</p><p><strong>SMTP is configured correctly!</strong></p>"
         )
 
+        logger.info(f"✅ Test email sent successfully to {test_email}")
         return {"success": True, "message": f"Test email sent to {test_email}"}
     except Exception as e:
+        logger.error(f"❌ SMTP test failed: {str(e)}", exc_info=True)
         return {"success": False, "message": str(e)}
 
 async def get_email_recipients(conn: Connection, notification_type: str) -> List[str]:
