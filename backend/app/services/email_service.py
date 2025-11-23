@@ -1,7 +1,15 @@
 """
-Email Service - SMTP email sending with templates and queue
+Email Service - Multi-provider email sending with templates and queue
+
+Supports:
+- SMTP (traditional SMTP servers - for Railway, VPS, etc.)
+- SendGrid API (for Render and cloud hosting where SMTP is blocked)
+- Mailgun API (alternative to SendGrid)
+- AWS SES API (enterprise option)
 """
 import aiosmtplib
+import httpx
+import base64
 import logging
 from email.message import EmailMessage
 from email.mime.text import MIMEText
@@ -103,10 +111,10 @@ async def process_email_queue(conn: Connection, batch_size: int = 10):
     Process pending emails in queue
     Called by background scheduler
     """
-    # Check if SMTP is enabled
-    smtp_enabled = await settings_service.get_setting(conn, 'email.smtp_enabled', False)
-    if not smtp_enabled:
-        logger.debug("SMTP is disabled, skipping email processing")
+    # Check if email is enabled
+    email_enabled = await settings_service.get_setting(conn, 'email.smtp_enabled', False)
+    if not email_enabled:
+        logger.debug("Email service is disabled, skipping email processing")
         return
 
     # Get pending emails
@@ -129,8 +137,8 @@ async def process_email_queue(conn: Connection, batch_size: int = 10):
 
     logger.info(f"Processing {len(emails)} queued emails")
 
-    # Get SMTP settings
-    smtp_settings = await _get_smtp_settings(conn)
+    # Get provider
+    provider = await settings_service.get_setting(conn, 'email.provider', 'smtp')
 
     for email in emails:
         email_id = email['id']
@@ -142,9 +150,10 @@ async def process_email_queue(conn: Connection, batch_size: int = 10):
                 email_id
             )
 
-            # Send email
-            await _send_smtp_email(
-                smtp_settings,
+            # Send email based on provider
+            await _send_email_via_provider(
+                conn,
+                provider=provider,
                 to_email=email['to_email'],
                 cc_emails=email['cc_emails'],
                 subject=email['subject'],
@@ -171,7 +180,7 @@ async def process_email_queue(conn: Connection, batch_size: int = 10):
                 email_id, email['to_email'], email['subject']
             )
 
-            logger.info(f"Email sent successfully: {email_id}")
+            logger.info(f"Email sent successfully: {email_id} via {provider}")
 
         except Exception as e:
             error_msg = str(e)
@@ -201,35 +210,25 @@ async def process_email_queue(conn: Connection, batch_size: int = 10):
                 email_id, email['to_email'], email['subject'], error_msg
             )
 
-async def test_smtp_connection(conn: Connection, test_email: str) -> Dict[str, Any]:
-    """Test SMTP configuration by sending a test email"""
+async def test_email_connection(conn: Connection, test_email: str) -> Dict[str, Any]:
+    """Test email configuration by sending a test email"""
     try:
-        logger.info(f"Testing SMTP connection, sending to {test_email}")
-        smtp_settings = await _get_smtp_settings(conn)
+        provider = await settings_service.get_setting(conn, 'email.provider', 'smtp')
+        logger.info(f"Testing email connection using provider: {provider}, sending to {test_email}")
 
-        # Log settings (without password)
-        logger.info(f"SMTP Settings - Host: {smtp_settings['host']}, Port: {smtp_settings['port']}, TLS: {smtp_settings['use_tls']}, User: {smtp_settings['username']}")
-
-        # Validate settings
-        if not smtp_settings['host']:
-            raise ValueError("SMTP host is not configured")
-        if not smtp_settings['username']:
-            raise ValueError("SMTP username is not configured")
-        if not smtp_settings['password']:
-            raise ValueError("SMTP password is not configured")
-
-        await _send_smtp_email(
-            smtp_settings,
+        await _send_email_via_provider(
+            conn,
+            provider=provider,
             to_email=test_email,
-            subject="SMTP Test Email",
-            plain_body="This is a test email from your Farm Management System. SMTP is configured correctly!",
-            html_body="<h2>SMTP Test Email</h2><p>This is a test email from your Farm Management System.</p><p><strong>SMTP is configured correctly!</strong></p>"
+            subject="Email Test - Farm Management System",
+            plain_body=f"This is a test email from your Farm Management System.\n\nProvider: {provider}\n\nEmail service is configured correctly!",
+            html_body=f"<h2>Email Test</h2><p>This is a test email from your Farm Management System.</p><p><strong>Provider:</strong> {provider}</p><p><strong>Email service is configured correctly!</strong></p>"
         )
 
-        logger.info(f"✅ Test email sent successfully to {test_email}")
-        return {"success": True, "message": f"Test email sent to {test_email}"}
+        logger.info(f"✅ Test email sent successfully to {test_email} via {provider}")
+        return {"success": True, "message": f"Test email sent to {test_email} via {provider}"}
     except Exception as e:
-        logger.error(f"❌ SMTP test failed: {str(e)}", exc_info=True)
+        logger.error(f"❌ Email test failed: {str(e)}", exc_info=True)
         return {"success": False, "message": str(e)}
 
 async def get_email_recipients(conn: Connection, notification_type: str) -> List[str]:
@@ -245,6 +244,41 @@ async def get_email_recipients(conn: Connection, notification_type: str) -> List
 
     return row['recipient_emails'] if row else []
 
+# ============================================================================
+# PROVIDER ROUTING
+# ============================================================================
+
+async def _send_email_via_provider(
+    conn: Connection,
+    provider: str,
+    to_email: str,
+    subject: str,
+    plain_body: str,
+    html_body: Optional[str] = None,
+    cc_emails: Optional[List[str]] = None
+):
+    """Route email to appropriate provider"""
+    provider = provider.lower()
+
+    if provider == 'smtp':
+        settings = await _get_smtp_settings(conn)
+        await _send_via_smtp(settings, to_email, subject, plain_body, html_body, cc_emails)
+    elif provider == 'sendgrid':
+        settings = await _get_sendgrid_settings(conn)
+        await _send_via_sendgrid(settings, to_email, subject, plain_body, html_body, cc_emails)
+    elif provider == 'mailgun':
+        settings = await _get_mailgun_settings(conn)
+        await _send_via_mailgun(settings, to_email, subject, plain_body, html_body, cc_emails)
+    elif provider == 'aws_ses':
+        settings = await _get_aws_ses_settings(conn)
+        await _send_via_aws_ses(settings, to_email, subject, plain_body, html_body, cc_emails)
+    else:
+        raise ValueError(f"Unknown email provider: {provider}")
+
+# ============================================================================
+# SMTP PROVIDER
+# ============================================================================
+
 async def _get_smtp_settings(conn: Connection) -> Dict[str, Any]:
     """Get SMTP configuration from settings"""
     return {
@@ -257,7 +291,7 @@ async def _get_smtp_settings(conn: Connection) -> Dict[str, Any]:
         'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
     }
 
-async def _send_smtp_email(
+async def _send_via_smtp(
     smtp_settings: Dict[str, Any],
     to_email: str,
     subject: str,
@@ -265,7 +299,15 @@ async def _send_smtp_email(
     html_body: Optional[str] = None,
     cc_emails: Optional[List[str]] = None
 ):
-    """Actually send email via SMTP"""
+    """Send email via SMTP"""
+    # Validate settings
+    if not smtp_settings['host']:
+        raise ValueError("SMTP host is not configured")
+    if not smtp_settings['username']:
+        raise ValueError("SMTP username is not configured")
+    if not smtp_settings['password']:
+        raise ValueError("SMTP password is not configured")
+
     # Create message
     if html_body:
         message = MIMEMultipart('alternative')
@@ -287,22 +329,18 @@ async def _send_smtp_email(
     # Port 465 = SSL/TLS (implicit encryption)
     # Port 587 = STARTTLS (explicit TLS upgrade)
     if port == 465:
-        # SSL/TLS on port 465
         use_tls = True
         start_tls = False
         logger.debug(f"Using SSL/TLS for port 465")
     elif port == 587:
-        # STARTTLS on port 587
         use_tls = False
         start_tls = True
         logger.debug(f"Using STARTTLS for port 587")
     else:
-        # Use user's TLS setting for other ports
         use_tls = smtp_settings.get('use_tls', False)
         start_tls = not use_tls
         logger.debug(f"Port {port}: use_tls={use_tls}, start_tls={start_tls}")
 
-    # Send via SMTP
     logger.debug(f"Connecting to {smtp_settings['host']}:{port} (use_tls={use_tls}, start_tls={start_tls})")
 
     await aiosmtplib.send(
@@ -315,3 +353,151 @@ async def _send_smtp_email(
         start_tls=start_tls,
         timeout=30
     )
+
+# ============================================================================
+# SENDGRID PROVIDER
+# ============================================================================
+
+async def _get_sendgrid_settings(conn: Connection) -> Dict[str, Any]:
+    """Get SendGrid configuration from settings"""
+    return {
+        'api_key': await settings_service.get_setting(conn, 'email.sendgrid_api_key', ''),
+        'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+    }
+
+async def _send_via_sendgrid(
+    sendgrid_settings: Dict[str, Any],
+    to_email: str,
+    subject: str,
+    plain_body: str,
+    html_body: Optional[str] = None,
+    cc_emails: Optional[List[str]] = None
+):
+    """Send email via SendGrid API"""
+    if not sendgrid_settings['api_key']:
+        raise ValueError("SendGrid API key is not configured")
+
+    # Build email payload
+    payload = {
+        "personalizations": [{
+            "to": [{"email": to_email}],
+        }],
+        "from": {
+            "email": sendgrid_settings['from_email'],
+            "name": sendgrid_settings['from_name']
+        },
+        "subject": subject,
+        "content": [
+            {"type": "text/plain", "value": plain_body}
+        ]
+    }
+
+    if html_body:
+        payload["content"].append({"type": "text/html", "value": html_body})
+
+    if cc_emails:
+        payload["personalizations"][0]["cc"] = [{"email": email} for email in cc_emails]
+
+    # Send via SendGrid API
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {sendgrid_settings['api_key']}",
+                "Content-Type": "application/json"
+            },
+            timeout=30
+        )
+
+        if response.status_code not in (200, 202):
+            raise Exception(f"SendGrid API error: {response.status_code} - {response.text}")
+
+    logger.debug(f"Email sent via SendGrid API to {to_email}")
+
+# ============================================================================
+# MAILGUN PROVIDER
+# ============================================================================
+
+async def _get_mailgun_settings(conn: Connection) -> Dict[str, Any]:
+    """Get Mailgun configuration from settings"""
+    return {
+        'api_key': await settings_service.get_setting(conn, 'email.mailgun_api_key', ''),
+        'domain': await settings_service.get_setting(conn, 'email.mailgun_domain', ''),
+        'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+    }
+
+async def _send_via_mailgun(
+    mailgun_settings: Dict[str, Any],
+    to_email: str,
+    subject: str,
+    plain_body: str,
+    html_body: Optional[str] = None,
+    cc_emails: Optional[List[str]] = None
+):
+    """Send email via Mailgun API"""
+    if not mailgun_settings['api_key']:
+        raise ValueError("Mailgun API key is not configured")
+    if not mailgun_settings['domain']:
+        raise ValueError("Mailgun domain is not configured")
+
+    # Build email payload
+    data = {
+        "from": f"{mailgun_settings['from_name']} <{mailgun_settings['from_email']}>",
+        "to": to_email,
+        "subject": subject,
+        "text": plain_body
+    }
+
+    if html_body:
+        data["html"] = html_body
+
+    if cc_emails:
+        data["cc"] = ", ".join(cc_emails)
+
+    # Send via Mailgun API
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"https://api.mailgun.net/v3/{mailgun_settings['domain']}/messages",
+            data=data,
+            auth=("api", mailgun_settings['api_key']),
+            timeout=30
+        )
+
+        if response.status_code != 200:
+            raise Exception(f"Mailgun API error: {response.status_code} - {response.text}")
+
+    logger.debug(f"Email sent via Mailgun API to {to_email}")
+
+# ============================================================================
+# AWS SES PROVIDER
+# ============================================================================
+
+async def _get_aws_ses_settings(conn: Connection) -> Dict[str, Any]:
+    """Get AWS SES configuration from settings"""
+    return {
+        'access_key': await settings_service.get_setting(conn, 'email.aws_access_key', ''),
+        'secret_key': await settings_service.get_setting(conn, 'email.aws_secret_key', ''),
+        'region': await settings_service.get_setting(conn, 'email.aws_region', 'us-east-1'),
+        'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+    }
+
+async def _send_via_aws_ses(
+    aws_settings: Dict[str, Any],
+    to_email: str,
+    subject: str,
+    plain_body: str,
+    html_body: Optional[str] = None,
+    cc_emails: Optional[List[str]] = None
+):
+    """Send email via AWS SES API"""
+    if not aws_settings['access_key']:
+        raise ValueError("AWS access key is not configured")
+    if not aws_settings['secret_key']:
+        raise ValueError("AWS secret key is not configured")
+
+    # For now, raise not implemented (AWS SES requires more complex auth)
+    raise NotImplementedError("AWS SES provider not yet implemented - use SendGrid or Mailgun")

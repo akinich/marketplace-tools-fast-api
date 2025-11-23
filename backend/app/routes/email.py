@@ -116,28 +116,28 @@ async def send_template_email(
             raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/test")
-async def test_smtp(
+async def test_email(
     request: SMTPTestRequest,
     current_user: CurrentUser = Depends(require_admin)
 ):
-    """Test SMTP configuration"""
-    logger.info(f"📧 SMTP test request from user {current_user.email} to {request.test_email}")
+    """Test email configuration"""
+    logger.info(f"📧 Email test request from user {current_user.email} to {request.test_email}")
 
     try:
         pool = get_db()
         async with pool.acquire() as conn:
-            result = await email_service.test_smtp_connection(conn, request.test_email)
+            result = await email_service.test_email_connection(conn, request.test_email)
 
             if not result['success']:
-                logger.warning(f"SMTP test failed: {result['message']}")
+                logger.warning(f"Email test failed: {result['message']}")
                 raise HTTPException(status_code=400, detail=result['message'])
 
-            logger.info(f"✅ SMTP test successful to {request.test_email}")
+            logger.info(f"✅ Email test successful to {request.test_email}")
             return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Unexpected error in SMTP test: {str(e)}", exc_info=True)
+        logger.error(f"❌ Unexpected error in email test: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 # ============================================================================
