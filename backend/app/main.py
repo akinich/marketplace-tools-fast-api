@@ -51,8 +51,17 @@ from app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True,  # Force reconfiguration
+    handlers=[
+        logging.StreamHandler()  # Ensure logs go to stdout
+    ]
 )
 logger = logging.getLogger(__name__)
+
+# Force unbuffered output for production environments
+import sys
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 
 
 # ============================================================================
@@ -69,6 +78,8 @@ async def lifespan(app: FastAPI):
     # STARTUP
     # ========================================================================
     logger.info("🚀 Starting Farm Management System API...")
+    logger.info(f"📊 Logging configured at level: {settings.LOG_LEVEL}")
+    logger.info(f"🌍 Environment: {settings.APP_ENV}")
     display_settings()
 
     try:
@@ -79,6 +90,7 @@ async def lifespan(app: FastAPI):
         start_scheduler()
 
         logger.info("✅ All services initialized successfully")
+        logger.info("📝 Logging is active - you should see this in your console!")
     except Exception as e:
         logger.error(f"❌ Failed to initialize services: {e}")
         raise

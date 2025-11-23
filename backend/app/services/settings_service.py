@@ -4,9 +4,12 @@ Version: 1.0.0
 Description: Service layer for system settings with caching and validation
 """
 import json
+import logging
 from typing import Any, Optional, Dict, List
 from datetime import datetime, timedelta
 from asyncpg import Connection
+
+logger = logging.getLogger(__name__)
 
 class SettingsCache:
     """In-memory cache for settings"""
@@ -151,6 +154,9 @@ async def update_setting(
     user_id: str
 ) -> Dict[str, Any]:
     """Update a setting value"""
+    logger.info(f"[SETTINGS] Starting update for setting: {key}")
+    logger.info(f"[SETTINGS] New value type: {type(value).__name__}, User ID: {user_id}")
+
     # Get current setting
     current = await conn.fetchrow(
         """
@@ -162,16 +168,25 @@ async def update_setting(
     )
 
     if not current:
+        logger.error(f"[SETTINGS] Setting '{key}' not found in database")
         raise ValueError(f"Setting '{key}' not found")
+
+    logger.info(f"[SETTINGS] Current value for '{key}': {current['setting_value']}")
 
     # Validate new value
     data_type = current['data_type']
     validation_rules = current['validation_rules']
 
-    validated_value = _validate_setting_value(value, data_type, validation_rules)
+    try:
+        validated_value = _validate_setting_value(value, data_type, validation_rules)
+        logger.info(f"[SETTINGS] Validated value for '{key}': {validated_value}")
+    except ValueError as e:
+        logger.error(f"[SETTINGS] Validation failed for '{key}': {e}")
+        raise
 
     # Convert to JSON string for storage
     json_value = json.dumps(validated_value)
+    logger.info(f"[SETTINGS] JSON value to store for '{key}': {json_value}")
 
     # Update setting
     updated = await conn.fetchrow(
@@ -187,6 +202,8 @@ async def update_setting(
         key
     )
 
+    logger.info(f"[SETTINGS] Database update successful for '{key}'")
+
     # Log the change
     await conn.execute(
         """
@@ -199,8 +216,13 @@ async def update_setting(
         user_id
     )
 
+    logger.info(f"[SETTINGS] Audit log entry created for '{key}'")
+
     # Clear cache
     _settings_cache.clear()
+    logger.info(f"[SETTINGS] Settings cache cleared")
+
+    logger.info(f"[SETTINGS] ✅ Successfully updated setting '{key}'")
 
     return dict(updated)
 
