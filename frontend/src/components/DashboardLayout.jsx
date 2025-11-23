@@ -509,21 +509,6 @@ export default function DashboardLayout() {
             </React.Fragment>
           );
         })}
-
-        <Divider sx={{ my: 1 }} />
-
-        {/* API Keys */}
-        <ListItem disablePadding>
-          <ListItemButton
-            selected={location.pathname === '/api-keys'}
-            onClick={() => navigate('/api-keys')}
-          >
-            <ListItemIcon>
-              <VpnKeyIcon />
-            </ListItemIcon>
-            <ListItemText primary="API Keys" />
-          </ListItemButton>
-        </ListItem>
       </List>
     </Box>
   );

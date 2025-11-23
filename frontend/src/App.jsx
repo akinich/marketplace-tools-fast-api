@@ -115,7 +115,7 @@ function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="webhooks" element={<WebhooksPage />} />
         <Route path="communication/smtp" element={<EmailManagementPage />} />
-        <Route path="api-keys" element={<APIKeysPage />} />
+        <Route path="communication/api-keys" element={<APIKeysPage />} />
         <Route path="inventory/*" element={<InventoryModule />} />
         <Route path="biofloc/*" element={<BioflocModule />} />
         <Route path="tickets/*" element={<TicketsModule />} />
