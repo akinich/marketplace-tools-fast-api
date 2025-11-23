@@ -13,6 +13,14 @@ v1.3.0 (2025-11-22):
   - Real-time ticket notifications (create, update, close)
   - Connection manager for tracking active WebSocket connections
   - Event emitters for broadcasting updates to clients
+  - Added SMTP Email Service with queue and template management
+  - Added email router for email operations (templates, queue, recipients, test)
+  - Integrated email queue processing into background scheduler (every 5 minutes)
+  - Email service supports HTML templates, retry logic, and recipient management
+  - Added API Key Management system
+  - New routes for API key CRUD operations
+  - Support for programmatic API access with scope-based permissions
+  - API key usage tracking and analytics
 
 v1.2.0 (2025-11-21):
   - Enhanced inventory item master module with new features
@@ -58,8 +66,17 @@ from app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True,  # Force reconfiguration
+    handlers=[
+        logging.StreamHandler()  # Ensure logs go to stdout
+    ]
 )
 logger = logging.getLogger(__name__)
+
+# Force unbuffered output for production environments
+import sys
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 
 
 # ============================================================================
@@ -76,6 +93,8 @@ async def lifespan(app: FastAPI):
     # STARTUP
     # ========================================================================
     logger.info("🚀 Starting Farm Management System API...")
+    logger.info(f"📊 Logging configured at level: {settings.LOG_LEVEL}")
+    logger.info(f"🌍 Environment: {settings.APP_ENV}")
     display_settings()
 
     try:
@@ -86,6 +105,7 @@ async def lifespan(app: FastAPI):
         start_scheduler()
 
         logger.info("✅ All services initialized successfully")
+        logger.info("📝 Logging is active - you should see this in your console!")
     except Exception as e:
         logger.error(f"❌ Failed to initialize services: {e}")
         raise
@@ -260,13 +280,14 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram, security, units, websocket
+from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram, security, units, webhooks, email, api_keys, websocket
 from app.routes import settings as settings_router
 
 # Mount routers
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin Panel"])
 app.include_router(security.router, prefix=f"{settings.API_PREFIX}/security", tags=["Security"])
+app.include_router(api_keys.router, prefix=f"{settings.API_PREFIX}", tags=["API Keys"])
 app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
 app.include_router(units.router, prefix=f"{settings.API_PREFIX}", tags=["Units"])
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
@@ -274,6 +295,8 @@ app.include_router(biofloc.router, tags=["Biofloc"])
 app.include_router(tickets.router, prefix=f"{settings.API_PREFIX}/tickets", tags=["Tickets"])
 app.include_router(development.router, prefix=f"{settings.API_PREFIX}/development", tags=["Development"])
 app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram Notifications"])
+app.include_router(webhooks.router, prefix=f"{settings.API_PREFIX}", tags=["Webhooks"])
+app.include_router(email.router, prefix=f"{settings.API_PREFIX}", tags=["Email"])
 app.include_router(docs.router, prefix=f"{settings.API_PREFIX}", tags=["Documentation"])
 app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settings", tags=["Settings"])
 app.include_router(websocket.router, tags=["WebSocket"])

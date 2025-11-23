@@ -2,11 +2,18 @@
 ================================================================================
 Farm Management System - Authentication Dependencies
 ================================================================================
-Version: 1.2.0
-Last Updated: 2025-11-17
+Version: 1.3.0
+Last Updated: 2025-11-22
 
 Changelog:
 ----------
+v1.3.0 (2025-11-22):
+  - Added API key authentication support
+  - New dependency: require_api_key for API key authentication
+  - New dependency: require_api_key_scope for scope-based authorization
+  - New dependency: get_current_user_or_api_key for dual auth support
+  - Integration with API key service for verification and logging
+
 v1.2.0 (2025-11-17):
   - CRITICAL: Added missing role_id field to CurrentUser initialization
   - Fixed Pydantic validation error for role_id field requirement
@@ -26,7 +33,7 @@ v1.0.0 (2025-11-17):
 ================================================================================
 """
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from jose import JWTError
@@ -34,6 +41,7 @@ from jose import JWTError
 from app.auth.jwt import verify_access_token
 from app.database import get_db, fetch_one
 from app.schemas.auth import CurrentUser
+from app.services import api_key_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -306,3 +314,163 @@ async def get_current_user_optional(
         return await get_current_user(credentials.credentials)
     except HTTPException:
         return None
+
+
+# ============================================================================
+# API KEY AUTHENTICATION
+# ============================================================================
+
+
+async def require_api_key(
+    request: Request,
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+) -> dict:
+    """
+    Require valid API key for route access.
+
+    Usage:
+        @router.get("/api/inventory")
+        async def get_inventory(user_info: dict = Depends(require_api_key)):
+            # user_info contains: api_key_id, user_id, email, role_name, scopes
+
+    Args:
+        request: FastAPI request object
+        x_api_key: API key from X-API-Key header
+
+    Returns:
+        Dictionary with user info and API key details
+
+    Raises:
+        HTTPException: If API key is missing or invalid
+    """
+    if not x_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required. Provide X-API-Key header.",
+        )
+
+    # Verify API key
+    db = get_db()
+    user_info = await api_key_service.verify_api_key(db, x_api_key)
+
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired API key",
+        )
+
+    # Log usage (non-blocking - errors are logged but don't fail the request)
+    try:
+        await api_key_service.log_api_key_usage(
+            db,
+            api_key_id=user_info['api_key_id'],
+            endpoint=str(request.url.path),
+            method=request.method,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get('user-agent')
+        )
+    except Exception as e:
+        logger.warning(f"Failed to log API key usage: {e}")
+
+    return user_info
+
+
+def require_api_key_scope(required_scope: str):
+    """
+    Factory for scope-based API key authentication.
+
+    Usage:
+        @router.post("/api/inventory")
+        async def create_item(user_info: dict = Depends(require_api_key_scope("inventory:write"))):
+            # Only API keys with inventory:write scope can access
+
+    Args:
+        required_scope: Required scope (e.g., "inventory:read", "tickets:write")
+
+    Returns:
+        Dependency function that checks API key and scope
+    """
+    async def dependency(
+        user_info: dict = Depends(require_api_key)
+    ) -> dict:
+        """Check if API key has required scope"""
+        if not await api_key_service.check_scope(user_info['scopes'], required_scope):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing required scope: {required_scope}",
+            )
+        return user_info
+
+    return dependency
+
+
+async def get_current_user_or_api_key(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+) -> dict:
+    """
+    Allow both JWT and API key authentication.
+    Tries API key first, falls back to JWT.
+
+    Usage:
+        @router.get("/api/data")
+        async def get_data(user: dict = Depends(get_current_user_or_api_key)):
+            # Works with both JWT tokens and API keys
+
+    Args:
+        request: FastAPI request object
+        credentials: Optional JWT Bearer credentials
+        x_api_key: Optional API key from header
+
+    Returns:
+        Dictionary with user info (format varies by auth method)
+
+    Raises:
+        HTTPException: If neither authentication method is valid
+    """
+    # Try API key first
+    if x_api_key:
+        db = get_db()
+        user_info = await api_key_service.verify_api_key(db, x_api_key)
+        if user_info:
+            # Log usage
+            try:
+                await api_key_service.log_api_key_usage(
+                    db,
+                    api_key_id=user_info['api_key_id'],
+                    endpoint=str(request.url.path),
+                    method=request.method,
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get('user-agent')
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log API key usage: {e}")
+
+            return {
+                'user_id': user_info['user_id'],
+                'email': user_info['email'],
+                'role': user_info['role_name'],
+                'auth_method': 'api_key',
+                'api_key_id': user_info['api_key_id']
+            }
+
+    # Fall back to JWT
+    if credentials:
+        try:
+            current_user = await get_current_user(credentials.credentials)
+            return {
+                'user_id': current_user.id,
+                'email': current_user.email,
+                'role': current_user.role,
+                'auth_method': 'jwt'
+            }
+        except HTTPException:
+            pass
+
+    # Neither authentication method worked
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required. Provide either JWT token or API key.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )

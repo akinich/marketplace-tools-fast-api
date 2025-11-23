@@ -12,6 +12,8 @@ v1.2.0 (2025-11-22):
   - Emit ticket.created event when new tickets are created
   - Emit ticket.updated event when tickets are updated or closed
   - Real-time broadcasting to all connected clients
+  - Added webhook event triggers for ticket lifecycle events
+  - Trigger ticket.created, ticket.updated, ticket.closed webhook events
 
 v1.1.0 (2025-11-20):
   - Added DELETE /tickets/{ticket_id} endpoint for ticket deletion
@@ -63,7 +65,8 @@ from app.schemas.tickets import (
 )
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
-from app.services import tickets_service
+from app.services import tickets_service, webhook_service
+from app.database import get_db
 from app.websocket import events as ws_events
 
 router = APIRouter()
@@ -138,7 +141,7 @@ async def get_ticket(
 @router.post("", response_model=TicketDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_ticket(
     request: CreateTicketRequest,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Create a new ticket.
@@ -156,6 +159,26 @@ async def create_ticket(
         "type": ticket.get('type')
     })
 
+    # Trigger webhook event
+    try:
+        pool = get_db()
+        async with pool.acquire() as conn:
+            await webhook_service.trigger_event(
+                conn,
+                'ticket.created',
+                {
+                    "id": ticket.id,
+                    "title": ticket.title,
+                    "ticket_type": ticket.ticket_type,
+                    "priority": ticket.priority,
+                    "status": ticket.status,
+                    "created_by": current_user.email,
+                }
+            )
+    except Exception as e:
+        # Don't fail ticket creation if webhook fails
+        pass
+
     return ticket
 
 
@@ -163,7 +186,7 @@ async def create_ticket(
 async def update_ticket(
     ticket_id: int,
     request: UpdateTicketRequest,
-    current_user: CurrentUser = Depends(get_current_user),
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Update a ticket.
@@ -186,6 +209,26 @@ async def update_ticket(
         "status": ticket.get('status'),
         "type": ticket.get('type')
     })
+
+    # Trigger webhook event
+    try:
+        pool = get_db()
+        async with pool.acquire() as conn:
+            await webhook_service.trigger_event(
+                conn,
+                'ticket.updated',
+                {
+                    "id": ticket.id,
+                    "title": ticket.title,
+                    "ticket_type": ticket.ticket_type,
+                    "priority": ticket.priority,
+                    "status": ticket.status,
+                    "updated_by": current_user.email,
+                }
+            )
+    except Exception as e:
+        # Don't fail ticket update if webhook fails
+        pass
 
     return ticket
 
@@ -215,6 +258,26 @@ async def admin_update_ticket(
         "type": ticket.get('type')
     })
 
+    # Trigger webhook event
+    try:
+        pool = get_db()
+        async with pool.acquire() as conn:
+            await webhook_service.trigger_event(
+                conn,
+                'ticket.updated',
+                {
+                    "id": ticket.id,
+                    "title": ticket.title,
+                    "ticket_type": ticket.ticket_type,
+                    "priority": ticket.priority,
+                    "status": ticket.status,
+                    "updated_by": admin.email,
+                }
+            )
+    except Exception as e:
+        # Don't fail ticket update if webhook fails
+        pass
+
     return ticket
 
 
@@ -222,7 +285,7 @@ async def admin_update_ticket(
 async def close_ticket(
     ticket_id: int,
     request: Optional[CloseTicketRequest] = None,
-    admin: CurrentUser = Depends(require_admin),
+    admin: CurrentUser = Depends(require_admin)
 ):
     """
     Close a ticket.
@@ -244,6 +307,25 @@ async def close_ticket(
         "status": ticket.get('status'),
         "type": ticket.get('type')
     })
+
+    # Trigger webhook event
+    try:
+        pool = get_db()
+        async with pool.acquire() as conn:
+            await webhook_service.trigger_event(
+                conn,
+                'ticket.closed',
+                {
+                    "id": ticket.id,
+                    "title": ticket.title,
+                    "ticket_type": ticket.ticket_type,
+                    "priority": ticket.priority,
+                    "closed_by": admin.email,
+                }
+            )
+    except Exception as e:
+        # Don't fail ticket close if webhook fails
+        pass
 
     return ticket
 

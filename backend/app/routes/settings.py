@@ -197,6 +197,9 @@ async def update_setting(
     current_user: CurrentUser = Depends(require_admin),
 ):
     """Update a setting value"""
+    logger.info(f"[SETTINGS API] Received update request for setting: {setting_key}")
+    logger.info(f"[SETTINGS API] Request value: {request.setting_value}, User: {current_user.email}")
+
     try:
         pool = get_db()
         async with pool.acquire() as conn:
@@ -206,16 +209,16 @@ async def update_setting(
                 request.setting_value,
                 current_user.id
             )
-            logger.info(f"Setting '{setting_key}' updated by user {current_user.email}")
+            logger.info(f"[SETTINGS API] ✅ Setting '{setting_key}' successfully updated by user {current_user.email}")
             return _convert_setting_row(updated)
     except ValueError as e:
-        logger.warning(f"Validation error updating setting {setting_key}: {e}")
+        logger.warning(f"[SETTINGS API] ⚠️ Validation error updating setting {setting_key}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to update setting {setting_key}: {e}")
+        logger.error(f"[SETTINGS API] ❌ Failed to update setting {setting_key}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update setting: {setting_key}"

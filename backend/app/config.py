@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Configuration Management
 ================================================================================
-Version: 1.1.0
-Last Updated: 2025-11-17
+Version: 1.2.0
+Last Updated: 2025-11-23
 
 Changelog:
 ----------
+v1.2.0 (2025-11-23):
+  - Migrated TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY to database
+  - Changed these settings to optional with empty defaults (fallback only)
+  - Added comprehensive documentation for database-first configuration
+  - Settings now loaded from database first, with env fallback
+
 v1.1.0 (2025-11-17):
   - Removed Supabase-specific configuration fields
   - Simplified to database-only configuration
@@ -50,13 +56,19 @@ class Settings(BaseSettings):
     # ========================================================================
     # SUPABASE CONFIGURATION (for password reset emails)
     # ========================================================================
-    SUPABASE_URL: str = Field(..., description="Supabase project URL")
-    SUPABASE_SERVICE_KEY: str = Field(..., description="Supabase service role key")
+    # NOTE: These settings are now stored in the database (system_settings table)
+    # The values here serve as FALLBACK ONLY if database settings are not available
+    # Recommended: Leave empty and configure via Settings UI or database
+    SUPABASE_URL: str = Field(default="", description="Supabase project URL (fallback only - use database)")
+    SUPABASE_SERVICE_KEY: str = Field(default="", description="Supabase service role key (fallback only - use database)")
 
     # ========================================================================
     # TELEGRAM BOT CONFIGURATION
     # ========================================================================
-    TELEGRAM_BOT_TOKEN: str = Field(default="", description="Telegram bot token for notifications")
+    # NOTE: This setting is now stored in the database (system_settings table)
+    # The value here serves as FALLBACK ONLY if database setting is not available
+    # Recommended: Leave empty and configure via Settings UI or database
+    TELEGRAM_BOT_TOKEN: str = Field(default="", description="Telegram bot token (fallback only - use database)")
 
     # ========================================================================
     # JWT AUTHENTICATION

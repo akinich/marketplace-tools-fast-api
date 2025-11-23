@@ -2,11 +2,27 @@
  * ============================================================================
  * Farm Management System - Settings Page
  * ============================================================================
- * Version: 1.0.0
- * Last Updated: 2025-11-22
+ * Version: 1.3.0
+ * Last Updated: 2025-11-23
  *
  * Changelog:
  * ----------
+ * v1.3.0 (2025-11-23):
+ *   - Added email provider dropdown (smtp, sendgrid, resend, brevo, mailgun)
+ *   - Conditional field display - only show relevant API keys for selected provider
+ *   - Hide SMTP fields when using API providers and vice versa
+ *
+ * v1.2.0 (2025-11-23):
+ *   - Added Telegram tab for telegram_bot_token configuration
+ *   - Added Integrations tab for Supabase URL and service key
+ *   - Support for database-first settings with environment fallback
+ *
+ * v1.1.0 (2025-11-22):
+ *   - Added Audit Log tab to view settings change history
+ *   - Display audit log with setting key, old/new values, user, and timestamp
+ *   - Auto-load audit logs when tab is selected
+ *   - Formatted value display with monospace font for readability
+ *
  * v1.0.0 (2025-11-22):
  *   - Initial settings page
  *   - Tabbed interface for setting categories
@@ -31,16 +47,30 @@ import {
   Grid,
   Alert,
   CircularProgress,
-  Divider
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { settingsAPI } from '../api/settings';
 
 const CATEGORY_LABELS = {
   auth: 'Authentication',
+  telegram: 'Telegram',
+  integrations: 'Integrations',
   email: 'Email / SMTP',
   webhooks: 'Webhooks',
   app: 'Application',
-  features: 'Feature Flags'
+  features: 'Feature Flags',
+  audit: 'Audit Log'
 };
 
 function SettingsPage() {
@@ -52,10 +82,18 @@ function SettingsPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    if (currentTab === 'audit') {
+      loadAuditLogs();
+    }
+  }, [currentTab]);
 
   const loadSettings = async () => {
     try {
@@ -86,6 +124,20 @@ function SettingsPage() {
       console.error('Failed to load settings:', error);
       setError(error.response?.data?.detail || 'Failed to load settings');
       setLoading(false);
+    }
+  };
+
+  const loadAuditLogs = async () => {
+    try {
+      setLoadingAuditLogs(true);
+      setError(null);
+      const logs = await settingsAPI.getAuditLog(null, 100);
+      setAuditLogs(logs);
+      setLoadingAuditLogs(false);
+    } catch (error) {
+      console.error('Failed to load audit logs:', error);
+      setError(error.response?.data?.detail || 'Failed to load audit logs');
+      setLoadingAuditLogs(false);
     }
   };
 
@@ -188,9 +240,78 @@ function SettingsPage() {
     setSuccess(null);
   };
 
+  const formatValue = (value) => {
+    if (value === null || value === undefined) {
+      return 'null';
+    }
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+    return String(value);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+
   const renderSettingInput = (setting) => {
     const value = formData[setting.setting_key];
     const validationRules = setting.validation_rules || {};
+
+    // Special case: Email provider dropdown
+    if (setting.setting_key === 'email.provider') {
+      return (
+        <FormControl fullWidth>
+          <InputLabel>Email Provider</InputLabel>
+          <Select
+            value={value || 'smtp'}
+            label="Email Provider"
+            onChange={(e) => handleChange(setting.setting_key, e.target.value)}
+          >
+            <MenuItem value="smtp">SMTP (for Railway, VPS)</MenuItem>
+            <MenuItem value="sendgrid">SendGrid (100/day free)</MenuItem>
+            <MenuItem value="resend">Resend (100/day free)</MenuItem>
+            <MenuItem value="brevo">Brevo (300/day free - Best!)</MenuItem>
+            <MenuItem value="mailgun">Mailgun (5000/3mo free)</MenuItem>
+          </Select>
+        </FormControl>
+      );
+    }
+
+    // Conditionally hide provider-specific API key fields based on selected provider
+    const selectedProvider = formData['email.provider'] || 'smtp';
+
+    // Hide SendGrid API key if not using SendGrid
+    if (setting.setting_key === 'email.sendgrid_api_key' && selectedProvider !== 'sendgrid') {
+      return null;
+    }
+
+    // Hide Resend API key if not using Resend
+    if (setting.setting_key === 'email.resend_api_key' && selectedProvider !== 'resend') {
+      return null;
+    }
+
+    // Hide Brevo API key if not using Brevo
+    if (setting.setting_key === 'email.brevo_api_key' && selectedProvider !== 'brevo') {
+      return null;
+    }
+
+    // Hide Mailgun fields if not using Mailgun
+    if ((setting.setting_key === 'email.mailgun_api_key' || setting.setting_key === 'email.mailgun_domain')
+        && selectedProvider !== 'mailgun') {
+      return null;
+    }
+
+    // Hide SMTP fields if not using SMTP
+    if ((setting.setting_key === 'email.smtp_host' ||
+         setting.setting_key === 'email.smtp_port' ||
+         setting.setting_key === 'email.smtp_user' ||
+         setting.setting_key === 'email.smtp_password' ||
+         setting.setting_key === 'email.smtp_use_tls')
+        && selectedProvider !== 'smtp') {
+      return null;
+    }
 
     if (setting.data_type === 'boolean') {
       return (
@@ -234,6 +355,57 @@ function SettingsPage() {
             : ''
         }
       />
+    );
+  };
+
+  const renderAuditLog = () => {
+    if (loadingAuditLogs) {
+      return (
+        <Box display="flex" justifyContent="center" alignItems="center" py={4}>
+          <CircularProgress />
+        </Box>
+      );
+    }
+
+    if (auditLogs.length === 0) {
+      return (
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+          No audit log entries found.
+        </Typography>
+      );
+    }
+
+    return (
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Setting Key</TableCell>
+              <TableCell>Old Value</TableCell>
+              <TableCell>New Value</TableCell>
+              <TableCell>Changed By</TableCell>
+              <TableCell>Changed At</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {auditLogs.map((log) => (
+              <TableRow key={log.id}>
+                <TableCell>
+                  <Chip label={log.setting_key} size="small" variant="outlined" />
+                </TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                  {formatValue(log.old_value)}
+                </TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
+                  {formatValue(log.new_value)}
+                </TableCell>
+                <TableCell>{log.changed_by}</TableCell>
+                <TableCell>{formatDate(log.changed_at)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     );
   };
 
@@ -287,38 +459,50 @@ function SettingsPage() {
           </Tabs>
         </Box>
 
-        <Grid container spacing={3}>
-          {categorySettings.map(setting => (
-            <Grid item xs={12} md={6} key={setting.setting_key}>
-              {renderSettingInput(setting)}
+        {currentTab === 'audit' ? (
+          renderAuditLog()
+        ) : (
+          <>
+            <Grid container spacing={3}>
+              {categorySettings.map(setting => {
+                const input = renderSettingInput(setting);
+                // Don't render grid item if input is null (hidden field)
+                if (input === null) return null;
+
+                return (
+                  <Grid item xs={12} md={6} key={setting.setting_key}>
+                    {input}
+                  </Grid>
+                );
+              })}
             </Grid>
-          ))}
-        </Grid>
 
-        {categorySettings.length === 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-            No settings available in this category.
-          </Typography>
+            {categorySettings.length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                No settings available in this category.
+              </Typography>
+            )}
+
+            <Divider sx={{ my: 3 }} />
+
+            <Box display="flex" justifyContent="flex-end" gap={2}>
+              <Button
+                variant="outlined"
+                onClick={handleReset}
+                disabled={!hasChanges || saving}
+              >
+                Reset
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                disabled={!hasChanges || saving}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </Box>
+          </>
         )}
-
-        <Divider sx={{ my: 3 }} />
-
-        <Box display="flex" justifyContent="flex-end" gap={2}>
-          <Button
-            variant="outlined"
-            onClick={handleReset}
-            disabled={!hasChanges || saving}
-          >
-            Reset
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </Box>
       </Paper>
     </Container>
   );

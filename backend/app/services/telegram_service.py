@@ -58,7 +58,7 @@ from decimal import Decimal
 
 from fastapi import HTTPException, status
 
-from app.database import fetch_one, fetch_all, execute_query
+from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -66,24 +66,79 @@ logger = logging.getLogger(__name__)
 # Telegram Bot API base URL
 TELEGRAM_API_BASE = "https://api.telegram.org/bot"
 
+# Import settings helper for database-first configuration
+try:
+    from app.utils.settings_helper import get_telegram_bot_token
+except ImportError:
+    # Fallback if helper not available
+    logger.warning("Settings helper not available, using direct env access")
+    get_telegram_bot_token = None
+
 
 # ============================================================================
 # BOT INITIALIZATION
 # ============================================================================
 
-def get_bot_token() -> Optional[str]:
-    """Get the bot token from settings"""
-    token = settings.TELEGRAM_BOT_TOKEN
+async def get_bot_token_from_db_or_env() -> Optional[str]:
+    """
+    Get the bot token with database-first approach and env fallback.
+
+    Priority:
+    1. Database: system_settings.telegram_bot_token
+    2. Environment: TELEGRAM_BOT_TOKEN from settings
+    3. Default: None
+
+    Returns:
+        Telegram bot token or None if not configured
+    """
+    try:
+        # Try to get database connection
+        pool = get_db()
+        async with pool.acquire() as conn:
+            if get_telegram_bot_token is not None:
+                # Use helper function with database-first approach
+                token = await get_telegram_bot_token(conn)
+            else:
+                # Fallback to environment variable only
+                logger.debug("Using environment variable fallback for TELEGRAM_BOT_TOKEN")
+                token = settings.TELEGRAM_BOT_TOKEN if settings.TELEGRAM_BOT_TOKEN else None
+    except Exception as e:
+        # If database is unavailable, fall back to environment variable
+        logger.warning(
+            f"⚠️ Database unavailable for Telegram token lookup: {e}. "
+            f"Falling back to environment variable."
+        )
+        token = settings.TELEGRAM_BOT_TOKEN if settings.TELEGRAM_BOT_TOKEN else None
+
     if not token:
-        logger.warning("TELEGRAM_BOT_TOKEN not configured")
-        return None
+        logger.warning("⚠️ TELEGRAM_BOT_TOKEN not configured in database or environment")
+    else:
+        logger.debug(f"✅ Telegram bot token loaded (length: {len(token)} chars)")
+
     return token
 
 
-def get_api_url(method: str) -> Optional[str]:
-    """Get the full API URL for a Telegram method"""
-    token = get_bot_token()
+def get_bot_token() -> Optional[str]:
+    """
+    Synchronous wrapper for backward compatibility.
+
+    DEPRECATED: Use get_bot_token_from_db_or_env() in async contexts.
+    This function only checks environment variables.
+    """
+    token = settings.TELEGRAM_BOT_TOKEN
     if not token:
+        logger.debug("TELEGRAM_BOT_TOKEN not found in environment (sync access)")
+    return token if token else None
+
+
+async def get_api_url(method: str) -> Optional[str]:
+    """
+    Get the full API URL for a Telegram method.
+    Uses database-first approach to get bot token.
+    """
+    token = await get_bot_token_from_db_or_env()
+    if not token:
+        logger.error(f"Cannot build API URL for method '{method}': Bot token not configured")
         return None
     return f"{TELEGRAM_API_BASE}{token}/{method}"
 
