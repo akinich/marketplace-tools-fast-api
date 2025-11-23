@@ -3,6 +3,7 @@ Email API Routes
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+import logging
 
 from app.database import get_db
 from app.auth.dependencies import require_admin
@@ -18,6 +19,7 @@ from app.models.email import (
 )
 from app.services import email_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/email", tags=["Email"])
 
 # ============================================================================
@@ -119,14 +121,24 @@ async def test_smtp(
     current_user: CurrentUser = Depends(require_admin)
 ):
     """Test SMTP configuration"""
-    pool = get_db()
-    async with pool.acquire() as conn:
-        result = await email_service.test_smtp_connection(conn, request.test_email)
+    logger.info(f"📧 SMTP test request from user {current_user.email} to {request.test_email}")
 
-        if not result['success']:
-            raise HTTPException(status_code=400, detail=result['message'])
+    try:
+        pool = get_db()
+        async with pool.acquire() as conn:
+            result = await email_service.test_smtp_connection(conn, request.test_email)
 
-        return result
+            if not result['success']:
+                logger.warning(f"SMTP test failed: {result['message']}")
+                raise HTTPException(status_code=400, detail=result['message'])
+
+            logger.info(f"✅ SMTP test successful to {request.test_email}")
+            return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Unexpected error in SMTP test: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 # ============================================================================
 # Email Recipients
