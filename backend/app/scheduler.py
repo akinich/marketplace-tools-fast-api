@@ -222,10 +222,10 @@ def start_scheduler():
             max_instances=1,
         )
 
-        # Task 4: Process webhook delivery queue every 2 minutes
+        # Task 4: Process webhook delivery queue every 1 minute
         scheduler.add_job(
             process_webhook_queue,
-            trigger=IntervalTrigger(minutes=2),
+            trigger=IntervalTrigger(minutes=1),
             id="process_webhook_queue",
             name="Process webhook delivery queue",
             replace_existing=True,
@@ -248,7 +248,7 @@ def start_scheduler():
         logger.info("   - Expire reservations: Every 15 minutes")
         logger.info("   - Low stock first alerts: Every hour")
         logger.info("   - Low stock daily summary: Daily at 9:00 AM")
-        logger.info("   - Process webhook queue: Every 2 minutes")
+        logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
 
     except Exception as e:
