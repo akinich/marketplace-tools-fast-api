@@ -9,6 +9,9 @@
  *   - Integrated WebSocket real-time notifications
  *   - Show toast notifications for ticket created/updated events
  *   - Listen for user online/offline presence updates
+ *   - Removed hardcoded API Keys menu item (now under Communication module)
+ *   - API Keys accessible via Communication > API Keys in hierarchical navigation
+ *   - Cleaned up navigation structure for better module organization
  *
  * v1.9.0 (2025-11-23):
  *   - Added API Keys menu item to sidebar navigation

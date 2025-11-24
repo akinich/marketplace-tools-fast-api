@@ -1,8 +1,16 @@
 /**
  * Main App Component
- * Version: 1.3.0
+ * Version: 1.4.0
  *
  * Changelog:
+ * v1.4.0 (2025-11-23):
+ *   - Migrated all Communication routes to /communication/* pattern
+ *   - Added /communication/telegram route for Telegram settings
+ *   - Updated /webhooks to /communication/webhooks
+ *   - Updated /api-keys to /communication/api-keys
+ *   - Added /communication/websockets route for WebSocket settings
+ *   - All Communication modules now properly namespaced under parent route
+ *
  * v1.3.0 (2025-11-22):
  *   - Integrated WebSocket service for real-time notifications
  *   - Auto-connect/disconnect WebSocket based on authentication state
@@ -32,9 +40,15 @@ import DashboardLayout from './components/DashboardLayout';
 import DashboardHome from './pages/DashboardHome';
 import AdminPanel from './pages/AdminPanel';
 import SettingsPage from './pages/SettingsPage';
-import WebhooksPage from './pages/WebhooksPage';
+
+// Communication Module Pages
+import TelegramSettings from './pages/TelegramSettings';
 import EmailManagementPage from './pages/EmailManagementPage';
+import WebhooksPage from './pages/WebhooksPage';
 import APIKeysPage from './pages/APIKeysPage';
+import WebSocketSettingsPage from './pages/WebSocketSettingsPage';
+
+// Other Module Pages
 import InventoryModule from './pages/InventoryModule';
 import BioflocModule from './pages/BioflocModule';
 import TicketsModule from './pages/TicketsModule';
@@ -113,9 +127,15 @@ function App() {
         <Route path="profile" element={<UserProfilePage />} />
         <Route path="admin/*" element={<AdminPanel />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="communication/webhooks" element={<WebhooksPage />} />
+
+        {/* Communication Module Routes */}
+        <Route path="communication/telegram" element={<TelegramSettings />} />
         <Route path="communication/smtp" element={<EmailManagementPage />} />
+        <Route path="communication/webhooks" element={<WebhooksPage />} />
         <Route path="communication/api-keys" element={<APIKeysPage />} />
+        <Route path="communication/websockets" element={<WebSocketSettingsPage />} />
+
+        {/* Other Module Routes */}
         <Route path="inventory/*" element={<InventoryModule />} />
         <Route path="biofloc/*" element={<BioflocModule />} />
         <Route path="tickets/*" element={<TicketsModule />} />
