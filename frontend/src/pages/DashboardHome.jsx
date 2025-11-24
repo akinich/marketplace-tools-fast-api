@@ -1,10 +1,15 @@
 /**
  * Dashboard Home Page - Role-Based Dynamic Dashboard
- * Version: 2.0.0
+ * Version: 2.1.0
  * Last Updated: 2025-11-22
  *
  * Changelog:
  * ----------
+ * v2.1.0 (2025-11-22):
+ *   - Integrated WebSocket real-time dashboard updates
+ *   - Auto-refetch data when dashboard.update event is received
+ *   - Maintains 60-second polling as fallback
+ *
  * v2.0.0 (2025-11-22):
  *   - BREAKING: Complete rewrite for role-based dynamic widgets
  *   - Widgets now rendered based on user's module access
@@ -20,7 +25,7 @@
  *   - Initial dashboard home page
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from 'react-query';
 import {
   Box,
@@ -48,6 +53,7 @@ import {
 import { dashboardAPI } from '../api';
 import { formatCurrency } from '../utils/formatters';
 import useAuthStore from '../store/authStore';
+import websocketService from '../services/websocket';
 
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
   <Card sx={{ height: '100%' }}>
@@ -83,9 +89,24 @@ const SectionHeader = ({ title, icon: Icon, color }) => (
 
 export default function DashboardHome() {
   const { user } = useAuthStore();
-  const { data: widgets, isLoading, error } = useQuery('dashboardWidgets', dashboardAPI.getWidgets, {
+  const { data: widgets, isLoading, error, refetch } = useQuery('dashboardWidgets', dashboardAPI.getWidgets, {
     refetchInterval: 60000, // Refresh every minute
   });
+
+  // Listen for WebSocket dashboard updates
+  useEffect(() => {
+    const handleDashboardUpdate = (data) => {
+      console.log('Dashboard update received via WebSocket');
+      // Refetch data when update is received
+      refetch();
+    };
+
+    websocketService.on('dashboard.update', handleDashboardUpdate);
+
+    return () => {
+      websocketService.off('dashboard.update', handleDashboardUpdate);
+    };
+  }, [refetch]);
 
   if (isLoading) {
     return (

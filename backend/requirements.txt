@@ -1,11 +1,16 @@
 # ============================================================================
 # Farm Management System - Backend Dependencies
 # ============================================================================
-# Version: 1.3.0
+# Version: 1.4.0
 # Created: 2025-11-17
 #
 # Changelog:
 # ----------
+# v1.4.0 (2025-11-22):
+#   - Added aiosmtplib==3.0.1 for SMTP email sending
+#   - Added jinja2==3.1.2 for email template rendering
+#   - SMTP Email Service implementation with queue and templates
+#
 # v1.3.0 (2025-11-21):
 #   - BREAKING: Removed python-telegram-bot library
 #   - Telegram notifications now use direct HTTP API calls via httpx
@@ -67,6 +72,10 @@ aiofiles==23.2.1
 
 # Background Tasks & Scheduling
 APScheduler==3.10.4
+
+# Email - SMTP & Templates
+aiosmtplib==3.0.1
+jinja2==3.1.2
 
 # Telegram Bot - uses httpx (already included above) for direct API calls
 # No additional library needed

@@ -1,10 +1,25 @@
 /**
  * Dashboard Layout with Sidebar Navigation
- * Version: 1.7.0
- * Last Updated: 2025-11-22
+ * Version: 1.10.0
+ * Last Updated: 2025-11-23
  *
  * Changelog:
  * ----------
+ * v1.10.0 (2025-11-23):
+ *   - Integrated WebSocket real-time notifications
+ *   - Show toast notifications for ticket created/updated events
+ *   - Listen for user online/offline presence updates
+ *
+ * v1.9.0 (2025-11-23):
+ *   - Added API Keys menu item to sidebar navigation
+ *   - Added VpnKey icon for API keys section
+ *
+ * v1.8.0 (2025-11-23):
+ *   - Fixed parent module navigation behavior
+ *   - Parent modules with sub-modules now only expand/collapse (no navigation)
+ *   - Prevents page refresh when clicking on Communication or other parent modules
+ *   - Added Communication module icon and route mappings
+ *
  * v1.7.0 (2025-11-22):
  *   - Added Settings menu item to sidebar navigation (Admin only)
  *   - Settings accessible between Dashboard and dynamic modules
@@ -82,6 +97,8 @@ import {
   Science as BioflocIcon,
   ConfirmationNumber as TicketsIcon,
   Code as DevelopmentIcon,
+  Campaign as CommunicationIcon,
+  VpnKey as VpnKeyIcon,
   AccountCircle,
   Logout,
   Lock,
@@ -95,6 +112,7 @@ import { useSnackbar } from 'notistack';
 
 import useAuthStore from '../store/authStore';
 import { dashboardAPI } from '../api';
+import websocketService from '../services/websocket';
 
 const DRAWER_WIDTH = 260;
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 2 minutes in milliseconds (for testing)
@@ -231,6 +249,45 @@ export default function DashboardLayout() {
     fetchModules();
   }, []);
 
+  // Set up WebSocket event listeners for real-time notifications
+  useEffect(() => {
+    // Listen for ticket created events
+    const handleTicketCreated = (data) => {
+      enqueueSnackbar(`New ticket created: ${data.title}`, {
+        variant: 'info',
+        autoHideDuration: 5000
+      });
+    };
+
+    // Listen for ticket updated events
+    const handleTicketUpdated = (data) => {
+      enqueueSnackbar(`Ticket updated: ${data.title}`, {
+        variant: 'info',
+        autoHideDuration: 5000
+      });
+    };
+
+    // Listen for notifications
+    const handleNotification = (data) => {
+      enqueueSnackbar(data.message, {
+        variant: data.type || 'info',
+        autoHideDuration: 5000
+      });
+    };
+
+    // Register listeners
+    websocketService.on('ticket.created', handleTicketCreated);
+    websocketService.on('ticket.updated', handleTicketUpdated);
+    websocketService.on('notification', handleNotification);
+
+    // Cleanup
+    return () => {
+      websocketService.off('ticket.created', handleTicketCreated);
+      websocketService.off('ticket.updated', handleTicketUpdated);
+      websocketService.off('notification', handleNotification);
+    };
+  }, [enqueueSnackbar]);
+
   // Auto-expand parent module based on current path
   useEffect(() => {
     if (allModules.length === 0) return;
@@ -279,17 +336,15 @@ export default function DashboardLayout() {
   const handleModuleClick = (moduleKey, hasSubModules) => {
     if (moduleKey === 'dashboard') {
       navigate('/dashboard');
+    } else if (hasSubModules) {
+      // If module has sub-modules, only toggle expand/collapse (don't navigate)
+      setExpandedModules((prev) => ({
+        ...prev,
+        [moduleKey]: !prev[moduleKey],
+      }));
     } else {
-      // Navigate to module's default route
+      // If no sub-modules, navigate to the module's route
       navigate(`/${moduleKey}`);
-
-      // Also toggle expand for modules with sub-menus
-      if (hasSubModules) {
-        setExpandedModules((prev) => ({
-          ...prev,
-          [moduleKey]: !prev[moduleKey],
-        }));
-      }
     }
   };
 
@@ -301,6 +356,7 @@ export default function DashboardLayout() {
       biofloc: <BioflocIcon />,
       tickets: <TicketsIcon />,
       development: <DevelopmentIcon />,
+      communication: <CommunicationIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
@@ -349,12 +405,23 @@ export default function DashboardLayout() {
       biofloc_tank_inputs_history: '/biofloc/tank-inputs-history',
     };
 
+    // Communication sub-modules
+    const communicationRoutes = {
+      com_telegram: '/communication/telegram',
+      com_smtp: '/communication/smtp',
+      com_webhooks: '/communication/webhooks',
+      com_api_keys: '/communication/api-keys',
+      // Note: WebSocket is a background service, not a page route
+    };
+
     if (parentModuleKey === 'admin') {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
     } else if (parentModuleKey === 'inventory') {
       return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey.replace('inventory_', '')}`;
     } else if (parentModuleKey === 'biofloc') {
       return bioflocRoutes[subModuleKey] || `/biofloc/${subModuleKey.replace('biofloc_', '')}`;
+    } else if (parentModuleKey === 'communication') {
+      return communicationRoutes[subModuleKey] || `/communication/${subModuleKey.replace('com_', '')}`;
     }
 
     // Default: construct route from keys

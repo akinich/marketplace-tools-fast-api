@@ -2,11 +2,16 @@
  * ============================================================================
  * Farm Management System - Settings Page
  * ============================================================================
- * Version: 1.2.0
+ * Version: 1.3.0
  * Last Updated: 2025-11-23
  *
  * Changelog:
  * ----------
+ * v1.3.0 (2025-11-23):
+ *   - Added email provider dropdown (smtp, sendgrid, resend, brevo, mailgun)
+ *   - Conditional field display - only show relevant API keys for selected provider
+ *   - Hide SMTP fields when using API providers and vice versa
+ *
  * v1.2.0 (2025-11-23):
  *   - Added Telegram tab for telegram_bot_token configuration
  *   - Added Integrations tab for Supabase URL and service key
@@ -49,7 +54,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { settingsAPI } from '../api/settings';
 
@@ -250,6 +259,60 @@ function SettingsPage() {
     const value = formData[setting.setting_key];
     const validationRules = setting.validation_rules || {};
 
+    // Special case: Email provider dropdown
+    if (setting.setting_key === 'email.provider') {
+      return (
+        <FormControl fullWidth>
+          <InputLabel>Email Provider</InputLabel>
+          <Select
+            value={value || 'smtp'}
+            label="Email Provider"
+            onChange={(e) => handleChange(setting.setting_key, e.target.value)}
+          >
+            <MenuItem value="smtp">SMTP (for Railway, VPS)</MenuItem>
+            <MenuItem value="sendgrid">SendGrid (100/day free)</MenuItem>
+            <MenuItem value="resend">Resend (100/day free)</MenuItem>
+            <MenuItem value="brevo">Brevo (300/day free - Best!)</MenuItem>
+            <MenuItem value="mailgun">Mailgun (5000/3mo free)</MenuItem>
+          </Select>
+        </FormControl>
+      );
+    }
+
+    // Conditionally hide provider-specific API key fields based on selected provider
+    const selectedProvider = formData['email.provider'] || 'smtp';
+
+    // Hide SendGrid API key if not using SendGrid
+    if (setting.setting_key === 'email.sendgrid_api_key' && selectedProvider !== 'sendgrid') {
+      return null;
+    }
+
+    // Hide Resend API key if not using Resend
+    if (setting.setting_key === 'email.resend_api_key' && selectedProvider !== 'resend') {
+      return null;
+    }
+
+    // Hide Brevo API key if not using Brevo
+    if (setting.setting_key === 'email.brevo_api_key' && selectedProvider !== 'brevo') {
+      return null;
+    }
+
+    // Hide Mailgun fields if not using Mailgun
+    if ((setting.setting_key === 'email.mailgun_api_key' || setting.setting_key === 'email.mailgun_domain')
+        && selectedProvider !== 'mailgun') {
+      return null;
+    }
+
+    // Hide SMTP fields if not using SMTP
+    if ((setting.setting_key === 'email.smtp_host' ||
+         setting.setting_key === 'email.smtp_port' ||
+         setting.setting_key === 'email.smtp_user' ||
+         setting.setting_key === 'email.smtp_password' ||
+         setting.setting_key === 'email.smtp_use_tls')
+        && selectedProvider !== 'smtp') {
+      return null;
+    }
+
     if (setting.data_type === 'boolean') {
       return (
         <FormControlLabel
@@ -401,11 +464,17 @@ function SettingsPage() {
         ) : (
           <>
             <Grid container spacing={3}>
-              {categorySettings.map(setting => (
-                <Grid item xs={12} md={6} key={setting.setting_key}>
-                  {renderSettingInput(setting)}
-                </Grid>
-              ))}
+              {categorySettings.map(setting => {
+                const input = renderSettingInput(setting);
+                // Don't render grid item if input is null (hidden field)
+                if (input === null) return null;
+
+                return (
+                  <Grid item xs={12} md={6} key={setting.setting_key}>
+                    {input}
+                  </Grid>
+                );
+              })}
             </Grid>
 
             {categorySettings.length === 0 && (

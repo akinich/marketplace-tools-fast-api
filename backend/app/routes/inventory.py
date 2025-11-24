@@ -57,13 +57,13 @@ v1.0.0 (2025-11-17):
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, Query, status, Path
+from fastapi import APIRouter, Depends, Query, status, Path, HTTPException
 from typing import Optional
 
 from app.schemas.inventory import *
 from app.schemas.auth import CurrentUser
-from app.auth.dependencies import get_current_user, require_module_access
-from app.services import inventory_service
+from app.auth.dependencies import get_current_user, require_module_access, get_current_user_or_api_key
+from app.services import inventory_service, api_key_service
 
 router = APIRouter()
 
@@ -77,16 +77,21 @@ router = APIRouter()
     "/items",
     response_model=ItemsListResponse,
     summary="List Items",
-    description="Get paginated list of inventory items",
+    description="Get paginated list of inventory items (supports JWT and API key auth)",
 )
 async def list_items(
     category: Optional[str] = Query(None, description="Filter by category"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
-    user: CurrentUser = Depends(require_module_access("inventory")),
+    user: dict = Depends(get_current_user_or_api_key),
 ):
-    """List all inventory items"""
+    """
+    List all inventory items
+
+    Authentication: Accepts both JWT tokens and API keys (X-API-Key header)
+    Required scope (for API keys): inventory:read
+    """
     result = await inventory_service.get_items_list(
         category=category, is_active=is_active, page=page, limit=limit
     )
@@ -98,14 +103,27 @@ async def list_items(
     response_model=ItemMasterItem,
     status_code=status.HTTP_201_CREATED,
     summary="Create Item",
-    description="Create new inventory item",
+    description="Create new inventory item (supports JWT and API key auth)",
 )
 async def create_item(
     request: CreateItemRequest,
-    user: CurrentUser = Depends(require_module_access("inventory")),
+    user: dict = Depends(get_current_user_or_api_key),
 ):
-    """Create new item"""
-    item = await inventory_service.create_item(request, user.id)
+    """
+    Create new item
+
+    Authentication: Accepts both JWT tokens and API keys (X-API-Key header)
+    Required scope (for API keys): inventory:write
+    """
+    # Check scope if using API key
+    if user.get('auth_method') == 'api_key':
+        if not await api_key_service.check_scope(user.get('scopes', []), 'inventory:write'):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Missing required scope: inventory:write"
+            )
+
+    item = await inventory_service.create_item(request, user['user_id'])
     return item
 
 
