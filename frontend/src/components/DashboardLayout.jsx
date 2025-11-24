@@ -414,7 +414,7 @@ export default function DashboardLayout() {
       com_smtp: '/communication/smtp',
       com_webhooks: '/communication/webhooks',
       com_api_keys: '/communication/api-keys',
-      // Note: WebSocket is a background service, not a page route
+      com_websockets: '/communication/websockets',
     };
 
     if (parentModuleKey === 'admin') {
