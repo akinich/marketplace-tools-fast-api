@@ -167,17 +167,17 @@ async def create_ticket(
                 conn,
                 'ticket.created',
                 {
-                    "id": ticket.id,
-                    "title": ticket.title,
-                    "ticket_type": ticket.ticket_type,
-                    "priority": ticket.priority,
-                    "status": ticket.status,
+                    "id": ticket.get('id'),
+                    "title": ticket.get('title'),
+                    "ticket_type": ticket.get('ticket_type'),
+                    "priority": ticket.get('priority'),
+                    "status": ticket.get('status'),
                     "created_by": current_user.email,
                 }
             )
     except Exception as e:
         # Don't fail ticket creation if webhook fails
-        pass
+        logger.error(f"Failed to trigger webhook for ticket creation: {e}")
 
     return ticket
 
@@ -218,17 +218,17 @@ async def update_ticket(
                 conn,
                 'ticket.updated',
                 {
-                    "id": ticket.id,
-                    "title": ticket.title,
-                    "ticket_type": ticket.ticket_type,
-                    "priority": ticket.priority,
-                    "status": ticket.status,
+                    "id": ticket.get('id'),
+                    "title": ticket.get('title'),
+                    "ticket_type": ticket.get('ticket_type'),
+                    "priority": ticket.get('priority'),
+                    "status": ticket.get('status'),
                     "updated_by": current_user.email,
                 }
             )
     except Exception as e:
         # Don't fail ticket update if webhook fails
-        pass
+        logger.error(f"Failed to trigger webhook for ticket update: {e}")
 
     return ticket
 
@@ -266,17 +266,17 @@ async def admin_update_ticket(
                 conn,
                 'ticket.updated',
                 {
-                    "id": ticket.id,
-                    "title": ticket.title,
-                    "ticket_type": ticket.ticket_type,
-                    "priority": ticket.priority,
-                    "status": ticket.status,
+                    "id": ticket.get('id'),
+                    "title": ticket.get('title'),
+                    "ticket_type": ticket.get('ticket_type'),
+                    "priority": ticket.get('priority'),
+                    "status": ticket.get('status'),
                     "updated_by": admin.email,
                 }
             )
     except Exception as e:
         # Don't fail ticket update if webhook fails
-        pass
+        logger.error(f"Failed to trigger webhook for admin ticket update: {e}")
 
     return ticket
 
@@ -316,16 +316,16 @@ async def close_ticket(
                 conn,
                 'ticket.closed',
                 {
-                    "id": ticket.id,
-                    "title": ticket.title,
-                    "ticket_type": ticket.ticket_type,
-                    "priority": ticket.priority,
+                    "id": ticket.get('id'),
+                    "title": ticket.get('title'),
+                    "ticket_type": ticket.get('ticket_type'),
+                    "priority": ticket.get('priority'),
                     "closed_by": admin.email,
                 }
             )
     except Exception as e:
         # Don't fail ticket close if webhook fails
-        pass
+        logger.error(f"Failed to trigger webhook for ticket close: {e}")
 
     return ticket
 
