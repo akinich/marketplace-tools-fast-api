@@ -216,12 +216,17 @@ async def test_webhook(
         "timestamp": datetime.utcnow().isoformat()
     }
 
+    # Parse custom_headers if it's a JSON string
+    custom_headers = webhook['custom_headers']
+    if isinstance(custom_headers, str):
+        custom_headers = json.loads(custom_headers) if custom_headers else {}
+
     result = await _send_webhook(
         url=webhook['url'],
         secret=webhook['secret'],
         event_type='test',
         payload=payload,
-        custom_headers=webhook['custom_headers'],
+        custom_headers=custom_headers,
         timeout=webhook['timeout_seconds']
     )
 
