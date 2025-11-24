@@ -132,13 +132,22 @@ async def process_webhook_queue(conn: Connection, batch_size: int = 10):
                 delivery_id
             )
 
+            # Parse JSON fields if they're strings
+            payload = delivery['payload']
+            if isinstance(payload, str):
+                payload = json.loads(payload) if payload else {}
+
+            custom_headers = delivery['custom_headers']
+            if isinstance(custom_headers, str):
+                custom_headers = json.loads(custom_headers) if custom_headers else {}
+
             # Send webhook
             result = await _send_webhook(
                 url=delivery['url'],
                 secret=delivery['secret'],
                 event_type=delivery['event_type'],
-                payload=delivery['payload'],
-                custom_headers=delivery['custom_headers'],
+                payload=payload,
+                custom_headers=custom_headers,
                 timeout=delivery['timeout_seconds']
             )
 
