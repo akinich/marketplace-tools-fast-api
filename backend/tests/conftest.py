@@ -2,12 +2,43 @@
 ================================================================================
 Farm Management System - Test Configuration & Fixtures
 ================================================================================
-Version: 1.0.0
-Last Updated: 2025-11-24
+Version: 1.2.0
+Last Updated: 2025-11-25
+
+Changelog:
+----------
+v1.2.0 (2025-11-25):
+  - Added cleanup for Phase 2 test modules (tickets, ticket_comments)
+  - Added cleanup for user_module_permissions table
+  - Improved cleanup organization with comments
+  - Enhanced webhook cleanup to handle created_by column
+
+v1.1.0 (2025-11-24):
+  - Updated cleanup queries to use production table names
+  - Changed login_attempts → login_history
+  - Changed active_sessions → user_sessions
+  - Fixed cleanup order to respect foreign key constraints
+  - Ensures proper test isolation and cleanup after each test
+
+v1.0.0 (2025-11-24):
+  - Initial test infrastructure
+  - Created pytest fixtures for database, HTTP client, and users
+  - Implemented automatic test cleanup with proper dependency ordering
+  - Added test user fixtures (admin, regular, inactive)
+  - Added authentication token fixtures
+  - Configured async test support with pytest-asyncio
 
 Description:
     Pytest configuration and shared fixtures for testing.
     Provides test database, test client, and user fixtures.
+    Handles automatic cleanup of test data after each test run.
+
+Features:
+  - Session-scoped database connection pool
+  - Test-scoped automatic cleanup with foreign key handling
+  - Pre-configured admin, regular, and inactive user fixtures
+  - JWT token generation for authenticated endpoint testing
+  - HTTP client with proper ASGI transport setup
 
 ================================================================================
 """
@@ -76,13 +107,20 @@ async def cleanup_database():
 
     # Clean up test data (delete in reverse order of dependencies)
     cleanup_queries = [
+        # Ticket-related cleanup
+        "DELETE FROM ticket_comments WHERE ticket_id IN (SELECT id FROM tickets WHERE created_by_id IN (SELECT id FROM users WHERE email LIKE '%@test.com'))",
+        "DELETE FROM tickets WHERE created_by_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        # Session and auth cleanup
         "DELETE FROM login_history WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM activity_logs WHERE user_email LIKE '%@test.com'",
+        # Webhook cleanup
         "DELETE FROM webhook_deliveries",
-        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM email_queue",
+        # API keys and user cleanup
         "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM user_module_permissions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM user_profiles WHERE id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM users WHERE email LIKE '%@test.com'",
     ]
