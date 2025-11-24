@@ -6,29 +6,44 @@
 -- ============================================================================
 
 -- Users table (simplified version of Supabase auth.users for testing)
+-- This simulates the auth.users table that exists in Supabase
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL DEFAULT 'User',
-    is_active BOOLEAN DEFAULT true,
-    must_change_password BOOLEAN DEFAULT false,
-    last_password_change TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_is_active ON users(is_active);
 
-COMMENT ON TABLE users IS 'User accounts for authentication';
+COMMENT ON TABLE users IS 'User accounts (simulates Supabase auth.users)';
 
--- User profiles table
-CREATE TABLE IF NOT EXISTS user_profiles (
+-- Roles table (referenced by user_profiles)
+CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    role_name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert default roles
+INSERT INTO roles (role_name, description) VALUES
+    ('Admin', 'Administrator with full access'),
+    ('User', 'Regular user with limited access')
+ON CONFLICT (role_name) DO NOTHING;
+
+COMMENT ON TABLE roles IS 'User roles for role-based access control';
+
+-- User profiles table (main table with all user data)
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    full_name VARCHAR(255) NOT NULL,
+    role_id INTEGER REFERENCES roles(id) DEFAULT 2,
+    password_hash VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    must_change_password BOOLEAN DEFAULT false,
+    failed_login_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP WITH TIME ZONE,
+    last_password_change TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     phone_number VARCHAR(20),
     address TEXT,
     bio TEXT,
@@ -37,9 +52,10 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_user_profiles_user_id ON user_profiles(user_id);
+CREATE INDEX idx_user_profiles_role_id ON user_profiles(role_id);
+CREATE INDEX idx_user_profiles_is_active ON user_profiles(is_active);
 
-COMMENT ON TABLE user_profiles IS 'Extended user profile information';
+COMMENT ON TABLE user_profiles IS 'Extended user profile information with authentication data';
 
 -- Login attempts table (for security tracking)
 CREATE TABLE IF NOT EXISTS login_attempts (

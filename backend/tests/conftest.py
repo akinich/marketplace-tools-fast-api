@@ -76,13 +76,14 @@ async def cleanup_database():
 
     # Clean up test data (delete in reverse order of dependencies)
     cleanup_queries = [
-        "DELETE FROM login_attempts WHERE user_id IS NOT NULL",
-        "DELETE FROM active_sessions WHERE user_id IS NOT NULL",
-        "DELETE FROM activity_logs WHERE user_id IS NOT NULL",
+        "DELETE FROM login_attempts WHERE email LIKE '%@test.com'",
+        "DELETE FROM active_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM activity_logs WHERE user_email LIKE '%@test.com'",
         "DELETE FROM webhook_deliveries",
-        "DELETE FROM webhooks",
+        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM email_queue",
-        "DELETE FROM api_keys",
+        "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM user_profiles WHERE id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM users WHERE email LIKE '%@test.com'",
     ]
 
@@ -130,32 +131,45 @@ async def test_admin_user() -> Dict:
     email = "admin@test.com"
     password = "AdminPass123!"
     full_name = "Test Admin"
-    role = "Admin"
+    role_name = "Admin"
 
     # Hash password
     hashed_password = hash_password(password)
 
-    # Create user
+    # Get Admin role ID
+    role = await fetch_one("SELECT id FROM roles WHERE role_name = $1", role_name)
+    role_id = role["id"] if role else 1
+
+    # Create user in users table (simulates auth.users)
     user_id = await execute_query(
         """
-        INSERT INTO users (email, password_hash, full_name, role, is_active, must_change_password)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (email)
+        VALUES ($1)
         RETURNING id
         """,
         email,
-        hashed_password,
+    )
+
+    # Create user profile with all auth data
+    await execute_query(
+        """
+        INSERT INTO user_profiles (id, full_name, role_id, password_hash, is_active, must_change_password)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        user_id,
         full_name,
-        role,
+        role_id,
+        hashed_password,
         True,
         False,
     )
 
     return {
-        "id": user_id,
+        "id": str(user_id),  # Convert UUID to string for JSON serialization
         "email": email,
         "password": password,
         "full_name": full_name,
-        "role": role,
+        "role": role_name,
     }
 
 
@@ -170,32 +184,45 @@ async def test_regular_user() -> Dict:
     email = "user@test.com"
     password = "UserPass123!"
     full_name = "Test User"
-    role = "User"
+    role_name = "User"
 
     # Hash password
     hashed_password = hash_password(password)
 
-    # Create user
+    # Get User role ID
+    role = await fetch_one("SELECT id FROM roles WHERE role_name = $1", role_name)
+    role_id = role["id"] if role else 2
+
+    # Create user in users table (simulates auth.users)
     user_id = await execute_query(
         """
-        INSERT INTO users (email, password_hash, full_name, role, is_active, must_change_password)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (email)
+        VALUES ($1)
         RETURNING id
         """,
         email,
-        hashed_password,
+    )
+
+    # Create user profile with all auth data
+    await execute_query(
+        """
+        INSERT INTO user_profiles (id, full_name, role_id, password_hash, is_active, must_change_password)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        user_id,
         full_name,
-        role,
+        role_id,
+        hashed_password,
         True,
         False,
     )
 
     return {
-        "id": user_id,
+        "id": str(user_id),  # Convert UUID to string for JSON serialization
         "email": email,
         "password": password,
         "full_name": full_name,
-        "role": role,
+        "role": role_name,
     }
 
 
@@ -210,32 +237,45 @@ async def test_inactive_user() -> Dict:
     email = "inactive@test.com"
     password = "InactivePass123!"
     full_name = "Inactive User"
-    role = "User"
+    role_name = "User"
 
     # Hash password
     hashed_password = hash_password(password)
 
-    # Create inactive user
+    # Get User role ID
+    role = await fetch_one("SELECT id FROM roles WHERE role_name = $1", role_name)
+    role_id = role["id"] if role else 2
+
+    # Create user in users table (simulates auth.users)
     user_id = await execute_query(
         """
-        INSERT INTO users (email, password_hash, full_name, role, is_active, must_change_password)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (email)
+        VALUES ($1)
         RETURNING id
         """,
         email,
-        hashed_password,
+    )
+
+    # Create inactive user profile
+    await execute_query(
+        """
+        INSERT INTO user_profiles (id, full_name, role_id, password_hash, is_active, must_change_password)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        """,
+        user_id,
         full_name,
-        role,
+        role_id,
+        hashed_password,
         False,  # is_active = False
         False,
     )
 
     return {
-        "id": user_id,
+        "id": str(user_id),  # Convert UUID to string for JSON serialization
         "email": email,
         "password": password,
         "full_name": full_name,
-        "role": role,
+        "role": role_name,
     }
 
 
