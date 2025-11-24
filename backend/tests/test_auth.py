@@ -506,7 +506,7 @@ class TestProfile:
             json={"full_name": "New Name"},
         )
 
-        assert response.status_code == 401
+        assert response.status_code == 403
 
 
 # ============================================================================

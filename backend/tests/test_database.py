@@ -12,8 +12,8 @@ Description:
 """
 
 import pytest
+from app import database
 from app.database import (
-    pool,
     fetch_one,
     fetch_all,
     execute_query,
@@ -39,8 +39,8 @@ class TestDatabaseConnection:
 
     async def test_database_pool_is_connected(self):
         """Test that database pool is initialized and connected."""
-        assert pool is not None
-        assert not pool._closed
+        assert database.pool is not None
+        assert not database.pool._closed
 
     async def test_database_health_check(self):
         """Test database health check returns True."""
@@ -49,7 +49,7 @@ class TestDatabaseConnection:
 
     async def test_can_acquire_connection(self):
         """Test that we can acquire a connection from the pool."""
-        async with pool.acquire() as conn:
+        async with database.pool.acquire() as conn:
             result = await conn.fetchval("SELECT 1")
             assert result == 1
 
@@ -104,7 +104,7 @@ class TestQueryHelpers:
     async def test_fetch_with_parameters(self):
         """Test query with parameters using $1, $2 placeholders."""
         result = await fetch_one(
-            "SELECT $1 as num, $2 as text", 42, "hello"
+            "SELECT $1::int as num, $2::text as text", 42, "hello"
         )
 
         assert result["num"] == 42
@@ -164,14 +164,14 @@ class TestExecuteQuery:
         """Test UPDATE query."""
         # Update user's full name
         await execute_query(
-            "UPDATE users SET full_name = $1 WHERE id = $2",
+            "UPDATE user_profiles SET full_name = $1 WHERE id = $2",
             "Updated Name",
             test_regular_user["id"],
         )
 
         # Verify update
         user = await fetch_one(
-            "SELECT full_name FROM users WHERE id = $1",
+            "SELECT full_name FROM user_profiles WHERE id = $1",
             test_regular_user["id"],
         )
 
