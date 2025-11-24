@@ -2,11 +2,17 @@
 ================================================================================
 Farm Management System - Test Configuration & Fixtures
 ================================================================================
-Version: 1.1.0
-Last Updated: 2025-11-24
+Version: 1.2.0
+Last Updated: 2025-11-25
 
 Changelog:
 ----------
+v1.2.0 (2025-11-25):
+  - Added cleanup for Phase 2 test modules (tickets, ticket_comments)
+  - Added cleanup for user_module_permissions table
+  - Improved cleanup organization with comments
+  - Enhanced webhook cleanup to handle created_by column
+
 v1.1.0 (2025-11-24):
   - Updated cleanup queries to use production table names
   - Changed login_attempts → login_history
@@ -101,13 +107,20 @@ async def cleanup_database():
 
     # Clean up test data (delete in reverse order of dependencies)
     cleanup_queries = [
+        # Ticket-related cleanup
+        "DELETE FROM ticket_comments WHERE ticket_id IN (SELECT id FROM tickets WHERE created_by_id IN (SELECT id FROM users WHERE email LIKE '%@test.com'))",
+        "DELETE FROM tickets WHERE created_by_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        # Session and auth cleanup
         "DELETE FROM login_history WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM activity_logs WHERE user_email LIKE '%@test.com'",
+        # Webhook cleanup
         "DELETE FROM webhook_deliveries",
-        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM email_queue",
+        # API keys and user cleanup
         "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM user_module_permissions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM user_profiles WHERE id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM users WHERE email LIKE '%@test.com'",
     ]
