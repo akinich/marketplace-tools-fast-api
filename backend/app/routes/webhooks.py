@@ -76,6 +76,34 @@ async def create_webhook(
             result['custom_headers'] = json.loads(result['custom_headers'])
         return result
 
+# NOTE: Specific routes must be defined BEFORE parameterized routes like /{webhook_id}
+# to prevent FastAPI from matching /test or /events/available as webhook IDs
+
+@router.post("/test")
+async def test_webhook(
+    request: WebhookTestRequest,
+    current_user: CurrentUser = Depends(require_admin)
+):
+    """Test a webhook"""
+    pool = get_db()
+    async with pool.acquire() as conn:
+        try:
+            result = await webhook_service.test_webhook(
+                conn,
+                request.webhook_id,
+                request.test_payload
+            )
+            return result
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+@router.get("/events/available")
+async def get_available_events(
+    current_user: CurrentUser = Depends(require_admin)
+):
+    """Get list of available webhook events"""
+    return {"events": webhook_service.AVAILABLE_EVENTS}
+
 @router.get("/{webhook_id}", response_model=WebhookResponse)
 async def get_webhook(
     webhook_id: int,
@@ -144,24 +172,6 @@ async def delete_webhook(
             raise HTTPException(status_code=404, detail="Webhook not found")
         return {"message": "Webhook deleted"}
 
-@router.post("/test")
-async def test_webhook(
-    request: WebhookTestRequest,
-    current_user: CurrentUser = Depends(require_admin)
-):
-    """Test a webhook"""
-    pool = get_db()
-    async with pool.acquire() as conn:
-        try:
-            result = await webhook_service.test_webhook(
-                conn,
-                request.webhook_id,
-                request.test_payload
-            )
-            return result
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
-
 @router.get("/{webhook_id}/deliveries", response_model=List[WebhookDeliveryResponse])
 async def get_webhook_deliveries(
     webhook_id: int,
@@ -194,10 +204,3 @@ async def get_webhook_deliveries(
             )
 
         return [dict(d) for d in deliveries]
-
-@router.get("/events/available")
-async def get_available_events(
-    current_user: CurrentUser = Depends(require_admin)
-):
-    """Get list of available webhook events"""
-    return {"events": webhook_service.AVAILABLE_EVENTS}
