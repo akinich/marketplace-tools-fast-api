@@ -2,12 +2,37 @@
 ================================================================================
 Farm Management System - Test Configuration & Fixtures
 ================================================================================
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2025-11-24
+
+Changelog:
+----------
+v1.1.0 (2025-11-24):
+  - Updated cleanup queries to use production table names
+  - Changed login_attempts → login_history
+  - Changed active_sessions → user_sessions
+  - Fixed cleanup order to respect foreign key constraints
+  - Ensures proper test isolation and cleanup after each test
+
+v1.0.0 (2025-11-24):
+  - Initial test infrastructure
+  - Created pytest fixtures for database, HTTP client, and users
+  - Implemented automatic test cleanup with proper dependency ordering
+  - Added test user fixtures (admin, regular, inactive)
+  - Added authentication token fixtures
+  - Configured async test support with pytest-asyncio
 
 Description:
     Pytest configuration and shared fixtures for testing.
     Provides test database, test client, and user fixtures.
+    Handles automatic cleanup of test data after each test run.
+
+Features:
+  - Session-scoped database connection pool
+  - Test-scoped automatic cleanup with foreign key handling
+  - Pre-configured admin, regular, and inactive user fixtures
+  - JWT token generation for authenticated endpoint testing
+  - HTTP client with proper ASGI transport setup
 
 ================================================================================
 """
