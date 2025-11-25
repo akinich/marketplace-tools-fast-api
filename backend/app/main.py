@@ -164,9 +164,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Rate Limiting Middleware
-from app.middleware.rate_limit import RateLimitMiddleware
-app.add_middleware(RateLimitMiddleware, default_limit=100, window_seconds=60)
+# Rate Limiting Middleware (disabled in test environment)
+if settings.APP_ENV != "test":
+    from app.middleware.rate_limit import RateLimitMiddleware
+    app.add_middleware(RateLimitMiddleware, default_limit=100, window_seconds=60)
+    logger.info("✅ Rate limiting middleware enabled")
+else:
+    logger.info("⚠️  Rate limiting disabled for test environment")
 
 
 # Request Logging Middleware

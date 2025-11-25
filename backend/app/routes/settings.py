@@ -96,6 +96,17 @@ def _convert_audit_log_row(row: Dict) -> Dict:
     """Convert audit log database row to proper format"""
     result = dict(row)
 
+    # Parse old_value and new_value from JSONB
+    for value_key in ['old_value', 'new_value']:
+        if value_key in result and result[value_key] is not None:
+            value = result[value_key]
+            # Parse JSON value if it's a string
+            if isinstance(value, str):
+                try:
+                    result[value_key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
     # Ensure changed_by is a string (could be None)
     if 'changed_by' in result and result['changed_by']:
         result['changed_by'] = str(result['changed_by'])
