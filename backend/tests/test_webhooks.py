@@ -33,7 +33,7 @@ class TestWebhookCRUD:
     async def test_list_webhooks(self, client: AsyncClient, admin_headers):
         """Test listing all webhooks."""
         response = await client.get(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks//",
             headers=admin_headers
         )
 
@@ -56,7 +56,7 @@ class TestWebhookCRUD:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -90,7 +90,7 @@ class TestWebhookCRUD:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -98,7 +98,7 @@ class TestWebhookCRUD:
 
         # Get the webhook
         response = await client.get(
-            f"/api/v1/webhooks/{webhook_id}",
+            f"/api/v1/webhooks//{webhook_id}",
             headers=admin_headers
         )
 
@@ -111,7 +111,7 @@ class TestWebhookCRUD:
     async def test_get_nonexistent_webhook(self, client: AsyncClient, admin_headers):
         """Test getting a webhook that doesn't exist."""
         response = await client.get(
-            "/api/v1/webhooks/99999",
+            "/api/v1/webhooks//99999",
             headers=admin_headers
         )
 
@@ -133,7 +133,7 @@ class TestWebhookCRUD:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -153,7 +153,7 @@ class TestWebhookCRUD:
         }
 
         response = await client.put(
-            f"/api/v1/webhooks/{webhook_id}",
+            f"/api/v1/webhooks//{webhook_id}",
             headers=admin_headers,
             json=update_data
         )
@@ -183,7 +183,7 @@ class TestWebhookCRUD:
         }
 
         response = await client.put(
-            "/api/v1/webhooks/99999",
+            "/api/v1/webhooks//99999",
             headers=admin_headers,
             json=update_data
         )
@@ -205,7 +205,7 @@ class TestWebhookCRUD:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -213,7 +213,7 @@ class TestWebhookCRUD:
 
         # Delete the webhook
         response = await client.delete(
-            f"/api/v1/webhooks/{webhook_id}",
+            f"/api/v1/webhooks//{webhook_id}",
             headers=admin_headers
         )
 
@@ -222,7 +222,7 @@ class TestWebhookCRUD:
 
         # Verify it's gone
         get_response = await client.get(
-            f"/api/v1/webhooks/{webhook_id}",
+            f"/api/v1/webhooks//{webhook_id}",
             headers=admin_headers
         )
         assert get_response.status_code == 404
@@ -240,7 +240,7 @@ class TestWebhookPermissions:
     async def test_list_webhooks_requires_admin(self, client: AsyncClient, user_headers):
         """Test that listing webhooks requires admin privileges."""
         response = await client.get(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=user_headers
         )
 
@@ -260,7 +260,7 @@ class TestWebhookPermissions:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=user_headers,
             json=webhook_data
         )
@@ -269,7 +269,7 @@ class TestWebhookPermissions:
 
     async def test_webhooks_require_authentication(self, client: AsyncClient):
         """Test that webhook endpoints require authentication."""
-        response = await client.get("/api/v1/webhooks")
+        response = await client.get("/api/v1/webhooks/")
 
         assert response.status_code == 401
 
@@ -298,7 +298,7 @@ class TestWebhookDeliveries:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -306,7 +306,7 @@ class TestWebhookDeliveries:
 
         # Get deliveries (should be empty initially)
         response = await client.get(
-            f"/api/v1/webhooks/{webhook_id}/deliveries",
+            f"/api/v1/webhooks//{webhook_id}/deliveries",
             headers=admin_headers
         )
 
@@ -329,7 +329,7 @@ class TestWebhookDeliveries:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -337,7 +337,7 @@ class TestWebhookDeliveries:
 
         # Get deliveries with limit
         response = await client.get(
-            f"/api/v1/webhooks/{webhook_id}/deliveries?limit=10",
+            f"/api/v1/webhooks//{webhook_id}/deliveries?limit=10",
             headers=admin_headers
         )
 
@@ -363,7 +363,7 @@ class TestWebhookDeliveries:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -371,7 +371,7 @@ class TestWebhookDeliveries:
 
         # Get deliveries filtered by status
         response = await client.get(
-            f"/api/v1/webhooks/{webhook_id}/deliveries?status=pending",
+            f"/api/v1/webhooks//{webhook_id}/deliveries?status=pending",
             headers=admin_headers
         )
 
@@ -382,7 +382,7 @@ class TestWebhookDeliveries:
     async def test_get_deliveries_requires_admin(self, client: AsyncClient, user_headers):
         """Test that getting delivery logs requires admin privileges."""
         response = await client.get(
-            "/api/v1/webhooks/1/deliveries",
+            "/api/v1/webhooks//1/deliveries",
             headers=user_headers
         )
 
@@ -401,7 +401,7 @@ class TestWebhookTesting:
     async def test_get_available_events(self, client: AsyncClient, admin_headers):
         """Test getting list of available webhook events."""
         response = await client.get(
-            "/api/v1/webhooks/events/available",
+            "/api/v1/webhooks//events/available",
             headers=admin_headers
         )
 
@@ -429,7 +429,7 @@ class TestWebhookTesting:
         }
 
         create_response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -445,7 +445,7 @@ class TestWebhookTesting:
         }
 
         response = await client.post(
-            "/api/v1/webhooks/test",
+            "/api/v1/webhooks//test",
             headers=admin_headers,
             json=test_data
         )
@@ -463,7 +463,7 @@ class TestWebhookTesting:
         }
 
         response = await client.post(
-            "/api/v1/webhooks/test",
+            "/api/v1/webhooks//test",
             headers=admin_headers,
             json=test_data
         )
@@ -496,7 +496,7 @@ class TestWebhookEvents:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -521,7 +521,7 @@ class TestWebhookEvents:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -556,7 +556,7 @@ class TestWebhookValidation:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -579,7 +579,7 @@ class TestWebhookValidation:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -602,7 +602,7 @@ class TestWebhookValidation:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -619,7 +619,7 @@ class TestWebhookValidation:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )
@@ -645,7 +645,7 @@ class TestWebhookValidation:
         }
 
         response = await client.post(
-            "/api/v1/webhooks",
+            "/api/v1/webhooks/",
             headers=admin_headers,
             json=webhook_data
         )

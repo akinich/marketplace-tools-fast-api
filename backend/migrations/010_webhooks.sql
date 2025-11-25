@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS webhooks (
     retry_attempts INTEGER DEFAULT 3 CHECK (retry_attempts BETWEEN 0 AND 10),
     retry_delay_seconds INTEGER DEFAULT 60 CHECK (retry_delay_seconds BETWEEN 10 AND 3600),
     description TEXT,
-    created_by UUID REFERENCES auth.users(id),
-    updated_by UUID REFERENCES auth.users(id),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
