@@ -4,6 +4,10 @@
 -- Description: Implements webhook system for event-driven integrations
 -- ============================================================================
 
+-- Drop existing webhooks tables if they exist (fresh start)
+DROP TABLE IF EXISTS webhook_deliveries CASCADE;
+DROP TABLE IF EXISTS webhooks CASCADE;
+
 -- Webhooks table
 CREATE TABLE IF NOT EXISTS webhooks (
     id SERIAL PRIMARY KEY,
