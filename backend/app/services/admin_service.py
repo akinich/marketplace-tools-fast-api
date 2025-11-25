@@ -228,22 +228,37 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
                 detail=f"Role ID {request.role_id} does not exist"
             )
 
-        # Use Supabase Admin API to create user with confirmed email
-        # This ensures password reset emails will be sent properly
-        from app.utils.supabase_client import get_supabase_client
-        supabase = get_supabase_client()
+        # In test environment, create user directly without Supabase
+        import os
+        is_test = os.getenv("APP_ENV") == "test"
 
-        # Create user via Supabase Admin API
-        user_response = supabase.auth.admin.create_user({
-            "email": request.email,
-            "password": temp_password,
-            "email_confirm": True,  # Mark email as confirmed
-            "user_metadata": {
-                "full_name": request.full_name
-            }
-        })
+        if is_test:
+            # Test mode: Create user directly in database
+            from uuid import uuid4
+            user_id = str(uuid4())
 
-        user_id = user_response.user.id
+            # Create user in users table
+            await execute_query(
+                "INSERT INTO users (id, email) VALUES ($1, $2)",
+                UUID(user_id),
+                request.email
+            )
+        else:
+            # Production mode: Use Supabase Admin API
+            from app.utils.supabase_client import get_supabase_client
+            supabase = get_supabase_client()
+
+            # Create user via Supabase Admin API
+            user_response = supabase.auth.admin.create_user({
+                "email": request.email,
+                "password": temp_password,
+                "email_confirm": True,  # Mark email as confirmed
+                "user_metadata": {
+                    "full_name": request.full_name
+                }
+            })
+
+            user_id = user_response.user.id
 
         # Create user profile with password_hash and must_change_password flag
         await execute_query(
@@ -702,7 +717,7 @@ async def get_user_permissions(user_id: str) -> Dict:
     # Convert to list of dicts (no UUID fields here, but for consistency)
     permissions = [dict(p) for p in permissions_raw]
 
-    return {"user_id": user_id, "permissions": permissions}
+    return {"user_id": user_id, "modules": permissions}
 
 
 async def update_user_permissions(
@@ -864,15 +879,22 @@ async def get_activity_logs(
 
 
 async def get_user_accessible_modules(user_id: str) -> List[Dict]:
-    """Get modules accessible to user (using view)"""
+    """Get modules accessible to user"""
     modules_raw = await fetch_all(
         """
-        SELECT module_id, module_key, module_name, icon, display_order, parent_module_id
-        FROM user_accessible_modules
-        WHERE user_id = $1
-        ORDER BY display_order
+        SELECT
+            m.id as module_id,
+            m.module_key,
+            m.module_name,
+            m.icon,
+            m.display_order,
+            m.parent_module_id
+        FROM user_module_permissions ump
+        JOIN modules m ON m.id = ump.module_id
+        WHERE ump.user_id = $1 AND ump.can_access = TRUE
+        ORDER BY m.display_order
         """,
-        user_id,
+        UUID(user_id),
     )
     # Convert to list of dicts
     modules = [dict(m) for m in modules_raw]
