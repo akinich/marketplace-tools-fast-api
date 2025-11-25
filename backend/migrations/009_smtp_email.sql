@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS email_templates (
     plain_body TEXT NOT NULL,
     variables JSONB DEFAULT '[]'::jsonb,
     is_active BOOLEAN DEFAULT true,
-    created_by UUID REFERENCES auth.users(id),
-    updated_by UUID REFERENCES auth.users(id),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -54,8 +54,8 @@ CREATE TABLE IF NOT EXISTS email_recipients (
     recipient_emails TEXT[] NOT NULL,
     is_active BOOLEAN DEFAULT true,
     description TEXT,
-    created_by UUID REFERENCES auth.users(id),
-    updated_by UUID REFERENCES auth.users(id),
+    created_by UUID REFERENCES users(id),
+    updated_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(notification_type)
