@@ -57,6 +57,34 @@ def _convert_setting_row(row: Dict) -> Dict:
     else:
         result['validation_rules'] = {}
 
+    # Parse setting_value based on data_type
+    if 'setting_value' in result and 'data_type' in result:
+        value = result['setting_value']
+        data_type = result['data_type']
+
+        # Parse JSON value if it's a string
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Convert to appropriate Python type
+        if data_type == 'integer':
+            result['setting_value'] = int(value) if value is not None else None
+        elif data_type == 'float':
+            result['setting_value'] = float(value) if value is not None else None
+        elif data_type == 'boolean':
+            if isinstance(value, bool):
+                result['setting_value'] = value
+            elif isinstance(value, str):
+                result['setting_value'] = value.lower() in ('true', '1', 'yes')
+            else:
+                result['setting_value'] = bool(value)
+        elif data_type == 'string':
+            result['setting_value'] = str(value) if value is not None else None
+        # For 'json' type, leave as-is
+
     # Convert updated_by UUID to string
     if 'updated_by' in result and result['updated_by']:
         result['updated_by'] = str(result['updated_by'])
@@ -67,6 +95,17 @@ def _convert_setting_row(row: Dict) -> Dict:
 def _convert_audit_log_row(row: Dict) -> Dict:
     """Convert audit log database row to proper format"""
     result = dict(row)
+
+    # Parse old_value and new_value from JSONB
+    for value_key in ['old_value', 'new_value']:
+        if value_key in result and result[value_key] is not None:
+            value = result[value_key]
+            # Parse JSON value if it's a string
+            if isinstance(value, str):
+                try:
+                    result[value_key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
     # Ensure changed_by is a string (could be None)
     if 'changed_by' in result and result['changed_by']:

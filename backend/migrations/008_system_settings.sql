@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
     validation_rules JSONB,
     is_public BOOLEAN DEFAULT false,
     is_encrypted BOOLEAN DEFAULT false,
-    updated_by UUID REFERENCES auth.users(id),
+    updated_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS settings_audit_log (
     setting_key VARCHAR(255) NOT NULL,
     old_value JSONB,
     new_value JSONB,
-    changed_by UUID REFERENCES auth.users(id),
+    changed_by UUID REFERENCES users(id),
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

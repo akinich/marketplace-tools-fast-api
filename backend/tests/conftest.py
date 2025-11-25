@@ -114,9 +114,12 @@ async def cleanup_database():
         "DELETE FROM login_history WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM activity_logs WHERE user_email LIKE '%@test.com'",
+        # Settings cleanup (must clear FK references before deleting users)
+        "UPDATE system_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM settings_audit_log WHERE changed_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         # Webhook cleanup
         "DELETE FROM webhook_deliveries",
-        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM webhooks WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM email_queue",
         # API keys and user cleanup
         "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
