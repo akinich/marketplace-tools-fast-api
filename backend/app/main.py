@@ -313,7 +313,7 @@ app.include_router(webhooks.router, prefix=f"{settings.API_PREFIX}/webhooks", ta
 app.include_router(email.router, prefix=f"{settings.API_PREFIX}", tags=["Email"])
 app.include_router(docs.router, prefix=f"{settings.API_PREFIX}", tags=["Documentation"])
 app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settings", tags=["Settings"])
-app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(websocket.router, prefix=f"{settings.API_PREFIX}/websocket", tags=["WebSocket"])
 
 
 # ============================================================================
