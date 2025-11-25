@@ -144,6 +144,7 @@ async def get_users_list(
             up.role_id,
             r.role_name,
             up.is_active,
+            up.must_change_password,
             up.created_at
         FROM user_profiles up
         JOIN users au ON au.id = up.id
@@ -807,7 +808,7 @@ async def update_user_permissions(
     )
 
     return {
-        "message": "Permissions updated successfully",
+        "message": "Permissions granted successfully",
         "granted_modules": granted_modules,
     }
 
