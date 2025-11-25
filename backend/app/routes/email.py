@@ -13,6 +13,7 @@ from app.models.email import (
     EmailQueueResponse,
     SendEmailRequest,
     SendTemplateEmailRequest,
+    EmailRecipientsUpdateRequest,
     EmailRecipientsSchema,
     EmailRecipientsResponse,
     SMTPTestRequest
@@ -34,7 +35,22 @@ async def get_email_templates(
     pool = get_db()
     async with pool.acquire() as conn:
         templates = await conn.fetch("SELECT * FROM email_templates ORDER BY template_key")
-        return [dict(t) for t in templates]
+        return [_convert_template_row(dict(t)) for t in templates]
+
+
+def _convert_template_row(row: Dict) -> Dict:
+    """Convert template row, parsing JSONB fields"""
+    import json
+
+    # Parse variables from JSONB string to list
+    if 'variables' in row and row['variables']:
+        if isinstance(row['variables'], str):
+            try:
+                row['variables'] = json.loads(row['variables'])
+            except (json.JSONDecodeError, TypeError):
+                row['variables'] = []
+
+    return row
 
 @router.get("/templates/{template_key}", response_model=EmailTemplateResponse)
 async def get_email_template(
@@ -50,7 +66,7 @@ async def get_email_template(
         )
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
-        return dict(template)
+        return _convert_template_row(dict(template))
 
 # ============================================================================
 # Email Queue
@@ -157,7 +173,7 @@ async def get_email_recipients(
 @router.put("/recipients/{notification_type}")
 async def update_email_recipients(
     notification_type: str,
-    request: EmailRecipientsSchema,
+    request: EmailRecipientsUpdateRequest,
     current_user: CurrentUser = Depends(require_admin)
 ):
     """Update email recipients for a notification type"""

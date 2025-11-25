@@ -2,6 +2,12 @@
 -- Migration 009: SMTP Email Service
 -- ============================================================================
 
+-- Drop existing email tables if they exist (fresh start)
+DROP TABLE IF EXISTS email_send_log CASCADE;
+DROP TABLE IF EXISTS email_recipients CASCADE;
+DROP TABLE IF EXISTS email_queue CASCADE;
+DROP TABLE IF EXISTS email_templates CASCADE;
+
 -- Email templates table
 CREATE TABLE IF NOT EXISTS email_templates (
     id SERIAL PRIMARY KEY,
