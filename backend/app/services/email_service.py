@@ -12,6 +12,7 @@ Supports 6 providers:
 import aiosmtplib
 import httpx
 import base64
+import json
 import logging
 from email.message import EmailMessage
 from email.mime.text import MIMEText
@@ -101,7 +102,7 @@ async def send_template_email(
         plain_body,
         html_body,
         template_key,
-        variables,
+        json.dumps(variables),  # Convert dict to JSON string for JSONB
         priority
     )
 
