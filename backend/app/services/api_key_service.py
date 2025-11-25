@@ -74,9 +74,9 @@ def generate_api_key() -> tuple[str, str, str]:
             - key_hash: Bcrypt hash for database storage
             - key_prefix: First 12 characters for display purposes
     """
-    # Generate random key with sk_live_ prefix
+    # Generate random key with farm_ prefix
     random_bytes = secrets.token_urlsafe(32)
-    key = f"sk_live_{random_bytes}"
+    key = f"farm_{random_bytes}"
 
     # Hash for storage (bcrypt with auto-generated salt)
     key_hash = bcrypt.hashpw(key.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')

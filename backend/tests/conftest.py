@@ -116,7 +116,7 @@ async def cleanup_database():
         "DELETE FROM activity_logs WHERE user_email LIKE '%@test.com'",
         # Webhook cleanup
         "DELETE FROM webhook_deliveries",
-        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM webhooks WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM email_queue",
         # API keys and user cleanup
         "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",

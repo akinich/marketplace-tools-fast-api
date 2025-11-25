@@ -55,6 +55,7 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, Query, status
 from typing import Optional
+import logging
 
 from app.schemas.tickets import (
     TicketType, TicketStatus, TicketPriority,
@@ -70,6 +71,7 @@ from app.database import get_db
 from app.websocket import events as ws_events
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================

@@ -125,13 +125,14 @@ class TestExecuteQuery:
         # Insert a test API key
         api_key_id = await execute_query(
             """
-            INSERT INTO api_keys (user_id, key_name, api_key, scopes, expires_at)
-            VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day')
+            INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, expires_at)
+            VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '1 day')
             RETURNING id
             """,
             test_admin_user["id"],
             "Test Key",
-            "test_key_123",
+            "test_key_hash_123",
+            "farm_test...",
             ["read"],
         )
 
@@ -144,21 +145,22 @@ class TestExecuteQuery:
         # Insert a test API key
         result = await execute_query(
             """
-            INSERT INTO api_keys (user_id, key_name, api_key, scopes, expires_at)
-            VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day')
-            RETURNING id, key_name, api_key
+            INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, expires_at)
+            VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '1 day')
+            RETURNING id, name, key_hash
             """,
             test_admin_user["id"],
             "Multi Return Key",
-            "test_key_456",
+            "test_key_hash_456",
+            "farm_multi...",
             ["read", "write"],
         )
 
         # Should return a dict
         assert isinstance(result, dict)
         assert result["id"] is not None
-        assert result["key_name"] == "Multi Return Key"
-        assert result["api_key"] == "test_key_456"
+        assert result["name"] == "Multi Return Key"
+        assert result["key_hash"] == "test_key_hash_456"
 
     async def test_update_query(self, test_regular_user):
         """Test UPDATE query."""
@@ -182,13 +184,14 @@ class TestExecuteQuery:
         # Insert a test API key
         key_id = await execute_query(
             """
-            INSERT INTO api_keys (user_id, key_name, api_key, scopes, expires_at)
-            VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day')
+            INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, expires_at)
+            VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '1 day')
             RETURNING id
             """,
             test_admin_user["id"],
             "Delete Test Key",
-            "test_key_delete",
+            "test_key_hash_delete",
+            "farm_delete...",
             ["read"],
         )
 
@@ -203,21 +206,21 @@ class TestExecuteQuery:
         """Test bulk insert with execute_many."""
         # Insert multiple API keys
         values = [
-            (test_admin_user["id"], f"Key {i}", f"key_{i}", ["read"])
+            (test_admin_user["id"], f"Key {i}", f"key_hash_{i}", f"farm_{i}...", ["read"])
             for i in range(3)
         ]
 
         await execute_many(
             """
-            INSERT INTO api_keys (user_id, key_name, api_key, scopes, expires_at)
-            VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day')
+            INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, expires_at)
+            VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '1 day')
             """,
             values,
         )
 
         # Verify insertions
         keys = await fetch_all(
-            "SELECT key_name FROM api_keys WHERE user_id = $1 ORDER BY key_name",
+            "SELECT name FROM api_keys WHERE user_id = $1 ORDER BY name",
             test_admin_user["id"],
         )
 
@@ -239,13 +242,14 @@ class TestTransactions:
             # Insert API key within transaction
             key_id = await execute_query_tx(
                 """
-                INSERT INTO api_keys (user_id, key_name, api_key, scopes, expires_at)
-                VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day')
+                INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, expires_at)
+                VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '1 day')
                 RETURNING id
                 """,
                 test_admin_user["id"],
                 "Transaction Test",
-                "tx_test_key",
+                "test_key_hash_trans",
+                "farm_trans...",
                 ["read"],
                 conn=conn,
             )
@@ -255,7 +259,7 @@ class TestTransactions:
             "SELECT * FROM api_keys WHERE id = $1", key_id
         )
         assert result is not None
-        assert result["key_name"] == "Transaction Test"
+        assert result["name"] == "Transaction Test"
 
     async def test_transaction_rollback_on_exception(self, test_admin_user):
         """Test transaction rolls back when exception occurs."""
@@ -266,8 +270,8 @@ class TestTransactions:
                 # Insert API key
                 key_id = await execute_query_tx(
                     """
-                    INSERT INTO api_keys (user_id, key_name, api_key, scopes, expires_at)
-                    VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day')
+                    INSERT INTO api_keys (user_id, name, key_hash, key_prefix, scopes, expires_at)
+                    VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '1 day')
                     RETURNING id
                     """,
                     test_admin_user["id"],
