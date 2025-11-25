@@ -105,9 +105,10 @@ class TestUserManagement:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["email"] == "newuser@test.com"
-        assert data["full_name"] == "New Test User"
-        assert data["must_change_password"] is True
+        assert data["user"]["email"] == "newuser@test.com"
+        assert data["user"]["full_name"] == "New Test User"
+        assert data["user"]["must_change_password"] is True
+        assert "temporary_password" in data
 
     async def test_create_user_requires_admin(self, client: AsyncClient, user_headers):
         """Test that creating users requires admin privileges."""
@@ -153,7 +154,7 @@ class TestUserManagement:
         create_response = await client.post(
             "/api/v1/admin/users", headers=admin_headers, json=user_data
         )
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user"]["id"]
 
         # Update the user
         update_data = {"full_name": "Updated Name", "is_active": True}
@@ -177,7 +178,7 @@ class TestUserManagement:
         create_response = await client.post(
             "/api/v1/admin/users", headers=admin_headers, json=user_data
         )
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user"]["id"]
 
         # Soft delete (deactivate)
         response = await client.delete(
@@ -207,7 +208,7 @@ class TestUserManagement:
         create_response = await client.post(
             "/api/v1/admin/users", headers=admin_headers, json=user_data
         )
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user"]["id"]
 
         # Hard delete
         response = await client.delete(
@@ -391,7 +392,7 @@ class TestPermissionManagement:
         assert response.status_code == 200
         data = response.json()
         assert "user_id" in data
-        assert "modules" in data
+        assert "permissions" in data
 
     async def test_update_user_permissions(
         self, client: AsyncClient, admin_headers
@@ -407,7 +408,7 @@ class TestPermissionManagement:
         create_response = await client.post(
             "/api/v1/admin/users", headers=admin_headers, json=user_data
         )
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user"]["id"]
 
         # Get available modules
         modules_response = await client.get(
@@ -602,7 +603,7 @@ class TestAccountUnlock:
         create_response = await client.post(
             "/api/v1/admin/users", headers=admin_headers, json=user_data
         )
-        user_id = create_response.json()["id"]
+        user_id = create_response.json()["user"]["id"]
 
         # Simulate account being locked (would normally happen after failed logins)
         await execute_query(

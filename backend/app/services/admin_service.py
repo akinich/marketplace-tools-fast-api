@@ -67,6 +67,7 @@ from fastapi import HTTPException, status
 import logging
 import math
 import uuid
+from uuid import UUID
 
 from app.database import get_db, fetch_one, fetch_all, execute_query
 from app.auth.password import hash_password
@@ -266,7 +267,7 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
             INSERT INTO user_profiles (id, full_name, role_id, is_active, password_hash, must_change_password)
             VALUES ($1, $2, $3, TRUE, $4, TRUE)
             """,
-            user_id,
+            UUID(user_id),
             request.full_name,
             request.role_id,
             password_hash_value
@@ -282,13 +283,14 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
                 up.role_id,
                 r.role_name,
                 up.is_active,
+                up.must_change_password,
                 up.created_at
             FROM user_profiles up
             JOIN users au ON au.id = up.id
             LEFT JOIN roles r ON r.id = up.role_id
             WHERE up.id = $1
             """,
-            user_id,
+            UUID(user_id),
         )
 
         # Convert UUID to string
@@ -717,7 +719,7 @@ async def get_user_permissions(user_id: str) -> Dict:
     # Convert to list of dicts (no UUID fields here, but for consistency)
     permissions = [dict(p) for p in permissions_raw]
 
-    return {"user_id": user_id, "modules": permissions}
+    return {"user_id": user_id, "permissions": permissions}
 
 
 async def update_user_permissions(
