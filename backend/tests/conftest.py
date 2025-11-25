@@ -117,10 +117,14 @@ async def cleanup_database():
         # Settings cleanup (must clear FK references before deleting users)
         "UPDATE system_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM settings_audit_log WHERE changed_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        # Email cleanup (must clear FK references before deleting users)
+        "DELETE FROM email_send_log",
+        "DELETE FROM email_queue",
+        "UPDATE email_templates SET created_by = NULL, updated_by = NULL WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "UPDATE email_recipients SET created_by = NULL, updated_by = NULL WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         # Webhook cleanup
         "DELETE FROM webhook_deliveries",
         "DELETE FROM webhooks WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "DELETE FROM email_queue",
         # API keys and user cleanup
         "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
         "DELETE FROM user_module_permissions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",

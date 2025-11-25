@@ -129,6 +129,10 @@ jobs:
           psql $DATABASE_URL -f migrations/008_system_settings.sql || exit 1
           echo "✅ Settings schema created successfully"
 
+          echo "Running email migration..."
+          psql $DATABASE_URL -f migrations/009_smtp_email.sql || exit 1
+          echo "✅ Email schema created successfully"
+
           echo "Running webhooks migration..."
           psql $DATABASE_URL -f migrations/010_webhooks.sql || exit 1
           echo "✅ Webhooks schema created successfully"

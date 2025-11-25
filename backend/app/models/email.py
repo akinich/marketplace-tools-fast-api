@@ -66,6 +66,12 @@ class SendTemplateEmailRequest(BaseModel):
     variables: Dict[str, Any]
     cc_emails: Optional[List[EmailStr]] = None
 
+class EmailRecipientsUpdateRequest(BaseModel):
+    """Request to update email recipients (notification_type from URL)"""
+    recipient_emails: List[EmailStr]
+    description: Optional[str] = None
+    is_active: bool = True
+
 class EmailRecipientsSchema(BaseModel):
     """Email recipients configuration"""
     notification_type: str
