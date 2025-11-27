@@ -3,19 +3,23 @@
 -- Description: Creates core tables needed for tests (without Supabase auth)
 -- Author: Claude
 -- Date: 2025-11-24
+-- Updated: 2025-11-27 - Added auth schema to match production structure
 -- ============================================================================
 
--- Users table (simplified version of Supabase auth.users for testing)
--- This simulates the auth.users table that exists in Supabase
-CREATE TABLE IF NOT EXISTS users (
+-- Create auth schema (to match Supabase production structure)
+CREATE SCHEMA IF NOT EXISTS auth;
+
+-- Users table in auth schema (simulates Supabase auth.users)
+-- This matches the production structure where auth.users is in a separate schema
+CREATE TABLE IF NOT EXISTS auth.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_auth_users_email ON auth.users(email);
 
-COMMENT ON TABLE users IS 'User accounts (simulates Supabase auth.users)';
+COMMENT ON TABLE auth.users IS 'User accounts (simulates Supabase auth.users)';
 
 -- Roles table (referenced by user_profiles)
 CREATE TABLE IF NOT EXISTS roles (
@@ -35,7 +39,7 @@ COMMENT ON TABLE roles IS 'User roles for role-based access control';
 
 -- User profiles table (main table with all user data)
 CREATE TABLE IF NOT EXISTS user_profiles (
-    id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name VARCHAR(255) NOT NULL,
     role_id INTEGER REFERENCES roles(id) DEFAULT 2,
     password_hash VARCHAR(255) NOT NULL,
@@ -60,7 +64,7 @@ COMMENT ON TABLE user_profiles IS 'Extended user profile information with authen
 -- Login history table (tracks all login attempts)
 CREATE TABLE IF NOT EXISTS login_history (
     id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     ip_address INET,
     device_info TEXT,
     location VARCHAR(255),
@@ -80,7 +84,7 @@ COMMENT ON TABLE login_history IS 'Track login attempts and history for security
 -- User sessions table (tracks active user sessions)
 CREATE TABLE IF NOT EXISTS user_sessions (
     id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     refresh_token_hash VARCHAR(255) UNIQUE NOT NULL,
     device_info TEXT,
     ip_address INET,
@@ -88,7 +92,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     is_active BOOLEAN DEFAULT true,
     revoked_at TIMESTAMP WITH TIME ZONE,
-    revoked_by UUID REFERENCES users(id),
+    revoked_by UUID REFERENCES auth.users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -129,7 +133,7 @@ ON CONFLICT (module_key) DO NOTHING;
 -- User module permissions table (for fine-grained access control)
 CREATE TABLE IF NOT EXISTS user_module_permissions (
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     module_id INTEGER NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
     can_access BOOLEAN DEFAULT true,
     can_create BOOLEAN DEFAULT false,
@@ -149,7 +153,7 @@ COMMENT ON TABLE user_module_permissions IS 'Fine-grained user permissions for e
 -- Activity logs table
 CREATE TABLE IF NOT EXISTS activity_logs (
     id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     user_email VARCHAR(255),
     user_role VARCHAR(50),
     action_type VARCHAR(100) NOT NULL,
@@ -172,7 +176,7 @@ COMMENT ON TABLE activity_logs IS 'Audit trail of user activities';
 -- Webhooks table
 CREATE TABLE IF NOT EXISTS webhooks (
     id SERIAL PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     secret VARCHAR(100) NOT NULL,
     events TEXT[] NOT NULL DEFAULT '{}',
@@ -245,13 +249,22 @@ COMMENT ON TABLE email_queue IS 'Queue for outgoing emails';
 -- ============================================================================
 
 -- Verify tables exist (api_keys excluded - created in migration 011)
+-- Check auth schema
 SELECT
-    table_name,
-    (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) as column_count
+    'auth.' || table_name as full_table_name,
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'auth' AND table_name = t.table_name) as column_count
+FROM information_schema.tables t
+WHERE table_schema = 'auth'
+  AND table_name IN ('users')
+UNION ALL
+-- Check public schema
+SELECT
+    table_name as full_table_name,
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = t.table_name) as column_count
 FROM information_schema.tables t
 WHERE table_schema = 'public'
   AND table_name IN (
-    'users', 'user_profiles', 'roles', 'modules', 'login_history', 'user_sessions',
+    'user_profiles', 'roles', 'modules', 'login_history', 'user_sessions',
     'activity_logs', 'webhooks', 'webhook_deliveries', 'email_queue', 'user_module_permissions'
   )
-ORDER BY table_name;
+ORDER BY full_table_name;

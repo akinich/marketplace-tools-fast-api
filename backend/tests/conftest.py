@@ -108,33 +108,33 @@ async def cleanup_database():
     # Clean up test data (delete in reverse order of dependencies)
     cleanup_queries = [
         # Ticket-related cleanup
-        "DELETE FROM ticket_comments WHERE ticket_id IN (SELECT id FROM tickets WHERE created_by_id IN (SELECT id FROM users WHERE email LIKE '%@test.com'))",
-        "DELETE FROM tickets WHERE created_by_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM ticket_comments WHERE ticket_id IN (SELECT id FROM tickets WHERE created_by_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com'))",
+        "DELETE FROM tickets WHERE created_by_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         # Session and auth cleanup
-        "DELETE FROM login_history WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM login_history WHERE user_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         "DELETE FROM activity_logs WHERE user_email LIKE '%@test.com'",
         # Settings cleanup (must clear FK references before deleting users)
-        "UPDATE system_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "DELETE FROM settings_audit_log WHERE changed_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "UPDATE system_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "DELETE FROM settings_audit_log WHERE changed_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         # Email cleanup (must clear FK references before deleting users)
         "DELETE FROM email_send_log",
         "DELETE FROM email_queue",
-        "UPDATE email_templates SET created_by = NULL, updated_by = NULL WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "UPDATE email_recipients SET created_by = NULL, updated_by = NULL WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com') OR updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "UPDATE email_templates SET created_by = NULL, updated_by = NULL WHERE created_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com') OR updated_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "UPDATE email_recipients SET created_by = NULL, updated_by = NULL WHERE created_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com') OR updated_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         # Telegram cleanup (must clear FK references before deleting users)
-        "DELETE FROM telegram_link_codes WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM telegram_link_codes WHERE user_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         "DELETE FROM low_stock_notifications",
-        "UPDATE notification_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "UPDATE user_profiles SET telegram_chat_id = NULL WHERE id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "UPDATE notification_settings SET updated_by = NULL WHERE updated_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "UPDATE user_profiles SET telegram_chat_id = NULL WHERE id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         # Webhook cleanup
         "DELETE FROM webhook_deliveries",
-        "DELETE FROM webhooks WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
+        "DELETE FROM webhooks WHERE created_by IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
         # API keys and user cleanup
-        "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "DELETE FROM user_module_permissions WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "DELETE FROM user_profiles WHERE id IN (SELECT id FROM users WHERE email LIKE '%@test.com')",
-        "DELETE FROM users WHERE email LIKE '%@test.com'",
+        "DELETE FROM api_keys WHERE user_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "DELETE FROM user_module_permissions WHERE user_id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "DELETE FROM user_profiles WHERE id IN (SELECT id FROM auth.users WHERE email LIKE '%@test.com')",
+        "DELETE FROM auth.users WHERE email LIKE '%@test.com'",
     ]
 
     for query in cleanup_queries:
@@ -193,7 +193,7 @@ async def test_admin_user() -> Dict:
     # Create user in users table (simulates auth.users)
     user_id = await execute_query(
         """
-        INSERT INTO users (email)
+        INSERT INTO auth.users (email)
         VALUES ($1)
         RETURNING id
         """,
@@ -246,7 +246,7 @@ async def test_regular_user() -> Dict:
     # Create user in users table (simulates auth.users)
     user_id = await execute_query(
         """
-        INSERT INTO users (email)
+        INSERT INTO auth.users (email)
         VALUES ($1)
         RETURNING id
         """,
@@ -299,7 +299,7 @@ async def test_inactive_user() -> Dict:
     # Create user in users table (simulates auth.users)
     user_id = await execute_query(
         """
-        INSERT INTO users (email)
+        INSERT INTO auth.users (email)
         VALUES ($1)
         RETURNING id
         """,
