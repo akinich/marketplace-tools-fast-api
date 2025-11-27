@@ -101,7 +101,7 @@ async def authenticate_user(email: str, password: str) -> dict:
                 up.locked_until,
                 up.must_change_password
             FROM user_profiles up
-            JOIN users au ON au.id = up.id
+            JOIN auth.users au ON au.id = up.id
             LEFT JOIN roles r ON r.id = up.role_id
             WHERE au.email = $1
             """,
@@ -270,7 +270,7 @@ async def refresh_access_token(refresh_token: str) -> Dict[str, any]:
                 r.role_name as role,
                 up.is_active
             FROM user_profiles up
-            JOIN users au ON au.id = up.id
+            JOIN auth.users au ON au.id = up.id
             LEFT JOIN roles r ON r.id = up.role_id
             WHERE up.id = $1
             """,
@@ -532,7 +532,7 @@ async def change_password(user_id: str, current_password: str, new_password: str
             """
             SELECT up.id, au.email, up.password_hash, up.must_change_password
             FROM user_profiles up
-            JOIN users au ON au.id = up.id
+            JOIN auth.users au ON au.id = up.id
             WHERE up.id = $1
             """,
             user_id
@@ -624,7 +624,7 @@ async def admin_unlock_account(user_id: str) -> Dict[str, str]:
             """
             SELECT up.id, au.email, up.locked_until, up.failed_login_attempts
             FROM user_profiles up
-            JOIN users au ON au.id = up.id
+            JOIN auth.users au ON au.id = up.id
             WHERE up.id = $1
             """,
             user_id
@@ -682,7 +682,7 @@ async def get_user_profile(user_id: str) -> Dict[str, Any]:
                 up.id, au.email, up.full_name, r.role_name as role,
                 up.is_active, up.created_at, up.last_password_change
             FROM user_profiles up
-            JOIN users au ON au.id = up.id
+            JOIN auth.users au ON au.id = up.id
             JOIN roles r ON r.id = up.role_id
             WHERE up.id = $1
             """,

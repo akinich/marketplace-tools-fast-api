@@ -175,7 +175,7 @@ async def verify_api_key(
             au.email, up.role_id, r.role_name
         FROM api_keys ak
         JOIN user_profiles up ON ak.user_id = up.id
-        JOIN users au ON ak.user_id = au.id
+        JOIN auth.users au ON ak.user_id = au.id
         JOIN roles r ON up.role_id = r.id
         WHERE ak.is_active = true
           AND (ak.expires_at IS NULL OR ak.expires_at > NOW())
