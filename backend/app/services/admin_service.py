@@ -894,19 +894,35 @@ async def get_activity_logs(
 
 
 async def get_user_accessible_modules(user_id: str) -> List[Dict]:
-    """Get modules accessible to user"""
+    """
+    Get modules accessible to user.
+
+    Logic:
+    - Admin users get access to ALL active modules automatically
+    - Regular users only get modules they have explicit permissions for
+
+    This matches the user_accessible_modules view in production schema.
+    """
     modules_raw = await fetch_all(
         """
-        SELECT
+        SELECT DISTINCT
             m.id as module_id,
             m.module_key,
             m.module_name,
             m.icon,
             m.display_order,
             m.parent_module_id
-        FROM user_module_permissions ump
-        JOIN modules m ON m.id = ump.module_id
-        WHERE ump.user_id = $1 AND ump.can_access = TRUE
+        FROM user_profiles up
+        JOIN roles r ON r.id = up.role_id
+        CROSS JOIN modules m
+        LEFT JOIN user_module_permissions ump ON ump.user_id = up.id AND ump.module_id = m.id
+        WHERE up.id = $1
+          AND m.is_active = TRUE
+          AND up.is_active = TRUE
+          AND (
+              r.role_name = 'Admin'
+              OR (ump.can_access = TRUE)
+          )
         ORDER BY m.display_order
         """,
         UUID(user_id),
