@@ -16,7 +16,7 @@ VALUES (
     'docs',
     'Documentation',
     'System documentation and guides',
-    '📚',
+    'book',
     true,
     90,
     NULL
@@ -41,22 +41,22 @@ BEGIN
     INSERT INTO modules (module_key, module_name, description, icon, is_active, display_order, parent_module_id)
     VALUES
         -- User Management
-        ('admin_users', 'User Management', 'Manage users, roles, and permissions', '👥', true, 1, admin_module_id),
+        ('admin_users', 'User Management', 'Manage users, roles, and permissions', 'users', true, 1, admin_module_id),
 
         -- Module Management
-        ('admin_modules', 'Module Management', 'Enable/disable system modules', '⚙️', true, 2, admin_module_id),
+        ('admin_modules', 'Module Management', 'Enable/disable system modules', 'settings', true, 2, admin_module_id),
 
         -- Activity Logs
-        ('admin_activity', 'Activity Logs', 'View system activity and audit trail', '📜', true, 3, admin_module_id),
+        ('admin_activity', 'Activity Logs', 'View system activity and audit trail', 'list', true, 3, admin_module_id),
 
         -- Security Dashboard
-        ('admin_security', 'Security Dashboard', 'Sessions, login history, and security stats', '🔒', true, 4, admin_module_id),
+        ('admin_security', 'Security Dashboard', 'Sessions, login history, and security stats', 'lock', true, 4, admin_module_id),
 
         -- Units of Measurement
-        ('admin_units', 'Units of Measurement', 'Manage standardized measurement units', '📏', true, 5, admin_module_id),
+        ('admin_units', 'Units of Measurement', 'Manage standardized measurement units', 'ruler', true, 5, admin_module_id),
 
         -- Settings
-        ('admin_settings', 'Settings', 'System settings and configuration', '⚙️', true, 6, admin_module_id)
+        ('admin_settings', 'Settings', 'System settings and configuration', 'settings', true, 6, admin_module_id)
     ON CONFLICT (module_key) DO NOTHING;
 
     RAISE NOTICE 'Admin sub-modules created successfully';
@@ -70,7 +70,7 @@ VALUES (
     'communication',
     'Communication',
     'Manage all communication channels: Email, Telegram, Webhooks, API Keys, and Real-time notifications',
-    '📡',
+    'radio',
     true,
     50,
     NULL
@@ -107,7 +107,7 @@ BEGIN
             'com_telegram',
             'Telegram Notifications',
             'Configure Telegram bot notifications and alerts',
-            '📱',
+            'message',
             true,
             1,
             comm_module_id
@@ -120,7 +120,7 @@ BEGIN
         'com_smtp',
         'Email (SMTP)',
         'Configure SMTP email settings, manage email templates, and send notifications',
-        '📧',
+        'mail',
         true,
         2,
         comm_module_id
@@ -132,7 +132,7 @@ BEGIN
         'com_webhooks',
         'Webhooks',
         'Manage outgoing webhooks for event-driven integrations',
-        '🔗',
+        'link',
         true,
         3,
         comm_module_id
@@ -144,7 +144,7 @@ BEGIN
         'com_api_keys',
         'API Keys',
         'Manage API keys for programmatic access and automation',
-        '🔑',
+        'key',
         true,
         4,
         comm_module_id
@@ -156,7 +156,7 @@ BEGIN
         'com_websockets',
         'Real-time (WebSocket)',
         'Configure real-time notifications and live updates',
-        '🔔',
+        'bell',
         true,
         5,
         comm_module_id
