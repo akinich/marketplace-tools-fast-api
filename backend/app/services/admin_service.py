@@ -201,7 +201,7 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
         existing_user = await fetch_one(
             """
             SELECT au.id, up.is_active
-            FROM users au
+            FROM auth.users au
             LEFT JOIN user_profiles up ON up.id = au.id
             WHERE au.email = $1
             """,
@@ -241,7 +241,7 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
 
             # Create user in users table
             await execute_query(
-                "INSERT INTO users (id, email) VALUES ($1, $2)",
+                "INSERT INTO auth.users (id, email) VALUES ($1, $2)",
                 UUID(user_id),
                 request.email
             )
@@ -473,7 +473,7 @@ async def delete_user(user_id: str, deleted_by_id: str, hard_delete: bool = Fals
                 # Delete user_profiles first (if not cascading)
                 await execute_query("DELETE FROM user_profiles WHERE id = $1", UUID(user_id))
                 # Delete from users table
-                await execute_query("DELETE FROM users WHERE id = $1", UUID(user_id))
+                await execute_query("DELETE FROM auth.users WHERE id = $1", UUID(user_id))
             else:
                 # Production mode: Use Supabase Admin API
                 from app.utils.supabase_client import get_supabase_client
@@ -795,7 +795,7 @@ async def update_user_permissions(
         granted_by_id,
     )
     user_email = await fetch_one(
-        "SELECT email FROM users WHERE id = $1", user_id
+        "SELECT email FROM auth.users WHERE id = $1", user_id
     )
     await log_activity(
         user_id=granted_by_id,

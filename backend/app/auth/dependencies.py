@@ -147,7 +147,7 @@ async def get_current_user(token: str = Depends(get_token)) -> CurrentUser:
             r.role_name as role,
             up.is_active
         FROM user_profiles up
-        JOIN users au ON au.id = up.id
+        JOIN auth.users au ON au.id = up.id
         LEFT JOIN roles r ON r.id = up.role_id
         WHERE up.id = $1
         """,

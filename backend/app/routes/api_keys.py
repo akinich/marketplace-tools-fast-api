@@ -221,7 +221,7 @@ async def list_all_api_keys(
             ak.created_at, ak.revoked_at,
             u.email as user_email
         FROM api_keys ak
-        JOIN users u ON ak.user_id = u.id
+        JOIN auth.users u ON ak.user_id = u.id
         JOIN user_profiles up ON ak.user_id = up.id
         ORDER BY ak.created_at DESC
         """

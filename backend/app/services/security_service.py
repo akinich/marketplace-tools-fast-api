@@ -159,7 +159,7 @@ async def get_all_sessions_admin() -> List[Dict]:
             us.is_active
         FROM user_sessions us
         JOIN user_profiles up ON up.id = us.user_id
-        JOIN users au ON au.id = us.user_id
+        JOIN auth.users au ON au.id = us.user_id
         WHERE us.is_active = TRUE AND us.expires_at > NOW()
         ORDER BY us.last_activity DESC
         LIMIT 100

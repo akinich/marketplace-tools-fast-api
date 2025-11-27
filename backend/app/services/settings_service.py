@@ -243,7 +243,7 @@ async def get_audit_log(
                 sal.changed_at,
                 au.email as changed_by
             FROM settings_audit_log sal
-            LEFT JOIN users au ON sal.changed_by = au.id
+            LEFT JOIN auth.users au ON sal.changed_by = au.id
             WHERE sal.setting_key = $1
             ORDER BY sal.changed_at DESC
             LIMIT $2
@@ -262,7 +262,7 @@ async def get_audit_log(
                 sal.changed_at,
                 au.email as changed_by
             FROM settings_audit_log sal
-            LEFT JOIN users au ON sal.changed_by = au.id
+            LEFT JOIN auth.users au ON sal.changed_by = au.id
             ORDER BY sal.changed_at DESC
             LIMIT $1
             """,

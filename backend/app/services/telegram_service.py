@@ -829,7 +829,7 @@ async def verify_link_code(code: str, telegram_chat_id: int) -> Dict:
         """
         SELECT up.id, up.full_name, au.email
         FROM user_profiles up
-        JOIN users au ON au.id = up.id
+        JOIN auth.users au ON au.id = up.id
         WHERE up.id = $1
         """,
         link["user_id"]
