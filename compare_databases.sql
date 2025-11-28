@@ -214,12 +214,11 @@ SELECT
     '14_DATA_HASH_user_profiles' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(user_id::text, '') || '|' ||
-        COALESCE(username, '') || '|' ||
-        COALESCE(email, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
+        COALESCE(full_name, '') || '|' ||
         COALESCE(is_active::text, '') || '|' ||
         COALESCE(role_id::text, ''),
-        '|' ORDER BY user_id
+        '|' ORDER BY id
     )) as data_hash
 FROM user_profiles;
 
@@ -227,10 +226,10 @@ SELECT
     '14_DATA_HASH_roles' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(role_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(role_name, '') || '|' ||
         COALESCE(description, ''),
-        '|' ORDER BY role_id
+        '|' ORDER BY id
     )) as data_hash
 FROM roles;
 
@@ -238,11 +237,11 @@ SELECT
     '14_DATA_HASH_modules' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(module_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(module_name, '') || '|' ||
         COALESCE(description, '') || '|' ||
         COALESCE(is_active::text, ''),
-        '|' ORDER BY module_id
+        '|' ORDER BY id
     )) as data_hash
 FROM modules;
 
@@ -251,11 +250,11 @@ SELECT
     '14_DATA_HASH_item_master' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(item_id::text, '') || '|' ||
-        COALESCE(item_code, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
+        COALESCE(sku, '') || '|' ||
         COALESCE(item_name, '') || '|' ||
-        COALESCE(category_id::text, ''),
-        '|' ORDER BY item_id
+        COALESCE(category, ''),
+        '|' ORDER BY id
     )) as data_hash
 FROM item_master;
 
@@ -263,10 +262,10 @@ SELECT
     '14_DATA_HASH_inventory_categories' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(category_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(category_name, '') || '|' ||
         COALESCE(description, ''),
-        '|' ORDER BY category_id
+        '|' ORDER BY id
     )) as data_hash
 FROM inventory_categories;
 
@@ -275,12 +274,12 @@ SELECT
     '14_DATA_HASH_system_settings' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(setting_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(setting_key, '') || '|' ||
-        COALESCE(setting_value, '') || '|' ||
+        COALESCE(setting_value::text, '') || '|' ||
         COALESCE(data_type, '') || '|' ||
         COALESCE(category, ''),
-        '|' ORDER BY setting_id
+        '|' ORDER BY id
     )) as data_hash
 FROM system_settings
 WHERE setting_key NOT IN ('supabase_url', 'supabase_service_key', 'telegram_bot_token'); -- Exclude secrets
@@ -290,10 +289,10 @@ SELECT
     '14_DATA_HASH_email_templates' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(template_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(template_key, '') || '|' ||
-        COALESCE(template_name, ''),
-        '|' ORDER BY template_id
+        COALESCE(name, ''),
+        '|' ORDER BY id
     )) as data_hash
 FROM email_templates;
 
@@ -302,10 +301,10 @@ SELECT
     '14_DATA_HASH_api_keys' as check_type,
     COUNT(*) as row_count,
     MD5(STRING_AGG(
-        COALESCE(key_id::text, '') || '|' ||
-        COALESCE(key_name, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
+        COALESCE(name, '') || '|' ||
         COALESCE(is_active::text, ''),
-        '|' ORDER BY key_id
+        '|' ORDER BY id
     )) as data_hash
 FROM api_keys;
 
