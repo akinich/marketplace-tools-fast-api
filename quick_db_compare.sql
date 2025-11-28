@@ -84,10 +84,10 @@ SELECT
     'HASH: user_profiles' as check_name,
     COUNT(*) as rows,
     MD5(STRING_AGG(
-        COALESCE(user_id::text, '') || '|' ||
-        COALESCE(username, '') || '|' ||
-        COALESCE(email, ''),
-        '|' ORDER BY user_id
+        COALESCE(id::text, '') || '|' ||
+        COALESCE(full_name, '') || '|' ||
+        COALESCE(is_active::text, ''),
+        '|' ORDER BY id
     )) as data_hash
 FROM user_profiles
 
@@ -97,9 +97,9 @@ SELECT
     'HASH: roles',
     COUNT(*),
     MD5(STRING_AGG(
-        COALESCE(role_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(role_name, ''),
-        '|' ORDER BY role_id
+        '|' ORDER BY id
     ))
 FROM roles
 
@@ -109,9 +109,9 @@ SELECT
     'HASH: modules',
     COUNT(*),
     MD5(STRING_AGG(
-        COALESCE(module_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(module_name, ''),
-        '|' ORDER BY module_id
+        '|' ORDER BY id
     ))
 FROM modules
 
@@ -121,10 +121,10 @@ SELECT
     'HASH: item_master',
     COUNT(*),
     MD5(STRING_AGG(
-        COALESCE(item_id::text, '') || '|' ||
-        COALESCE(item_code, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
+        COALESCE(sku, '') || '|' ||
         COALESCE(item_name, ''),
-        '|' ORDER BY item_id
+        '|' ORDER BY id
     ))
 FROM item_master
 
@@ -134,9 +134,9 @@ SELECT
     'HASH: inventory_categories',
     COUNT(*),
     MD5(STRING_AGG(
-        COALESCE(category_id::text, '') || '|' ||
+        COALESCE(id::text, '') || '|' ||
         COALESCE(category_name, ''),
-        '|' ORDER BY category_id
+        '|' ORDER BY id
     ))
 FROM inventory_categories
 
@@ -148,8 +148,8 @@ SELECT
     COUNT(*),
     MD5(STRING_AGG(
         COALESCE(setting_key, '') || '|' ||
-        COALESCE(setting_value, ''),
-        '|' ORDER BY setting_id
+        COALESCE(setting_value::text, ''),
+        '|' ORDER BY id
     ))
 FROM system_settings
 WHERE setting_key NOT IN ('supabase_url', 'supabase_service_key', 'telegram_bot_token')
@@ -161,8 +161,8 @@ SELECT
     COUNT(*),
     MD5(STRING_AGG(
         COALESCE(template_key, '') || '|' ||
-        COALESCE(template_name, ''),
-        '|' ORDER BY template_id
+        COALESCE(name, ''),
+        '|' ORDER BY id
     ))
 FROM email_templates;
 
