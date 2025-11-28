@@ -23,41 +23,59 @@ async def diagnose_settings_at_startup():
     """
 
     logger.info("=" * 80)
-    logger.info("⚙️  SETTINGS DIAGNOSTICS - Checking configuration sources")
+    logger.info("⚙️  SETTINGS DIAGNOSTICS - Database Configuration Status")
     logger.info("=" * 80)
-
-    critical_settings = [
-        ('telegram_bot_token', 'Telegram Bot'),
-        ('supabase_url', 'Supabase URL'),
-        ('supabase_service_key', 'Supabase Service Key')
-    ]
 
     try:
         async with pool.acquire() as conn:
-            logger.info("🔍 Checking database settings...")
+            # Get all settings grouped by category
+            all_settings = await conn.fetch("""
+                SELECT category, setting_key, setting_value, is_public, is_encrypted
+                FROM system_settings
+                ORDER BY category, setting_key
+            """)
 
-            for setting_key, display_name in critical_settings:
-                result = await fetch_one(
-                    "SELECT setting_key, setting_value, category FROM system_settings WHERE setting_key = $1",
-                    setting_key
-                )
+            if not all_settings:
+                logger.warning("⚠️  No settings found in database!")
+                logger.info("   → All configuration will use environment variables")
+            else:
+                # Group by category
+                categories = {}
+                for row in all_settings:
+                    cat = row['category']
+                    if cat not in categories:
+                        categories[cat] = []
+                    categories[cat].append(row)
 
-                if result:
-                    value_preview = str(result['setting_value'])[:20] + "..." if len(str(result['setting_value'])) > 20 else str(result['setting_value'])
-                    logger.info(
-                        f"  ✅ {display_name:<25} → DATABASE (category: {result['category']}, "
-                        f"value: {value_preview})"
-                    )
-                else:
-                    logger.warning(
-                        f"  ⚠️  {display_name:<25} → NOT IN DATABASE (will use environment variable)"
-                    )
+                # Log summary by category
+                logger.info(f"📊 Found {len(all_settings)} settings across {len(categories)} categories")
+                logger.info("")
 
-            # Count total settings
-            total_count = await fetch_one(
-                "SELECT COUNT(*) as count FROM system_settings"
-            )
-            logger.info(f"📊 Total settings in database: {total_count['count'] if total_count else 0}")
+                for category, settings in sorted(categories.items()):
+                    logger.info(f"📁 Category: {category.upper()}")
+                    for setting in settings:
+                        key = setting['setting_key']
+                        value = setting['setting_value']
+
+                        # Mask sensitive values
+                        if setting['is_encrypted'] or 'password' in key or 'secret' in key or 'key' in key or 'token' in key:
+                            display_value = "***MASKED***"
+                        elif len(str(value)) > 30:
+                            display_value = str(value)[:30] + "..."
+                        else:
+                            display_value = str(value)
+
+                        visibility = "🔒 Private" if not setting['is_public'] else "🌐 Public"
+                        logger.info(f"   • {key:<35} = {display_value:<35} {visibility}")
+                    logger.info("")
+
+                # Highlight critical integrations
+                logger.info("🔑 Critical Integration Settings:")
+                critical_keys = ['telegram_bot_token', 'supabase_url', 'supabase_service_key']
+                for key in critical_keys:
+                    found = any(s['setting_key'] == key for s in all_settings)
+                    status = "✅ Configured in DB" if found else "❌ Missing (using env)"
+                    logger.info(f"   • {key:<30} {status}")
 
     except Exception as e:
         logger.error(f"❌ Failed to check database settings: {e}")
