@@ -68,6 +68,7 @@ from typing import Any
 from app.config import settings, display_settings
 from app.database import connect_db, disconnect_db, check_database_health
 from app.scheduler import start_scheduler, stop_scheduler, get_scheduler_status
+from app.utils.settings_diagnostics import diagnose_settings_at_startup
 
 # ============================================================================
 # LOGGING SETUP
@@ -110,6 +111,9 @@ async def lifespan(app: FastAPI):
     try:
         # Connect to database
         await connect_db()
+
+        # Diagnose settings sources (database vs environment)
+        await diagnose_settings_at_startup()
 
         # Start background scheduler
         start_scheduler()
