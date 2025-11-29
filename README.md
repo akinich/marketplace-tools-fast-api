@@ -1,6 +1,6 @@
-# 🌾 Farm Management System - FastAPI + React
+# 🌾 Marketplace ERP - FastAPI + React
 
-A modern, full-stack farm management system migrated from Streamlit to FastAPI backend + React frontend for improved performance, scalability, and user experience.
+A modern, full-stack Marketplace ERP migrated from Streamlit to FastAPI backend + React frontend for improved performance, scalability, and user experience.
 
 ![Version](https://img.shields.io/badge/version-1.13.0-green)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688)

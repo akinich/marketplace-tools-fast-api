@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Authentication Service
+Marketplace ERP - Authentication Service
 ================================================================================
 Version: 1.3.0
 Last Updated: 2025-11-21

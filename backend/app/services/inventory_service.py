@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Inventory Service Layer
+Marketplace ERP - Inventory Service Layer
 ================================================================================
 Version: 1.9.0
 Last Updated: 2025-11-22

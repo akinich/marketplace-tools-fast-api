@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Admin Panel Schemas
+Marketplace ERP - Admin Panel Schemas
 ================================================================================
 Version: 1.1.0
 Last Updated: 2025-11-17

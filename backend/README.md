@@ -1,4 +1,4 @@
-# Farm Management System - Backend API
+# Marketplace ERP - Backend API
 
 **Version: 1.0.0** | **Last Updated: 2025-11-17**
 

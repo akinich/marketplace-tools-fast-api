@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Admin Service Layer
+Marketplace ERP - Admin Service Layer
 ================================================================================
 Version: 1.7.0
 Last Updated: 2025-11-19

@@ -42,7 +42,7 @@ class DocsService:
             "title": "Getting Started",
             "file": "getting-started.md",
             "category": "General",
-            "description": "Learn the basics of using the Farm Management System",
+            "description": "Learn the basics of using the Marketplace ERP",
             "order": 1
         },
         "admin": {

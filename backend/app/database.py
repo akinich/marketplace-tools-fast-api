@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Database Connection Manager
+Marketplace ERP - Database Connection Manager
 ================================================================================
 Version: 1.2.0
 Last Updated: 2025-11-17

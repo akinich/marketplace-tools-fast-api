@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Rate Limiting Middleware
+Marketplace ERP - Rate Limiting Middleware
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-21

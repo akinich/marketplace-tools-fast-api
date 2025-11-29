@@ -1,13 +1,13 @@
 """
 ================================================================================
-Farm Management System - Comprehensive Migration Runner
+Marketplace ERP - Comprehensive Migration Runner
 ================================================================================
 Version: 1.0.0
 Created: 2025-11-20
 Last Updated: 2025-11-20
 
 Description:
-  Comprehensive migration checker and runner for all Farm Management System modules.
+  Comprehensive migration checker and runner for all Marketplace ERP modules.
   Intelligently detects which migrations have been applied and runs pending ones.
 
   Supported Migrations:

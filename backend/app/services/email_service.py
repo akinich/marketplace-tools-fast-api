@@ -222,9 +222,9 @@ async def test_email_connection(conn: Connection, test_email: str) -> Dict[str, 
             conn,
             provider=provider,
             to_email=test_email,
-            subject="Email Test - Farm Management System",
-            plain_body=f"This is a test email from your Farm Management System.\n\nProvider: {provider}\n\nEmail service is configured correctly!",
-            html_body=f"<h2>Email Test</h2><p>This is a test email from your Farm Management System.</p><p><strong>Provider:</strong> {provider}</p><p><strong>Email service is configured correctly!</strong></p>"
+            subject="Email Test - Marketplace ERP",
+            plain_body=f"This is a test email from your Marketplace ERP.\n\nProvider: {provider}\n\nEmail service is configured correctly!",
+            html_body=f"<h2>Email Test</h2><p>This is a test email from your Marketplace ERP.</p><p><strong>Provider:</strong> {provider}</p><p><strong>Email service is configured correctly!</strong></p>"
         )
 
         logger.info(f"✅ Test email sent successfully to {test_email} via {provider}")
@@ -296,7 +296,7 @@ async def _get_smtp_settings(conn: Connection) -> Dict[str, Any]:
         'username': await settings_service.get_setting(conn, 'email.smtp_user', ''),
         'password': await settings_service.get_setting(conn, 'email.smtp_password', ''),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP'),
     }
 
 async def _send_via_smtp(
@@ -371,7 +371,7 @@ async def _get_sendgrid_settings(conn: Connection) -> Dict[str, Any]:
     return {
         'api_key': await settings_service.get_setting(conn, 'email.sendgrid_api_key', ''),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP'),
     }
 
 async def _send_via_sendgrid(
@@ -433,7 +433,7 @@ async def _get_resend_settings(conn: Connection) -> Dict[str, Any]:
     return {
         'api_key': await settings_service.get_setting(conn, 'email.resend_api_key', ''),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP'),
     }
 
 async def _send_via_resend(
@@ -490,7 +490,7 @@ async def _get_brevo_settings(conn: Connection) -> Dict[str, Any]:
     return {
         'api_key': await settings_service.get_setting(conn, 'email.brevo_api_key', ''),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP'),
     }
 
 async def _send_via_brevo(
@@ -551,7 +551,7 @@ async def _get_mailgun_settings(conn: Connection) -> Dict[str, Any]:
         'api_key': await settings_service.get_setting(conn, 'email.mailgun_api_key', ''),
         'domain': await settings_service.get_setting(conn, 'email.mailgun_domain', ''),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP'),
     }
 
 async def _send_via_mailgun(
@@ -607,7 +607,7 @@ async def _get_aws_ses_settings(conn: Connection) -> Dict[str, Any]:
         'secret_key': await settings_service.get_setting(conn, 'email.aws_secret_key', ''),
         'region': await settings_service.get_setting(conn, 'email.aws_region', 'us-east-1'),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP'),
     }
 
 async def _send_via_aws_ses(

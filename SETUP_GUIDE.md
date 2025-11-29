@@ -1,4 +1,4 @@
-# Farm Management System - Quick Start Guide
+# Marketplace ERP - Quick Start Guide
 
 **Version: 1.0.0** | **Last Updated: 2025-11-17**
 

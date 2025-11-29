@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Vite Configuration
+Marketplace ERP - Vite Configuration
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-17

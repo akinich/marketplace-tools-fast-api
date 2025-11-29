@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Ticket System Schemas
+Marketplace ERP - Ticket System Schemas
 ================================================================================
 Version: 1.1.0
 Last Updated: 2025-11-20

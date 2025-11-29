@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Biofloc Module Schemas
+Marketplace ERP - Biofloc Module Schemas
 ================================================================================
 Version: 1.1.0
 Last Updated: 2025-11-19

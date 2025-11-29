@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Farm Management System - Tickets Module Frontend
+ * Marketplace ERP - Tickets Module Frontend
  * ============================================================================
  * Version: 1.1.0
  * Last Updated: 2025-11-20

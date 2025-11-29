@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - JWT Token Management
+Marketplace ERP - JWT Token Management
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-17

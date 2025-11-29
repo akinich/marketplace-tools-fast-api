@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Development Planning Service Layer
+Marketplace ERP - Development Planning Service Layer
 ================================================================================
 Version: 1.0.1
 Last Updated: 2025-11-20
