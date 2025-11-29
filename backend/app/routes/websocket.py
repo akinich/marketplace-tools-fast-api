@@ -34,6 +34,7 @@ from app.websocket.connection_manager import manager
 from app.auth.jwt import verify_access_token
 from app.auth.dependencies import require_admin
 from app.schemas.auth import CurrentUser
+from app.utils.settings_helper import require_feature
 from datetime import datetime
 import logging
 
@@ -44,7 +45,8 @@ router = APIRouter()
 
 @router.get("/status")
 async def get_websocket_status(
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("websockets_enabled"))
 ):
     """Get WebSocket connection status"""
     online_users = manager.get_online_users()
@@ -59,7 +61,8 @@ async def get_websocket_status(
 
 @router.post("/test")
 async def test_websocket(
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("websockets_enabled"))
 ):
     """Send a test notification via WebSocket to the current user"""
     user_id = str(current_user.id)
@@ -105,6 +108,25 @@ async def websocket_endpoint(
     user_id = None
 
     try:
+        # Check if WebSocket feature is enabled
+        from app.database import get_db
+        from app.utils.settings_helper import get_setting_with_fallback
+        
+        pool = get_db()
+        async with pool.acquire() as conn:
+            enabled = await get_setting_with_fallback(
+                conn,
+                "features.websockets_enabled",
+                env_fallback=None,
+                default="false"
+            )
+            is_enabled = enabled in ("true", True, "True", "1", 1)
+            
+            if not is_enabled:
+                logger.warning("WebSocket connection rejected: feature is disabled")
+                await websocket.close(code=1008, reason="WebSocket feature is disabled")
+                return
+        
         # Verify token
         payload = verify_access_token(token)
         if not payload or 'sub' not in payload:
