@@ -39,10 +39,8 @@ class UpdateSettingsRequest(BaseModel):
     """Request to update notification settings"""
     tickets_channel_id: Optional[int] = Field(None, description="Telegram channel ID for ticket notifications")
     po_channel_id: Optional[int] = Field(None, description="Telegram channel ID for PO notifications")
-    inventory_channel_id: Optional[int] = Field(None, description="Telegram channel ID for inventory notifications")
     enable_ticket_notifications: Optional[bool] = Field(None, description="Enable/disable ticket notifications")
     enable_po_notifications: Optional[bool] = Field(None, description="Enable/disable PO notifications")
-    enable_inventory_notifications: Optional[bool] = Field(None, description="Enable/disable inventory notifications")
     enable_personal_notifications: Optional[bool] = Field(None, description="Enable/disable personal DM notifications")
 
     # Granular ticket notification settings
@@ -86,12 +84,12 @@ class UpdateSettingsRequest(BaseModel):
 
 class TestNotificationRequest(BaseModel):
     """Request to send test notification"""
-    channel_type: str = Field(..., description="Channel to test: 'tickets', 'po', or 'inventory'")
+    channel_type: str = Field(..., description="Channel to test: 'tickets' or 'po'")
 
     @validator('channel_type')
     def validate_channel_type(cls, v):
         """Validate channel type"""
-        allowed = ['tickets', 'po', 'inventory']
+        allowed = ['tickets', 'po']
         if v not in allowed:
             raise ValueError(f"channel_type must be one of {allowed}")
         return v
@@ -112,10 +110,7 @@ class NotificationSettingsResponse(BaseModel):
     """Response with all notification settings"""
     tickets_channel_id: Optional[int] = None
     po_channel_id: Optional[int] = None
-    inventory_channel_id: Optional[int] = None
-    enable_ticket_notifications: Optional[bool] = True
-    enable_po_notifications: Optional[bool] = True
-    enable_inventory_notifications: Optional[bool] = True
+
     enable_personal_notifications: Optional[bool] = False
     bot_status: Optional[str] = "inactive"
     last_health_check: Optional[str] = None

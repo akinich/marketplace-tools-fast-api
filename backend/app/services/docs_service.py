@@ -19,7 +19,7 @@ v1.0.0 (2025-11-20):
   - Full-text search across all documentation
   - Extract table of contents from headers
   - Category organization (General, Modules)
-  - Support for 4 docs: getting-started, admin, inventory, biofloc
+  - Support for 2 docs: getting-started, admin
 
 ================================================================================
 """
@@ -52,20 +52,7 @@ class DocsService:
             "description": "Manage users, permissions, and system settings",
             "order": 2
         },
-        "inventory": {
-            "title": "Inventory Module",
-            "file": "inventory.md",
-            "category": "Modules",
-            "description": "Track supplies, manage stock, and create purchase orders",
-            "order": 3
-        },
-        "biofloc": {
-            "title": "Biofloc Module",
-            "file": "biofloc.md",
-            "category": "Modules",
-            "description": "Manage fish tanks, batches, and daily operations",
-            "order": 4
-        }
+
     }
 
     @classmethod

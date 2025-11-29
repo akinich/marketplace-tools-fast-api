@@ -103,17 +103,11 @@ async def update_notification_settings(
     if request.po_channel_id is not None:
         updates["po_channel_id"] = request.po_channel_id
 
-    if request.inventory_channel_id is not None:
-        updates["inventory_channel_id"] = request.inventory_channel_id
-
     if request.enable_ticket_notifications is not None:
         updates["enable_ticket_notifications"] = request.enable_ticket_notifications
 
     if request.enable_po_notifications is not None:
         updates["enable_po_notifications"] = request.enable_po_notifications
-
-    if request.enable_inventory_notifications is not None:
-        updates["enable_inventory_notifications"] = request.enable_inventory_notifications
 
     if request.enable_personal_notifications is not None:
         updates["enable_personal_notifications"] = request.enable_personal_notifications

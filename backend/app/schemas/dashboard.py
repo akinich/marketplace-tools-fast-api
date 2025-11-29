@@ -32,14 +32,7 @@ from decimal import Decimal
 class DashboardSummaryResponse(BaseModel):
     """Main dashboard summary with farm-wide KPIs"""
 
-    # Inventory metrics
-    total_inventory_items: int = Field(..., description="Total inventory items")
-    low_stock_items: int = Field(..., description="Items below reorder threshold")
-    expiring_soon_items: int = Field(..., description="Items expiring within 30 days")
-    total_inventory_value: Decimal = Field(..., description="Total stock value")
 
-    # Purchase orders
-    pending_pos: int = Field(..., description="Pending purchase orders")
 
     # User metrics
     total_users: int = Field(..., description="Total users in system")
@@ -52,11 +45,6 @@ class DashboardSummaryResponse(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "total_inventory_items": 150,
-                "low_stock_items": 7,
-                "expiring_soon_items": 3,
-                "total_inventory_value": 125000.50,
-                "pending_pos": 4,
                 "total_users": 25,
                 "active_users": 23,
                 "recent_logins_24h": 15,

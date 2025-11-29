@@ -27,7 +27,7 @@ from typing import List, Dict, Any
 from app.schemas.dashboard import *
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, get_current_user_or_api_key
-from app.services import admin_service, inventory_service, biofloc_service, tickets_service
+from app.services import admin_service, tickets_service
 
 router = APIRouter()
 
@@ -51,19 +51,14 @@ async def get_dashboard_summary(user: dict = Depends(get_current_user_or_api_key
     Authentication: Accepts both JWT tokens and API keys (X-API-Key header)
     Required scope (for API keys): dashboard:read
     """
-    # Get inventory metrics
-    inventory_stats = await inventory_service.get_inventory_dashboard()
+
 
     # Get admin metrics
     admin_stats = await admin_service.get_admin_statistics()
 
     # Combine into dashboard summary
     return DashboardSummaryResponse(
-        total_inventory_items=inventory_stats["total_items"],
-        low_stock_items=inventory_stats["low_stock_items"],
-        expiring_soon_items=inventory_stats["expiring_soon_items"],
-        total_inventory_value=inventory_stats["total_stock_value"],
-        pending_pos=inventory_stats["pending_pos"],
+
         total_users=admin_stats["total_users"],
         active_users=admin_stats["active_users"],
         recent_logins_24h=admin_stats["recent_logins_24h"],
@@ -121,31 +116,6 @@ async def get_dashboard_widgets(user: CurrentUser = Depends(get_current_user)) -
 
     widgets = {}
 
-    # Inventory widgets
-    if "inventory" in module_keys:
-        inventory_stats = await inventory_service.get_inventory_dashboard()
-        widgets["inventory"] = {
-            "total_items": inventory_stats["total_items"],
-            "low_stock_items": inventory_stats["low_stock_items"],
-            "expiring_soon_items": inventory_stats["expiring_soon_items"],
-            "total_stock_value": float(inventory_stats["total_stock_value"]),
-            "pending_pos": inventory_stats["pending_pos"],
-        }
-
-    # Biofloc widgets
-    if "biofloc" in module_keys:
-        biofloc_stats = await biofloc_service.get_dashboard_stats()
-        # Calculate tanks needing attention (water quality alerts)
-        tanks_needing_attention = (
-            biofloc_stats.get("low_do_alerts", 0) +
-            biofloc_stats.get("high_ammonia_alerts", 0)
-        )
-        widgets["biofloc"] = {
-            "active_tanks": biofloc_stats.get("active_tanks", 0),
-            "active_batches": biofloc_stats.get("active_batches", 0),
-            "total_stock": biofloc_stats.get("total_fish_count", 0),
-            "tanks_needing_attention": tanks_needing_attention,
-        }
 
     # Admin widgets
     if "admin" in module_keys:

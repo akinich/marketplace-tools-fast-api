@@ -141,14 +141,12 @@ async def get_doc(
     **Authentication Required:** User must be logged in.
 
     **Parameters:**
-    - **doc_id**: Document identifier (e.g., 'getting-started', 'admin', 'inventory', 'biofloc')
+    - **doc_id**: Document identifier (e.g., 'getting-started', 'admin')
     - **format**: Response format - 'markdown' (raw) or 'html' (rendered)
 
     **Available Documents:**
     - `getting-started` - Getting Started Guide
     - `admin` - Admin Module Guide
-    - `inventory` - Inventory Module Guide
-    - `biofloc` - Biofloc Module Guide
 
     Returns:
     - Document content in requested format with metadata
@@ -158,7 +156,7 @@ async def get_doc(
     if not doc:
         raise HTTPException(
             status_code=404,
-            detail=f"Documentation '{doc_id}' not found. Available docs: getting-started, admin, inventory, biofloc"
+            detail=f"Documentation '{doc_id}' not found. Available docs: getting-started, admin"
         )
 
     return doc
