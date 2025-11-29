@@ -18,6 +18,7 @@ from app.models.email import (
     SMTPTestRequest
 )
 from app.services import email_service
+from app.utils.settings_helper import require_feature
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/email", tags=["Email"])
@@ -28,7 +29,8 @@ router = APIRouter(prefix="/email", tags=["Email"])
 
 @router.get("/templates", response_model=List[EmailTemplateResponse])
 async def get_email_templates(
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Get all email templates"""
     pool = get_db()
@@ -39,7 +41,8 @@ async def get_email_templates(
 @router.get("/templates/{template_key}", response_model=EmailTemplateResponse)
 async def get_email_template(
     template_key: str,
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Get specific email template"""
     pool = get_db()
@@ -60,7 +63,8 @@ async def get_email_template(
 async def get_email_queue(
     status: str = None,
     limit: int = 50,
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Get email queue"""
     pool = get_db()
@@ -80,7 +84,8 @@ async def get_email_queue(
 @router.post("/send")
 async def send_email(
     request: SendEmailRequest,
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Send an email"""
     pool = get_db()
@@ -98,7 +103,8 @@ async def send_email(
 @router.post("/send-template")
 async def send_template_email(
     request: SendTemplateEmailRequest,
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Send email using template"""
     pool = get_db()
@@ -118,7 +124,8 @@ async def send_template_email(
 @router.post("/test")
 async def test_email(
     request: SMTPTestRequest,
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Test email configuration"""
     logger.info(f"📧 Email test request from user {current_user.email} to {request.test_email}")
@@ -146,7 +153,8 @@ async def test_email(
 
 @router.get("/recipients", response_model=List[EmailRecipientsResponse])
 async def get_email_recipients(
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Get all email recipient configurations"""
     pool = get_db()
@@ -158,7 +166,8 @@ async def get_email_recipients(
 async def update_email_recipients(
     notification_type: str,
     request: EmailRecipientsSchema,
-    current_user: CurrentUser = Depends(require_admin)
+    current_user: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("email_notifications_enabled"))
 ):
     """Update email recipients for a notification type"""
     pool = get_db()
