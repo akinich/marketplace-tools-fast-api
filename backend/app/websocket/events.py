@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - WebSocket Event Emitters
+Marketplace ERP - WebSocket Event Emitters
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-22

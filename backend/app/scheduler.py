@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Background Task Scheduler
+Marketplace ERP - Background Task Scheduler
 ================================================================================
 Version: 2.1.0
 Last Updated: 2025-11-22

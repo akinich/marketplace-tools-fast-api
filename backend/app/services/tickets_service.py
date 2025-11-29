@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Ticket Service Layer
+Marketplace ERP - Ticket Service Layer
 ================================================================================
 Version: 1.1.0
 Last Updated: 2025-11-20

@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - WebSocket Connection Manager
+Marketplace ERP - WebSocket Connection Manager
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-22

@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - FastAPI Main Application
+Marketplace ERP - FastAPI Main Application
 ================================================================================
 Version: 1.13.0
 Last Updated: 2025-11-23
@@ -103,7 +103,7 @@ async def lifespan(app: FastAPI):
     # ========================================================================
     # STARTUP
     # ========================================================================
-    logger.info("🚀 Starting Farm Management System API...")
+    logger.info("🚀 Starting Marketplace ERP API...")
     logger.info(f"📊 Logging configured at level: {settings.LOG_LEVEL}")
     logger.info(f"🌍 Environment: {settings.APP_ENV}")
     display_settings()
@@ -129,7 +129,7 @@ async def lifespan(app: FastAPI):
     # ========================================================================
     # SHUTDOWN
     # ========================================================================
-    logger.info("👋 Shutting down Farm Management System API...")
+    logger.info("👋 Shutting down Marketplace ERP API...")
 
     # Stop background scheduler
     stop_scheduler()
@@ -145,8 +145,8 @@ async def lifespan(app: FastAPI):
 # ============================================================================
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    description="FastAPI backend for Farm Management System - Inventory, Biofloc, and more",
+    title="Marketplace ERP",
+    description="FastAPI backend for Marketplace ERP - Inventory, Biofloc, and more",
     version=settings.API_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",

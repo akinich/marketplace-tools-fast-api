@@ -92,7 +92,7 @@ export default function LoginPage() {
             <Box sx={{ textAlign: 'center', mb: 4 }}>
               <AgricultureIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
               <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-                Farm Management System
+                Marketplace ERP
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Sign in to access your dashboard
@@ -203,7 +203,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <Typography variant="body2" align="center" sx={{ mt: 3, color: 'white' }}>
-          Farm Management System v1.0.0
+          Marketplace ERP v1.0.0
         </Typography>
       </Container>
     </Box>

@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Configuration Management
+Marketplace ERP - Configuration Management
 ================================================================================
 Version: 1.2.0
 Last Updated: 2025-11-23
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # ========================================================================
     # APPLICATION SETTINGS
     # ========================================================================
-    APP_NAME: str = "Farm Management System"
+    APP_NAME: str = "Marketplace ERP"
     APP_ENV: str = "development"
     DEBUG: bool = True
     API_VERSION: str = "v1"

@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Settings & Configuration Routes
+Marketplace ERP - Settings & Configuration Routes
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-22

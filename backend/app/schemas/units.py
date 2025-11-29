@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Units of Measurement Schemas
+Marketplace ERP - Units of Measurement Schemas
 ================================================================================
 Pydantic models for request/response validation
 ================================================================================

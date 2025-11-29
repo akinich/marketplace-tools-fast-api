@@ -1,4 +1,4 @@
-# Farm Management System - Frontend
+# Marketplace ERP - Frontend
 
 Modern React frontend for the Farm Management System with Material-UI.
 

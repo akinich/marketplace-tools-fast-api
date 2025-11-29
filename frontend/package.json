@@ -1,7 +1,7 @@
 {
   "name": "farm-management-frontend",
   "version": "1.13.0",
-  "description": "Farm Management System - React Frontend",
+  "description": "Marketplace ERP - React Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

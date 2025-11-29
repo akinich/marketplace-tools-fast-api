@@ -144,7 +144,7 @@ export default function DocsList() {
           📚 Help & Documentation
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Learn how to use the Farm Management System with easy-to-follow guides
+          Learn how to use the Marketplace ERP with easy-to-follow guides
         </Typography>
       </Box>
 

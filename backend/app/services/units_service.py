@@ -1,6 +1,6 @@
 """
 ================================================================================
-Farm Management System - Units of Measurement Service
+Marketplace ERP - Units of Measurement Service
 ================================================================================
 Version: 1.0.0
 Last Updated: 2025-11-22
