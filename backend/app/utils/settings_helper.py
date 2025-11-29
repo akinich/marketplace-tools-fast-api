@@ -217,6 +217,75 @@ async def get_supabase_credentials(
 
 
 # ============================================================================
+# FEATURE FLAG ENFORCEMENT
+# ============================================================================
+
+
+def require_feature(feature_key: str):
+    """
+    FastAPI dependency factory that checks if a feature flag is enabled.
+
+    Raises HTTPException(403) if the feature is disabled.
+
+    Usage:
+        @router.get("/", dependencies=[Depends(require_feature("api_keys_enabled"))])
+        async def my_endpoint(
+            current_user: CurrentUser = Depends(get_current_user)
+        ):
+            # This endpoint only runs if features.api_keys_enabled is true
+            pass
+
+    Args:
+        feature_key: The feature key (without 'features.' prefix)
+
+    Returns:
+        Dependency function that validates the feature flag
+
+    Raises:
+        HTTPException: 403 Forbidden if feature is disabled
+    """
+    from fastapi import HTTPException, status, Depends
+    from app.database import get_db
+
+    async def _check_feature(conn = Depends(get_db)):
+        """Inner function that performs the actual feature check"""
+        full_key = f"features.{feature_key}"
+
+        try:
+            enabled = await get_setting_with_fallback(
+                conn,
+                full_key,
+                env_fallback=None,
+                default="false"
+            )
+
+            # Handle both string and boolean values
+            is_enabled = enabled in ("true", True, "True", "1", 1)
+
+            if not is_enabled:
+                logger.warning(f"⚠️ Access denied: Feature '{full_key}' is disabled")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"This feature is currently disabled"
+                )
+
+            logger.debug(f"✅ Feature '{full_key}' is enabled, allowing access")
+            return True
+
+        except HTTPException:
+            # Re-raise HTTPException from above
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error checking feature flag '{full_key}': {e}")
+            # Fail open: if we can't check the flag, allow access
+            # This prevents the feature flag system from breaking the app
+            logger.warning(f"⚠️ Allowing access to '{full_key}' due to check error (fail-open)")
+            return True
+
+    return _check_feature
+
+
+# ============================================================================
 # DIAGNOSTIC FUNCTIONS
 # ============================================================================
 
