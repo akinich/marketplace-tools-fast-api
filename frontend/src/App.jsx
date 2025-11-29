@@ -126,7 +126,6 @@ function App() {
         <Route path="dashboard" element={<DashboardHome />} />
         <Route path="profile" element={<UserProfilePage />} />
         <Route path="admin/*" element={<AdminPanel />} />
-        <Route path="settings" element={<SettingsPage />} />
 
         {/* Communication Module Routes */}
         <Route path="communication/telegram" element={<TelegramSettings />} />

@@ -117,6 +117,7 @@ import { useSnackbar } from 'notistack';
 import TelegramSettings from './TelegramSettings';
 import SecurityDashboard from './SecurityDashboard';
 import UnitsSettings from '../components/UnitsSettings';
+import SettingsPage from './SettingsPage';
 
 // Create User Dialog Component
 function CreateUserDialog({ open, onClose }) {
@@ -1329,6 +1330,7 @@ export default function AdminPanel() {
       <Route path="activity" element={<ActivityLogsPage />} />
       <Route path="units" element={<UnitsSettings />} />
       <Route path="telegram" element={<TelegramSettings />} />
+      <Route path="settings" element={<SettingsPage />} />
       <Route path="security" element={<SecurityDashboard />} />
     </Routes>
   );
