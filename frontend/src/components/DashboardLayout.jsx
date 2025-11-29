@@ -435,7 +435,7 @@ export default function DashboardLayout() {
     <Box>
       <Toolbar sx={{ backgroundColor: 'primary.main', color: 'white' }}>
         <Typography variant="h6" noWrap component="div">
-          Farm Management
+          Farm ERP
         </Typography>
       </Toolbar>
       <Divider />
@@ -454,20 +454,7 @@ export default function DashboardLayout() {
           </ListItemButton>
         </ListItem>
 
-        {/* Settings (Admin Only) */}
-        {user?.role?.toLowerCase() === 'admin' && (
-          <ListItem disablePadding>
-            <ListItemButton
-              selected={location.pathname === '/settings'}
-              onClick={() => navigate('/settings')}
-            >
-              <ListItemIcon>
-                <SettingsIcon />
-              </ListItemIcon>
-              <ListItemText primary="Settings" />
-            </ListItemButton>
-          </ListItem>
-        )}
+
 
         {/* Dynamic Modules (only top-level, exclude dashboard) */}
         {topLevelModules.map((module) => {
@@ -625,7 +612,7 @@ export default function DashboardLayout() {
       {/* Session Timeout Warning Dialog */}
       <Dialog
         open={showTimeoutWarning}
-        onClose={() => {}} // Prevent closing by clicking outside
+        onClose={() => { }} // Prevent closing by clicking outside
         maxWidth="xs"
         fullWidth
       >
