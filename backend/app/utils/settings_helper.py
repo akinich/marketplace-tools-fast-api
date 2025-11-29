@@ -247,30 +247,32 @@ def require_feature(feature_key: str):
     from fastapi import HTTPException, status, Depends
     from app.database import get_db
 
-    async def _check_feature(conn = Depends(get_db)):
+    async def _check_feature(pool = Depends(get_db)):
         """Inner function that performs the actual feature check"""
         full_key = f"features.{feature_key}"
 
         try:
-            enabled = await get_setting_with_fallback(
-                conn,
-                full_key,
-                env_fallback=None,
-                default="false"
-            )
-
-            # Handle both string and boolean values
-            is_enabled = enabled in ("true", True, "True", "1", 1)
-
-            if not is_enabled:
-                logger.warning(f"⚠️ Access denied: Feature '{full_key}' is disabled")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"This feature is currently disabled"
+            # Acquire a connection from the pool
+            async with pool.acquire() as conn:
+                enabled = await get_setting_with_fallback(
+                    conn,
+                    full_key,
+                    env_fallback=None,
+                    default="false"
                 )
 
-            logger.debug(f"✅ Feature '{full_key}' is enabled, allowing access")
-            return True
+                # Handle both string and boolean values
+                is_enabled = enabled in ("true", True, "True", "1", 1)
+
+                if not is_enabled:
+                    logger.warning(f"⚠️ Access denied: Feature '{full_key}' is disabled")
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"This feature is currently disabled"
+                    )
+
+                logger.debug(f"✅ Feature '{full_key}' is enabled, allowing access")
+                return True
 
         except HTTPException:
             # Re-raise HTTPException from above
