@@ -17,6 +17,7 @@ from app.models.api_keys import (
 )
 from app.services import api_key_service
 from app.schemas.auth import CurrentUser
+from app.utils.settings_helper import require_feature
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,8 @@ router = APIRouter(prefix="/api-keys", tags=["API Keys"])
 
 @router.get("/", response_model=List[APIKeyResponse])
 async def list_api_keys(
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     List all API keys for the current user.
@@ -49,7 +51,8 @@ async def list_api_keys(
 @router.post("/", response_model=APIKeyCreatedResponse, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     request: APIKeyCreate,
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     Create a new API key.
@@ -96,7 +99,8 @@ async def create_api_key(
 @router.delete("/{api_key_id}", status_code=status.HTTP_200_OK)
 async def revoke_api_key(
     api_key_id: int,
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     Revoke an API key.
@@ -133,7 +137,8 @@ async def revoke_api_key(
 async def get_api_key_usage(
     api_key_id: int,
     limit: int = 100,
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     Get usage logs for an API key.
@@ -185,7 +190,8 @@ async def get_api_key_usage(
 
 @router.get("/scopes/available", response_model=AvailableScopesResponse)
 async def get_available_scopes(
-    current_user: CurrentUser = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     Get list of all available API key scopes.
@@ -203,7 +209,8 @@ async def get_available_scopes(
 
 @router.get("/admin/all", response_model=List[APIKeyResponse])
 async def list_all_api_keys(
-    admin: CurrentUser = Depends(require_admin)
+    admin: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     (Admin Only) List all API keys in the system.
@@ -233,7 +240,8 @@ async def list_all_api_keys(
 @router.delete("/admin/{api_key_id}", status_code=status.HTTP_200_OK)
 async def admin_revoke_api_key(
     api_key_id: int,
-    admin: CurrentUser = Depends(require_admin)
+    admin: CurrentUser = Depends(require_admin),
+    _: bool = Depends(require_feature("api_keys_enabled"))
 ):
     """
     (Admin Only) Revoke any user's API key.
