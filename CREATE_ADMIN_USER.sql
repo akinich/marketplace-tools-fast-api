@@ -92,9 +92,9 @@ BEGIN
 
         RAISE NOTICE 'Created user in auth.users with ID: %', new_user_id;
 
-        -- Create user profile
-        INSERT INTO user_profiles (id, full_name, role_id, is_active)
-        VALUES (new_user_id, 'Akhil Kinich', admin_role_id, TRUE);
+        -- Create user profile with password hash
+        INSERT INTO user_profiles (id, full_name, role_id, is_active, password_hash)
+        VALUES (new_user_id, 'Akhil Kinich', admin_role_id, TRUE, crypt('Akhil@1996', gen_salt('bf')));
 
         RAISE NOTICE 'Created user profile for: akinich@gmail.com';
 
@@ -112,14 +112,15 @@ BEGIN
 
         RAISE NOTICE 'Updated password for user ID: %', new_user_id;
 
-        -- Make sure user profile exists and is active
-        INSERT INTO user_profiles (id, full_name, role_id, is_active)
-        VALUES (new_user_id, 'Akhil Kinich', admin_role_id, TRUE)
+        -- Make sure user profile exists and is active with password hash
+        INSERT INTO user_profiles (id, full_name, role_id, is_active, password_hash)
+        VALUES (new_user_id, 'Akhil Kinich', admin_role_id, TRUE, crypt('Akhil@1996', gen_salt('bf')))
         ON CONFLICT (id) DO UPDATE
         SET is_active = TRUE,
-            role_id = admin_role_id;
+            role_id = admin_role_id,
+            password_hash = crypt('Akhil@1996', gen_salt('bf'));
 
-        RAISE NOTICE 'Ensured user profile is active and admin';
+        RAISE NOTICE 'Ensured user profile is active and admin with password set';
     END IF;
 
     -- Grant all module permissions
