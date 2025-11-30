@@ -34,7 +34,7 @@
  *   - Parent module now stays expanded when navigating to or refreshing sub-module pages
  *
  * v1.5.0 (2025-11-22):
- *   - Added admin_units route mapping for Units of Measurement settings
+
  *   - Added admin_telegram route mapping for Telegram Notifications settings
  *   - Both admin sub-modules now accessible from navigation sidebar
  *
@@ -370,7 +370,7 @@ export default function DashboardLayout() {
       admin_modules: '/admin/modules',
       admin_activity: '/admin/activity',
       admin_security: '/admin/security',
-      admin_units: '/admin/units',
+
       admin_telegram: '/admin/telegram',
     };
 
