@@ -367,17 +367,41 @@ export const telegramAPI = {
   },
 };
 
-// Export all APIs (only re-export imported APIs, others already exported above)
-export { authAPI, docsAPI, settingsAPI, apiClient };
+// ============================================================================
+// B2C OPERATIONS API
+// ============================================================================
+export const b2cOpsAPI = {
+  // Order Extractor
+  fetchOrders: async (startDate, endDate) => {
+    const response = await apiClient.post('/b2c-ops/orders/fetch', {
+      start_date: startDate,
+      end_date: endDate
+    });
+    return response.data;
+  },
+
+  exportOrders: async (orderIds, startDate, endDate) => {
+    const response = await apiClient.post('/b2c-ops/orders/export', {
+      order_ids: orderIds,
+      start_date: startDate,
+      end_date: endDate
+    }, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+};
+
+// Export all APIs
+export { authAPI, docsAPI, settingsAPI, apiClient, b2cOpsAPI };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
   admin: adminAPI,
-
-
   tickets: ticketsAPI,
   development: developmentAPI,
   docs: docsAPI,
   telegram: telegramAPI,
   settings: settingsAPI,
+  b2cOps: b2cOpsAPI,
 };
