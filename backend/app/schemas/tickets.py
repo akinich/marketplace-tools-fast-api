@@ -149,7 +149,7 @@ class TicketResponse(BaseModel):
     priority: Optional[TicketPriority] = None
     created_by_id: str
     created_by_name: str
-    created_by_email: str
+    created_by_email: Optional[str] = None
     closed_by_id: Optional[str] = None
     closed_by_name: Optional[str] = None
     closed_at: Optional[datetime] = None
@@ -171,7 +171,7 @@ class TicketDetailResponse(BaseModel):
     priority: Optional[TicketPriority] = None
     created_by_id: str
     created_by_name: str
-    created_by_email: str
+    created_by_email: Optional[str] = None
     closed_by_id: Optional[str] = None
     closed_by_name: Optional[str] = None
     closed_at: Optional[datetime] = None
