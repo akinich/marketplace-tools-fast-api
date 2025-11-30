@@ -51,7 +51,7 @@ class OrderLineItem(BaseModel):
 class WooCommerceOrder(BaseModel):
     """WooCommerce order structure"""
     id: int
-    order_number: str
+    order_number: Optional[str] = None
     status: str
     date_created: str
     total: str
@@ -61,6 +61,13 @@ class WooCommerceOrder(BaseModel):
     billing: Dict[str, Any]
     shipping: Dict[str, Any]
     line_items: List[OrderLineItem]
+    
+    @validator('order_number', pre=True, always=True)
+    def set_order_number(cls, v, values):
+        """Use id as order_number if order_number is not provided"""
+        if v is None and 'id' in values:
+            return str(values['id'])
+        return v or ""
     
     class Config:
         json_schema_extra = {
