@@ -54,11 +54,9 @@ class UpdateSettingsRequest(BaseModel):
     notify_po_created: Optional[bool] = Field(None, description="Notify when PO is created")
     notify_po_status_changed: Optional[bool] = Field(None, description="Notify when PO status changes")
 
-    # Granular inventory notification settings
-    notify_low_stock_first_alert: Optional[bool] = Field(None, description="Send first alert when item goes low")
-    notify_low_stock_daily_summary: Optional[bool] = Field(None, description="Send daily summary of low stock")
 
-    @validator('tickets_channel_id', 'po_channel_id', 'inventory_channel_id')
+
+    @validator('tickets_channel_id', 'po_channel_id')
     def validate_channel_id(cls, v):
         """Validate channel ID is negative (for channels/groups)"""
         if v is not None and v >= 0:
@@ -70,14 +68,11 @@ class UpdateSettingsRequest(BaseModel):
             "example": {
                 "tickets_channel_id": -1001234567890,
                 "po_channel_id": -1001234567891,
-                "inventory_channel_id": -1001234567892,
                 "enable_ticket_notifications": True,
                 "enable_po_notifications": True,
-                "enable_inventory_notifications": True,
                 "enable_personal_notifications": False,
                 "notify_ticket_created": True,
-                "notify_po_created": True,
-                "notify_low_stock_first_alert": True
+                "notify_po_created": True
             }
         }
 
@@ -127,9 +122,7 @@ class NotificationSettingsResponse(BaseModel):
     notify_po_created: Optional[bool] = True
     notify_po_status_changed: Optional[bool] = True
 
-    # Granular inventory notification settings
-    notify_low_stock_first_alert: Optional[bool] = True
-    notify_low_stock_daily_summary: Optional[bool] = True
+
 
     class Config:
         json_schema_extra = {
@@ -264,34 +257,4 @@ class UnlinkTelegramResponse(BaseModel):
         }
 
 
-# ============================================================================
-# LOW STOCK NOTIFICATION SCHEMAS
-# ============================================================================
 
-class LowStockNotificationResponse(BaseModel):
-    """Response with low stock notification history"""
-    id: int
-    item_master_id: int
-    item_name: Optional[str]
-    notification_type: str
-    current_qty: float
-    reorder_threshold: float
-    notified_at: datetime
-    resolved_at: Optional[datetime]
-    is_resolved: bool
-
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "id": 1,
-                "item_master_id": 42,
-                "item_name": "Fish Feed Premium",
-                "notification_type": "first_alert",
-                "current_qty": 5.0,
-                "reorder_threshold": 10.0,
-                "notified_at": "2025-11-20T10:00:00Z",
-                "resolved_at": None,
-                "is_resolved": False
-            }
-        }
