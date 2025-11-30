@@ -96,7 +96,7 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   AdminPanelSettings as AdminIcon,
-
+  ShoppingCart as B2COpsIcon,
   ConfirmationNumber as TicketsIcon,
   Code as DevelopmentIcon,
   Campaign as CommunicationIcon,
@@ -354,7 +354,7 @@ export default function DashboardLayout() {
     const icons = {
       dashboard: <DashboardIcon />,
       admin: <AdminIcon />,
-
+      b2c_ops: <B2COpsIcon />,
       tickets: <TicketsIcon />,
       development: <DevelopmentIcon />,
       communication: <CommunicationIcon />,
@@ -377,6 +377,13 @@ export default function DashboardLayout() {
 
 
 
+    // B2C Ops sub-modules
+    const b2cOpsRoutes = {
+      order_extractor: '/b2c-ops/order-extractor',
+      shipping_label_generator: '/b2c-ops/shipping-labels',
+      mrp_label_generator: '/b2c-ops/mrp-labels',
+    };
+
     // Communication sub-modules
     const communicationRoutes = {
       com_telegram: '/communication/telegram',
@@ -388,7 +395,8 @@ export default function DashboardLayout() {
 
     if (parentModuleKey === 'admin') {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
-
+    } else if (parentModuleKey === 'b2c_ops') {
+      return b2cOpsRoutes[subModuleKey] || `/b2c-ops/${subModuleKey.replace('b2c_ops_', '')}`;
     } else if (parentModuleKey === 'communication') {
       return communicationRoutes[subModuleKey] || `/communication/${subModuleKey.replace('com_', '')}`;
     }

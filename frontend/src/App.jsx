@@ -49,7 +49,7 @@ import APIKeysPage from './pages/APIKeysPage';
 import WebSocketSettingsPage from './pages/WebSocketSettingsPage';
 
 // Other Module Pages
-
+import B2COpsModule from './pages/B2COps/B2COpsModule';
 import TicketsModule from './pages/TicketsModule';
 import DevelopmentModule from './pages/DevelopmentModule';
 import DocsModule from './pages/DocsModule';
@@ -134,7 +134,7 @@ function App() {
         <Route path="communication/websockets" element={<WebSocketSettingsPage />} />
 
         {/* Other Module Routes */}
-
+        <Route path="b2c-ops/*" element={<B2COpsModule />} />
         <Route path="tickets/*" element={<TicketsModule />} />
         <Route path="development/*" element={<DevelopmentModule />} />
         <Route path="docs/*" element={<DocsModule />} />

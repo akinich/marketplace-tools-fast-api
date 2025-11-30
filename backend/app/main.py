@@ -285,7 +285,7 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, dashboard, tickets, development, docs, telegram, security, webhooks, email, api_keys, websocket
+from app.routes import auth, admin, dashboard, tickets, development, docs, telegram, security, webhooks, email, api_keys, websocket, b2c_ops
 from app.routes import settings as settings_router
 
 # Mount routers
@@ -304,6 +304,7 @@ app.include_router(email.router, prefix=f"{settings.API_PREFIX}", tags=["Email"]
 app.include_router(docs.router, prefix=f"{settings.API_PREFIX}", tags=["Documentation"])
 app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settings", tags=["Settings"])
 app.include_router(websocket.router, tags=["WebSocket"])
+app.include_router(b2c_ops.router, prefix=f"{settings.API_PREFIX}", tags=["B2C Operations"])
 
 
 # ============================================================================
