@@ -24,7 +24,7 @@ v2.1.0 (2025-11-22):
   - Runs every 5 minutes to send pending emails
 
 v2.0.0 (2025-11-20):
-  - Initial version with inventory and notification tasks
+  - Initial version with notification tasks
 
 ================================================================================
 """

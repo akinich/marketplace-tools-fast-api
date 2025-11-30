@@ -52,13 +52,13 @@
  *   - Implemented fully hierarchical module navigation
  *   - Dynamically loads sub-modules from API (parent_module_id)
  *   - Filters to show only top-level modules, sub-modules nested under parents
- *   - Maps inventory sub-module keys to proper routes
+ *   - Maps sub-module keys to proper routes
  *   - Fixed issue where sub-modules were showing flat in sidebar
  *
  * v1.1.0 (2025-11-17):
  *   - Fixed duplicate dashboard appearing in sidebar
  *   - Added Module Management submenu to Admin Panel
- *   - Added Dashboard submenu to Inventory Management
+
  *   - Improved module filtering to exclude dashboard from dynamic list
  *
  * v1.0.0 (2025-11-17):

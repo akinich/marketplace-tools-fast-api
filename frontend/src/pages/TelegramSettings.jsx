@@ -26,14 +26,13 @@
  * v1.1.0 (2025-11-21):
  *   - Added granular event-level notification toggles
  *   - Tickets: created, updated, closed, comment, priority_changed
- *   - POs: created, status_changed
- *   - Inventory: first_alert, daily_summary
+
  *   - Expandable event toggles shown when channel notifications enabled
  *
  * v1.0.0 (2025-11-20):
  *   - Initial Telegram notifications settings page
  *   - Bot status indicator with health check
- *   - Channel ID configuration for tickets, POs, and inventory
+ *   - Channel ID configuration for tickets and POs
  *   - Toggle switches for each notification type
  *   - Test notification functionality per channel
  *   - Real-time settings updates with validation
@@ -527,7 +526,7 @@ function TelegramSettings() {
               </Paper>
             </Grid>
 
-            {/* Inventory Channel */}
+
 
           </Grid>
 
