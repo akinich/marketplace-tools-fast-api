@@ -294,7 +294,7 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, inventory, dashboard, biofloc, tickets, development, docs, telegram, security, units, webhooks, email, api_keys, websocket
+from app.routes import auth, admin, dashboard, tickets, development, docs, telegram, security, webhooks, email, api_keys, websocket
 from app.routes import settings as settings_router
 
 # Mount routers
@@ -302,10 +302,9 @@ app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Aut
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin Panel"])
 app.include_router(security.router, prefix=f"{settings.API_PREFIX}/security", tags=["Security"])
 app.include_router(api_keys.router, prefix=f"{settings.API_PREFIX}", tags=["API Keys"])
-app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
-app.include_router(units.router, prefix=f"{settings.API_PREFIX}", tags=["Units"])
+
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
-app.include_router(biofloc.router, tags=["Biofloc"])
+
 app.include_router(tickets.router, prefix=f"{settings.API_PREFIX}/tickets", tags=["Tickets"])
 app.include_router(development.router, prefix=f"{settings.API_PREFIX}/development", tags=["Development"])
 app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram Notifications"])

@@ -19,7 +19,7 @@ AVAILABLE_EVENTS = [
     'ticket.closed',
     'user.created',
     'user.updated',
-    'inventory.low_stock',
+
     'purchase_order.created',
     'purchase_order.approved',
 ]

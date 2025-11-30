@@ -46,33 +46,6 @@ logger = logging.getLogger(__name__)
 scheduler = None
 
 
-async def expire_inventory_reservations():
-    """
-    Auto-expire pending reservations that are past their reserved_until time.
-    Runs every 15 minutes.
-    """
-    try:
-        # Log expired reservations before updating
-        expired_reservations = await fetch_one(
-            """
-            SELECT COUNT(*) as count
-            FROM inventory_reservations
-            WHERE status = 'pending' AND reserved_until < NOW()
-            """
-        )
-
-        count = expired_reservations.get("count", 0) if expired_reservations else 0
-
-        if count > 0:
-            logger.info(f"Expiring {count} old reservations...")
-
-            # Call the database function to expire reservations
-            result = await fetch_one("SELECT expire_old_reservations() as expired_count")
-            expired_count = result.get("expired_count", 0) if result else 0
-
-            logger.info(f"✅ Successfully expired {expired_count} reservations")
-        else:
-            logger.debug("No expired reservations to process")
 
     except Exception as e:
         logger.error(f"❌ Error expiring reservations: {e}", exc_info=True)
@@ -191,16 +164,6 @@ def start_scheduler():
 
     try:
         scheduler = AsyncIOScheduler()
-
-        # Task 1: Expire old reservations every 15 minutes
-        scheduler.add_job(
-            expire_inventory_reservations,
-            trigger=IntervalTrigger(minutes=15),
-            id="expire_reservations",
-            name="Expire old inventory reservations",
-            replace_existing=True,
-            max_instances=1,  # Prevent overlapping runs
-        )
 
         # Task 2: Check for low stock first alerts every hour
         scheduler.add_job(

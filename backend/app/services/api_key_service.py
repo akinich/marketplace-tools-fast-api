@@ -15,11 +15,7 @@ logger = logging.getLogger(__name__)
 # Available scopes for API keys
 # Format: resource:action
 AVAILABLE_SCOPES = [
-    # Inventory
-    "inventory:read",
-    "inventory:write",
-    "inventory:delete",
-    "inventory:*",
+
 
     # Tickets
     "tickets:read",
@@ -215,7 +211,7 @@ async def check_scope(scopes: List[str], required_scope: str) -> bool:
 
     Args:
         scopes: List of scopes the API key has
-        required_scope: The scope required for the operation (e.g., "inventory:read")
+        required_scope: The scope required for the operation (e.g., "tickets:read")
 
     Returns:
         True if API key has the required scope, False otherwise
@@ -234,7 +230,7 @@ async def check_scope(scopes: List[str], required_scope: str) -> bool:
     if required_scope in scopes:
         return True
 
-    # Wildcard match (e.g., "inventory:*" includes "inventory:read")
+    # Wildcard match (e.g., "tickets:*" includes "tickets:read")
     resource = required_scope.split(':')[0]
     if f"{resource}:*" in scopes:
         return True
