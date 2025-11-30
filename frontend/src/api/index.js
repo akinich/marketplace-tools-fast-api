@@ -393,7 +393,7 @@ export const b2cOpsAPI = {
 };
 
 // Export all APIs
-export { authAPI, docsAPI, settingsAPI, apiClient, b2cOpsAPI };
+export { authAPI, docsAPI, settingsAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
