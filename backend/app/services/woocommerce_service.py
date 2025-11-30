@@ -46,6 +46,9 @@ class WooCommerceService:
         Raises:
             ValueError: If credentials are not configured
         """
+        # Log the attempt
+        logger.info("Fetching WooCommerce credentials from system_settings")
+        
         api_url = await fetch_one(
             "SELECT setting_value FROM system_settings WHERE setting_key = 'woocommerce.api_url'"
         )
@@ -56,14 +59,34 @@ class WooCommerceService:
             "SELECT setting_value FROM system_settings WHERE setting_key = 'woocommerce.consumer_secret'"
         )
         
+        # Check if rows exist
         if not api_url or not consumer_key or not consumer_secret:
-            raise ValueError("WooCommerce API credentials not configured in system settings")
+            logger.error(f"Missing settings rows: URL={bool(api_url)}, Key={bool(consumer_key)}, Secret={bool(consumer_secret)}")
+            raise ValueError("WooCommerce API credentials not configured in system settings (rows missing)")
+            
+        # Extract values
+        url_val = api_url['setting_value']
+        key_val = consumer_key['setting_value']
+        secret_val = consumer_secret['setting_value']
         
-        return (
-            api_url['setting_value'],
-            consumer_key['setting_value'],
-            consumer_secret['setting_value']
-        )
+        # Handle potential double-encoding or JSON string format
+        import json
+        try:
+            if isinstance(url_val, str) and url_val.startswith('"') and url_val.endswith('"'):
+                url_val = json.loads(url_val)
+            if isinstance(key_val, str) and key_val.startswith('"') and key_val.endswith('"'):
+                key_val = json.loads(key_val)
+            if isinstance(secret_val, str) and secret_val.startswith('"') and secret_val.endswith('"'):
+                secret_val = json.loads(secret_val)
+        except:
+            pass # Use as is if parsing fails
+            
+        # Check for empty values
+        if not url_val or not key_val or not secret_val:
+            logger.error(f"Empty settings values: URL='{url_val}', Key='{key_val}'")
+            raise ValueError("WooCommerce API credentials are empty. Please configure them in Settings.")
+            
+        return (str(url_val), str(key_val), str(secret_val))
     
     @staticmethod
     def _fetch_single_page(
