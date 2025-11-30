@@ -48,15 +48,3 @@ VALUES
     ('woocommerce', 'consumer_key', '""', 'string', false, true, 'WooCommerce API Consumer Key'),
     ('woocommerce', 'consumer_secret', '""', 'string', false, true, 'WooCommerce API Consumer Secret')
 ON CONFLICT (setting_key) DO NOTHING;
-
--- Grant admin access to B2C Ops modules
-INSERT INTO user_module_permissions (user_id, module_id, can_access)
-SELECT 
-    up.id,
-    m.id,
-    true
-FROM user_profiles up
-CROSS JOIN modules m
-WHERE up.role_id = 1  -- Admin role
-  AND m.module_key IN ('b2c_ops', 'order_extractor')
-ON CONFLICT (user_id, module_id) DO UPDATE SET can_access = true;
