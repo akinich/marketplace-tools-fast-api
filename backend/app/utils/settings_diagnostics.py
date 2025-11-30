@@ -27,6 +27,13 @@ async def diagnose_settings_at_startup():
     logger.info("=" * 80)
 
     try:
+        # Check if pool is initialized
+        if pool is None:
+            logger.warning("⚠️  Database pool not initialized yet")
+            logger.info("   → Application will use environment variables")
+            logger.info("=" * 80)
+            return
+
         async with pool.acquire() as conn:
             # Get all settings grouped by category
             all_settings = await conn.fetch("""

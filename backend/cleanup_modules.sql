@@ -27,6 +27,6 @@ DROP TABLE IF EXISTS biofloc_harvests CASCADE;
 DELETE FROM system_settings WHERE setting_key LIKE 'biofloc.%';
 DELETE FROM system_settings WHERE setting_key LIKE 'inventory.%';
 
--- Remove modules from the modules table
-DELETE FROM modules WHERE module_key IN ('biofloc', 'inventory', 'units');
+-- Remove modules from the modules table (including sub-modules)
+DELETE FROM modules WHERE module_key IN ('biofloc', 'inventory', 'units', 'admin_units');
 
