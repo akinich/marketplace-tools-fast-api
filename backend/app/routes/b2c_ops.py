@@ -27,6 +27,7 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 import logging
+import json
 
 from app.auth.dependencies import get_current_user, require_module_access
 from app.schemas.auth import CurrentUser
@@ -78,11 +79,11 @@ async def fetch_orders(
             'order_fetch',
             'order_extractor',
             f"Fetched {len(orders)} orders from {request.start_date} to {request.end_date}",
-            {
+            json.dumps({
                 'start_date': str(request.start_date),
                 'end_date': str(request.end_date),
                 'order_count': len(orders)
-            }
+            })
         )
         
         return OrderFetchResponse(
@@ -163,12 +164,12 @@ async def export_orders(
             'order_download',
             'order_extractor',
             f"Downloaded {len(orders)} orders from {request.start_date} to {request.end_date}",
-            {
+            json.dumps({
                 'start_date': str(request.start_date),
                 'end_date': str(request.end_date),
                 'order_count': len(orders),
                 'order_ids': request.order_ids
-            }
+            })
         )
         
         # Generate filename
