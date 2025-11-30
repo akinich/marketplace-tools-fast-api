@@ -39,12 +39,7 @@ import {
   Chip,
 } from '@mui/material';
 import {
-  Inventory as InventoryIcon,
-  Warning as WarningIcon,
-  People as PeopleIcon,
-  ShoppingCart as ShoppingCartIcon,
-  Science as BioflocIcon,
-  WaterDrop as WaterIcon,
+
   ConfirmationNumber as TicketsIcon,
   CheckCircle as CheckCircleIcon,
   TrendingUp as TrendingUpIcon,
@@ -124,8 +119,7 @@ export default function DashboardHome() {
     );
   }
 
-  const hasInventory = widgets?.inventory !== undefined;
-  const hasBiofloc = widgets?.biofloc !== undefined;
+
   const hasAdmin = widgets?.admin !== undefined;
   const hasTickets = widgets?.tickets !== undefined;
 
@@ -140,108 +134,17 @@ export default function DashboardHome() {
           Welcome back, {user?.full_name || 'User'}! Here's your farm overview.
         </Typography>
         <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {hasInventory && <Chip label="Inventory" size="small" color="primary" variant="outlined" />}
-          {hasBiofloc && <Chip label="Biofloc" size="small" color="success" variant="outlined" />}
+
           {hasAdmin && <Chip label="Admin" size="small" color="secondary" variant="outlined" />}
           {hasTickets && <Chip label="Tickets" size="small" color="warning" variant="outlined" />}
         </Box>
       </Box>
 
       {/* Inventory Section */}
-      {hasInventory && (
-        <>
-          <SectionHeader title="Inventory Management" icon={InventoryIcon} color="#2e7d32" />
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Total Items"
-                value={widgets.inventory.total_items}
-                icon={InventoryIcon}
-                color="#2e7d32"
-              />
-            </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Low Stock Items"
-                value={widgets.inventory.low_stock_items}
-                icon={WarningIcon}
-                color="#ff9800"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Pending POs"
-                value={widgets.inventory.pending_pos}
-                icon={ShoppingCartIcon}
-                color="#ff6f00"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography color="textSecondary" gutterBottom variant="overline">
-                    Total Inventory Value
-                  </Typography>
-                  <Typography variant="h5" component="div">
-                    {formatCurrency(widgets.inventory.total_stock_value)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Current stock value (INR)
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </>
-      )}
 
       {/* Biofloc Section */}
-      {hasBiofloc && (
-        <>
-          <SectionHeader title="Biofloc Operations" icon={BioflocIcon} color="#1976d2" />
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Active Tanks"
-                value={widgets.biofloc.active_tanks}
-                icon={WaterIcon}
-                color="#1976d2"
-              />
-            </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Active Batches"
-                value={widgets.biofloc.active_batches}
-                icon={BioflocIcon}
-                color="#0288d1"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Total Stock"
-                value={widgets.biofloc.total_stock.toLocaleString()}
-                icon={TrendingUpIcon}
-                color="#00897b"
-                subtitle="Fish count"
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Tanks Needing Attention"
-                value={widgets.biofloc.tanks_needing_attention}
-                icon={WarningIcon}
-                color="#f57c00"
-              />
-            </Grid>
-          </Grid>
-        </>
-      )}
 
       {/* Admin Section */}
       {hasAdmin && (
@@ -332,7 +235,7 @@ export default function DashboardHome() {
       )}
 
       {/* No modules message */}
-      {!hasInventory && !hasBiofloc && !hasAdmin && !hasTickets && (
+      {!hasAdmin && !hasTickets && (
         <Alert severity="info" sx={{ mt: 3 }}>
           You don't have access to any modules yet. Please contact your administrator to request access.
         </Alert>

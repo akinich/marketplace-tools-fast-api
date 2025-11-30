@@ -126,10 +126,7 @@ function TelegramSettings() {
       setSettings({
         tickets_channel_id: settingsData.tickets_channel_id || null,
         po_channel_id: settingsData.po_channel_id || null,
-        inventory_channel_id: settingsData.inventory_channel_id || null,
-        enable_ticket_notifications: toBool(settingsData.enable_ticket_notifications, true),
-        enable_po_notifications: toBool(settingsData.enable_po_notifications, true),
-        enable_inventory_notifications: toBool(settingsData.enable_inventory_notifications, true),
+
         enable_personal_notifications: toBool(settingsData.enable_personal_notifications, false),
         // Granular ticket notifications
         notify_ticket_created: toBool(settingsData.notify_ticket_created, true),
@@ -140,9 +137,7 @@ function TelegramSettings() {
         // Granular PO notifications
         notify_po_created: toBool(settingsData.notify_po_created, true),
         notify_po_status_changed: toBool(settingsData.notify_po_status_changed, true),
-        // Granular inventory notifications
-        notify_low_stock_first_alert: toBool(settingsData.notify_low_stock_first_alert, true),
-        notify_low_stock_daily_summary: toBool(settingsData.notify_low_stock_daily_summary, true),
+
       });
     }
   }, [settingsData]);
@@ -266,13 +261,11 @@ function TelegramSettings() {
     if (settings.po_channel_id !== null && settings.po_channel_id !== '') {
       updates.po_channel_id = parseInt(settings.po_channel_id);
     }
-    if (settings.inventory_channel_id !== null && settings.inventory_channel_id !== '') {
-      updates.inventory_channel_id = parseInt(settings.inventory_channel_id);
-    }
+
 
     updates.enable_ticket_notifications = settings.enable_ticket_notifications;
     updates.enable_po_notifications = settings.enable_po_notifications;
-    updates.enable_inventory_notifications = settings.enable_inventory_notifications;
+
     updates.enable_personal_notifications = settings.enable_personal_notifications;
 
     // Granular ticket notification settings
@@ -286,9 +279,7 @@ function TelegramSettings() {
     updates.notify_po_created = settings.notify_po_created;
     updates.notify_po_status_changed = settings.notify_po_status_changed;
 
-    // Granular inventory notification settings
-    updates.notify_low_stock_first_alert = settings.notify_low_stock_first_alert;
-    updates.notify_low_stock_daily_summary = settings.notify_low_stock_daily_summary;
+
 
     updateSettingsMutation.mutate(updates);
   };
@@ -537,59 +528,7 @@ function TelegramSettings() {
             </Grid>
 
             {/* Inventory Channel */}
-            <Grid item xs={12} md={4}>
-              <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  📊 Inventory Channel
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Channel ID"
-                  type="number"
-                  value={settings.inventory_channel_id || ''}
-                  onChange={handleSettingChange('inventory_channel_id')}
-                  placeholder="-1001234567892"
-                  sx={{ mb: 2 }}
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={settings.enable_inventory_notifications}
-                      onChange={handleSettingChange('enable_inventory_notifications')}
-                      color="primary"
-                    />
-                  }
-                  label="Enable Notifications"
-                />
-                {settings.enable_inventory_notifications && (
-                  <Box sx={{ ml: 2, mt: 1, borderLeft: '2px solid', borderColor: 'divider', pl: 2 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                      Event Types:
-                    </Typography>
-                    <FormControlLabel
-                      control={<Switch size="small" checked={settings.notify_low_stock_first_alert} onChange={handleSettingChange('notify_low_stock_first_alert')} />}
-                      label={<Typography variant="body2">Low Stock First Alert</Typography>}
-                    />
-                    <FormControlLabel
-                      control={<Switch size="small" checked={settings.notify_low_stock_daily_summary} onChange={handleSettingChange('notify_low_stock_daily_summary')} />}
-                      label={<Typography variant="body2">Daily Summary</Typography>}
-                    />
-                  </Box>
-                )}
-                <Box sx={{ mt: 1 }}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<SendIcon />}
-                    onClick={() => handleTestNotification('inventory')}
-                    disabled={!settings.inventory_channel_id}
-                  >
-                    Test
-                  </Button>
-                </Box>
-              </Paper>
-            </Grid>
+
           </Grid>
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>

@@ -49,8 +49,7 @@ import APIKeysPage from './pages/APIKeysPage';
 import WebSocketSettingsPage from './pages/WebSocketSettingsPage';
 
 // Other Module Pages
-import InventoryModule from './pages/InventoryModule';
-import BioflocModule from './pages/BioflocModule';
+
 import TicketsModule from './pages/TicketsModule';
 import DevelopmentModule from './pages/DevelopmentModule';
 import DocsModule from './pages/DocsModule';
@@ -135,8 +134,7 @@ function App() {
         <Route path="communication/websockets" element={<WebSocketSettingsPage />} />
 
         {/* Other Module Routes */}
-        <Route path="inventory/*" element={<InventoryModule />} />
-        <Route path="biofloc/*" element={<BioflocModule />} />
+
         <Route path="tickets/*" element={<TicketsModule />} />
         <Route path="development/*" element={<DevelopmentModule />} />
         <Route path="docs/*" element={<DocsModule />} />

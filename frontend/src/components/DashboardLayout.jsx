@@ -96,8 +96,7 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   AdminPanelSettings as AdminIcon,
-  Inventory as InventoryIcon,
-  Science as BioflocIcon,
+
   ConfirmationNumber as TicketsIcon,
   Code as DevelopmentIcon,
   Campaign as CommunicationIcon,
@@ -301,7 +300,7 @@ export default function DashboardLayout() {
     // Find which parent module should be expanded
     const pathParts = currentPath.split('/').filter(Boolean);
     if (pathParts.length >= 2) {
-      const parentKey = pathParts[0]; // e.g., 'admin', 'inventory', 'biofloc'
+      const parentKey = pathParts[0]; // e.g., 'admin', 'communication'
 
       // Expand this parent module
       setExpandedModules((prev) => ({
@@ -355,8 +354,7 @@ export default function DashboardLayout() {
     const icons = {
       dashboard: <DashboardIcon />,
       admin: <AdminIcon />,
-      inventory: <InventoryIcon />,
-      biofloc: <BioflocIcon />,
+
       tickets: <TicketsIcon />,
       development: <DevelopmentIcon />,
       communication: <CommunicationIcon />,
@@ -376,37 +374,8 @@ export default function DashboardLayout() {
       admin_telegram: '/admin/telegram',
     };
 
-    // Inventory sub-modules
-    const inventoryRoutes = {
-      inventory_dashboard: '/inventory',
-      inventory_current_stock: '/inventory/current-stock',
-      inventory_add_stock: '/inventory/stock',
-      inventory_adjustments: '/inventory/adjustments',
-      inventory_purchase_orders: '/inventory/purchase-orders',
-      inventory_alerts: '/inventory/alerts',
-      inventory_history: '/inventory/history',
-      inventory_items: '/inventory/items',
-      inventory_categories: '/inventory/categories',
-      inventory_suppliers: '/inventory/suppliers',
-      inventory_analytics: '/inventory/analytics',
-    };
 
-    // Biofloc sub-modules
-    const bioflocRoutes = {
-      biofloc_dashboard: '/biofloc',
-      biofloc_tanks: '/biofloc/tanks',
-      biofloc_batches: '/biofloc/batches',
-      biofloc_feeding: '/biofloc/feeding',
-      biofloc_feeding_history: '/biofloc/feeding-history',
-      biofloc_sampling: '/biofloc/sampling',
-      biofloc_mortality: '/biofloc/mortality',
-      biofloc_water_tests: '/biofloc/water-tests',
-      biofloc_water_test_history: '/biofloc/water-test-history',
-      biofloc_harvests: '/biofloc/harvests',
-      biofloc_transfer: '/biofloc/transfer',
-      biofloc_tank_inputs: '/biofloc/tank-inputs',
-      biofloc_tank_inputs_history: '/biofloc/tank-inputs-history',
-    };
+
 
     // Communication sub-modules
     const communicationRoutes = {
@@ -419,10 +388,7 @@ export default function DashboardLayout() {
 
     if (parentModuleKey === 'admin') {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
-    } else if (parentModuleKey === 'inventory') {
-      return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey.replace('inventory_', '')}`;
-    } else if (parentModuleKey === 'biofloc') {
-      return bioflocRoutes[subModuleKey] || `/biofloc/${subModuleKey.replace('biofloc_', '')}`;
+
     } else if (parentModuleKey === 'communication') {
       return communicationRoutes[subModuleKey] || `/communication/${subModuleKey.replace('com_', '')}`;
     }
