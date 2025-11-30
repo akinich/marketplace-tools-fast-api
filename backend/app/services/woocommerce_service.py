@@ -49,6 +49,14 @@ class WooCommerceService:
         # Log the attempt
         logger.info("Fetching WooCommerce credentials from system_settings")
         
+        # DEBUG: List all woocommerce settings to verify existence
+        try:
+            from app.database import fetch_all
+            debug_rows = await fetch_all("SELECT setting_key FROM system_settings WHERE setting_key LIKE 'woocommerce.%'")
+            logger.info(f"DEBUG: Available WooCommerce keys in DB: {[r['setting_key'] for r in debug_rows]}")
+        except Exception as e:
+            logger.error(f"DEBUG: Failed to list settings: {e}")
+
         api_url = await fetch_one(
             "SELECT setting_value FROM system_settings WHERE setting_key = 'woocommerce.api_url'"
         )
