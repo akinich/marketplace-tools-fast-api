@@ -67,6 +67,7 @@ const CATEGORY_LABELS = {
   telegram: 'Telegram',
   integrations: 'Integrations',
   email: 'Email / SMTP',
+  woocommerce: 'WooCommerce',
   webhooks: 'Webhooks',
   app: 'Application',
   features: 'Feature Flags',
@@ -299,17 +300,17 @@ function SettingsPage() {
 
     // Hide Mailgun fields if not using Mailgun
     if ((setting.setting_key === 'email.mailgun_api_key' || setting.setting_key === 'email.mailgun_domain')
-        && selectedProvider !== 'mailgun') {
+      && selectedProvider !== 'mailgun') {
       return null;
     }
 
     // Hide SMTP fields if not using SMTP
     if ((setting.setting_key === 'email.smtp_host' ||
-         setting.setting_key === 'email.smtp_port' ||
-         setting.setting_key === 'email.smtp_user' ||
-         setting.setting_key === 'email.smtp_password' ||
-         setting.setting_key === 'email.smtp_use_tls')
-        && selectedProvider !== 'smtp') {
+      setting.setting_key === 'email.smtp_port' ||
+      setting.setting_key === 'email.smtp_user' ||
+      setting.setting_key === 'email.smtp_password' ||
+      setting.setting_key === 'email.smtp_use_tls')
+      && selectedProvider !== 'smtp') {
       return null;
     }
 
