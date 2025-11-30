@@ -169,7 +169,7 @@ class FeatureResponse(BaseModel):
     target_date: Optional[date] = None
     created_by_id: str
     created_by_name: str
-    created_by_email: str
+    created_by_email: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     step_count: int = 0
@@ -190,7 +190,7 @@ class FeatureDetailResponse(BaseModel):
     target_date: Optional[date] = None
     created_by_id: str
     created_by_name: str
-    created_by_email: str
+    created_by_email: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     steps: List[StepResponse] = []
