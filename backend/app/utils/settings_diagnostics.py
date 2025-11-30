@@ -11,7 +11,7 @@ import logging
 from typing import Optional
 from asyncpg import Connection
 
-from app.database import fetch_one, pool
+import app.database
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +28,13 @@ async def diagnose_settings_at_startup():
 
     try:
         # Check if pool is initialized
-        if pool is None:
+        if app.database.pool is None:
             logger.warning("⚠️  Database pool not initialized yet")
             logger.info("   → Application will use environment variables")
             logger.info("=" * 80)
             return
 
-        async with pool.acquire() as conn:
+        async with app.database.pool.acquire() as conn:
             # Get all settings grouped by category
             all_settings = await conn.fetch("""
                 SELECT category, setting_key, setting_value, is_public, is_encrypted
