@@ -49,7 +49,7 @@ export const docsAPI = {
 
   /**
    * Get specific document content
-   * @param {string} docId - Document ID (e.g., 'getting-started', 'admin', 'inventory', 'biofloc')
+   * @param {string} docId - Document ID (e.g., 'getting-started', 'admin')
    * @param {string} format - 'markdown' or 'html' (default: 'html')
    */
   getDocument: async (docId, format = 'html') => {

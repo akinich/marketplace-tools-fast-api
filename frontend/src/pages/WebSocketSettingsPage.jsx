@@ -40,7 +40,7 @@ import {
   Error as ErrorIcon,
   Dashboard as DashboardIcon,
   ConfirmationNumber as TicketIcon,
-  Inventory as InventoryIcon,
+
   People as PeopleIcon,
   SignalCellularAlt as SignalIcon,
 } from '@mui/icons-material';
@@ -84,7 +84,7 @@ function WebSocketSettingsPage() {
     {
       icon: <DashboardIcon />,
       title: 'Dashboard Statistics',
-      description: 'Live updates for farm metrics, inventory counts, and system health',
+      description: 'Live updates for farm metrics and system health',
     },
     {
       icon: <TicketIcon />,
@@ -92,9 +92,9 @@ function WebSocketSettingsPage() {
       description: 'Instant alerts when new tickets are created or updated',
     },
     {
-      icon: <InventoryIcon />,
+      icon: <NotificationsIcon />,
       title: 'Low Stock Alerts',
-      description: 'Real-time notifications when inventory items reach reorder point',
+      description: 'Real-time notifications for system alerts',
     },
     {
       icon: <PeopleIcon />,

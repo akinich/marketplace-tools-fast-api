@@ -153,7 +153,7 @@ export default function DocsList() {
         <TextField
           fullWidth
           variant="outlined"
-          placeholder="Search documentation... (e.g., 'feeding', 'inventory', 'users')"
+          placeholder="Search documentation... (e.g., 'users', 'tickets')"
           value={searchQuery}
           onChange={(e) => handleSearch(e.target.value)}
           InputProps={{
