@@ -11,10 +11,7 @@
  *   - Soft delete: deactivateUnit, reactivateUnit
  *   - Get categories endpoint for grouping units
  *
- * v1.2.0 (2025-11-21):
- *   - Added hardDeleteItem API function for permanent deletion of inactive items
- *   - DELETE /inventory/items/{itemId}/permanent
- *
+
  * v1.1.1 (2025-11-21):
  *   - CRITICAL FIX: Removed duplicate export of telegramAPI
  *   - Fixed Rollup build error: "Duplicate export 'telegramAPI'"

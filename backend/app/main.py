@@ -32,15 +32,6 @@ v1.3.0 (2025-11-22):
   - Support for programmatic API access with scope-based permissions
   - API key usage tracking and analytics
 
-v1.2.0 (2025-11-21):
-  - Enhanced inventory item master module with new features
-  - Added default_price field support across item master operations
-  - Removed auto-category creation (BREAKING) - categories must exist first
-  - Enhanced delete validation to prevent deletion of items with stock
-  - All inventory schemas and services updated (see inventory module changelogs)
-
-v1.1.0 (2025-11-18):
-  - Added background scheduler for inventory reservation auto-expiry
   - Integrated APScheduler into lifespan management
   - Enhanced health check with scheduler status
 
@@ -146,7 +137,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Marketplace ERP",
-    description="FastAPI backend for Marketplace ERP - Inventory, Biofloc, and more",
+    description="FastAPI backend for Marketplace ERP",
     version=settings.API_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",

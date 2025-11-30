@@ -10,7 +10,7 @@ Changelog:
 v1.1.0 (2025-11-22):
   - Added /widgets endpoint for role-based dashboard widgets
   - Dynamic widget rendering based on user's module access
-  - Separate widget data for inventory, biofloc, admin, tickets modules
+  - Separate widget data for admin, tickets modules
 
 v1.0.0 (2025-11-17):
   - Initial dashboard endpoints
@@ -46,7 +46,7 @@ router = APIRouter()
 async def get_dashboard_summary(user: dict = Depends(get_current_user_or_api_key)):
     """
     Get main dashboard summary with farm-wide metrics.
-    Aggregates data from inventory and admin modules.
+    Aggregates data from admin modules.
 
     Authentication: Accepts both JWT tokens and API keys (X-API-Key header)
     Required scope (for API keys): dashboard:read
@@ -104,8 +104,7 @@ async def get_dashboard_widgets(user: CurrentUser = Depends(get_current_user)) -
 
     Returns a dictionary with module keys as top-level keys:
     {
-        "inventory": { ... inventory stats ... },
-        "biofloc": { ... biofloc stats ... },
+
         "admin": { ... admin stats ... },
         "tickets": { ... tickets stats ... }
     }

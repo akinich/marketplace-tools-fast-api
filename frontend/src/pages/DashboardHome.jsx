@@ -13,12 +13,12 @@
  * v2.0.0 (2025-11-22):
  *   - BREAKING: Complete rewrite for role-based dynamic widgets
  *   - Widgets now rendered based on user's module access
- *   - Separate widget sections for inventory, biofloc, admin, tickets
+ *   - Separate widget sections for admin, tickets
  *   - Uses new /dashboard/widgets endpoint
  *   - Admins see all widgets, users see only modules they have access to
  *
  * v1.1.0 (2025-11-17):
- *   - Added INR currency formatting for inventory value
+ *   - Added INR currency formatting
  *   - Uses formatCurrency utility with Indian Rupee symbol (₹)
  *
  * v1.0.0 (2025-11-17):
@@ -141,10 +141,7 @@ export default function DashboardHome() {
         </Box>
       </Box>
 
-      {/* Inventory Section */}
 
-
-      {/* Biofloc Section */}
 
 
       {/* Admin Section */}

@@ -235,12 +235,12 @@ def require_module_access(module_key: str):
     Factory function to create module access checker.
 
     Usage:
-        @router.get("/inventory/items")
-        async def get_items(user: CurrentUser = Depends(require_module_access("inventory"))):
-            # Only users with inventory module access
+        @router.get("/tickets")
+        async def get_tickets(user: CurrentUser = Depends(require_module_access("tickets"))):
+            # Only users with tickets module access
 
     Args:
-        module_key: Module key (e.g., "inventory", "biofloc")
+        module_key: Module key (e.g., "tickets", "admin")
 
     Returns:
         Dependency function that checks module access
@@ -329,8 +329,8 @@ async def require_api_key(
     Require valid API key for route access.
 
     Usage:
-        @router.get("/api/inventory")
-        async def get_inventory(user_info: dict = Depends(require_api_key)):
+        @router.get("/api/tickets")
+        async def get_tickets(user_info: dict = Depends(require_api_key)):
             # user_info contains: api_key_id, user_id, email, role_name, scopes
 
     Args:
@@ -380,12 +380,12 @@ def require_api_key_scope(required_scope: str):
     Factory for scope-based API key authentication.
 
     Usage:
-        @router.post("/api/inventory")
-        async def create_item(user_info: dict = Depends(require_api_key_scope("inventory:write"))):
-            # Only API keys with inventory:write scope can access
+        @router.post("/api/tickets")
+        async def create_ticket(user_info: dict = Depends(require_api_key_scope("tickets:write"))):
+            # Only API keys with tickets:write scope can access
 
     Args:
-        required_scope: Required scope (e.g., "inventory:read", "tickets:write")
+        required_scope: Required scope (e.g., "tickets:read", "tickets:write")
 
     Returns:
         Dependency function that checks API key and scope
