@@ -39,7 +39,8 @@ import {
   Chip,
 } from '@mui/material';
 import {
-
+  People as PeopleIcon,
+  Warning as WarningIcon,
   ConfirmationNumber as TicketsIcon,
   CheckCircle as CheckCircleIcon,
   TrendingUp as TrendingUpIcon,
