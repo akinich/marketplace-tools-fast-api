@@ -337,22 +337,38 @@ class LabelService:
         max_height: float,
         font_name: str
     ) -> int:
-        """Find maximum font size that fits text within dimensions"""
-        font_size = 1
+        """Find maximum font size that fits text within dimensions using binary search"""
+        low = 1
+        high = 200  # Reasonable max font size
+        best_size = 1
         
-        while True:
+        while low <= high:
+            mid = (low + high) // 2
+            
+            # Check if this font size fits
+            fits = True
             wrapped_lines = []
             for line in lines:
                 wrapped_lines.extend(
-                    LabelService._wrap_text(line, font_name, font_size, max_width)
+                    LabelService._wrap_text(line, font_name, mid, max_width)
                 )
             
-            total_height = len(wrapped_lines) * font_size + (len(wrapped_lines) - 1) * 2
-            max_line_width = max(
-                stringWidth(line, font_name, font_size) for line in wrapped_lines
-            )
+            total_height = len(wrapped_lines) * mid + (len(wrapped_lines) - 1) * 2
             
-            if max_line_width > (max_width - 4) or total_height > (max_height - 4):
-                return max(font_size - 1, 1)
+            # Check width of all lines
+            for line in wrapped_lines:
+                if stringWidth(line, font_name, mid) > (max_width - 4):
+                    fits = False
+                    break
             
-            font_size += 1
+            # Check height
+            if fits and total_height > (max_height - 4):
+                fits = False
+                
+            if fits:
+                best_size = mid
+                low = mid + 1
+            else:
+                high = mid - 1
+                
+        return best_size

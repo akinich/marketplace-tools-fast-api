@@ -17,13 +17,13 @@ INSERT INTO modules (
     display_order
 ) VALUES (
     'label_generator', 
-    'Label Generator', 
+    'Shipping Labels', 
     'Generate printable shipping labels from Excel/CSV', 
     'LocalShipping', 
     (SELECT id FROM modules WHERE module_key = 'b2c_ops'), 
     true, 
     20
-) ON CONFLICT (module_key) DO NOTHING;
+) ON CONFLICT (module_key) DO UPDATE SET module_name = 'Shipping Labels';
 
 -- Verify insertion
 SELECT 
