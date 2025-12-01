@@ -382,6 +382,7 @@ export default function DashboardLayout() {
       order_extractor: '/b2c-ops/order-extractor',
       label_generator: '/b2c-ops/label-generator',
       mrp_label_generator: '/b2c-ops/mrp-label-generator',
+      b2c_item_master: '/b2c-ops/item-master',
     };
 
     // Communication sub-modules
