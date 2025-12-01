@@ -41,23 +41,27 @@ CREATE INDEX IF NOT EXISTS idx_products_name ON products(product_name);
 CREATE INDEX IF NOT EXISTS idx_products_product_id ON products(product_id);
 
 -- 2. Register module
-INSERT INTO modules (key, name, description, icon, path, category, "order")
-VALUES (
+INSERT INTO modules (
+    module_key, 
+    module_name, 
+    description, 
+    icon, 
+    parent_module_id, 
+    is_active, 
+    display_order
+) VALUES (
     'b2c_item_master',
     'Item Master',
     'Manage B2C products, sync with WooCommerce, and edit master data',
     'Inventory',
-    '/b2c-ops/item-master',
-    'b2c_ops',
+    (SELECT id FROM modules WHERE module_key = 'b2c_ops'),
+    true,
     20
-)
-ON CONFLICT (key) DO UPDATE SET
-    name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    icon = EXCLUDED.icon,
-    path = EXCLUDED.path,
-    category = EXCLUDED.category,
-    "order" = EXCLUDED."order";
+) ON CONFLICT (module_key) DO UPDATE SET
+    module_name = 'Item Master',
+    description = 'Manage B2C products, sync with WooCommerce, and edit master data',
+    icon = 'Inventory',
+    display_order = 20;
 
 -- 3. Grant permissions (assuming role-based access control exists)
 -- This part depends on how permissions are handled, usually handled by admin UI
