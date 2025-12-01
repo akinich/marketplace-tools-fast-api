@@ -12,7 +12,7 @@ API endpoints for B2C Item Master module
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
 
-from app.auth.jwt import get_current_user
+from app.auth.dependencies import get_current_user
 from app.schemas.product import (
     ProductCreate,
     ProductUpdate,
