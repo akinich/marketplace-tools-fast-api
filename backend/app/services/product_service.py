@@ -15,9 +15,9 @@ import logging
 import httpx
 from datetime import datetime
 
-from app.database import fetch_one, fetch_all, execute_query
+from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
-from app.utils.settings_helper import get_setting
+from app.services import settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -295,10 +295,14 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
         Dict with added, skipped, errors counts
     """
     try:
+        # Get database connection pool
+        pool = get_db()
+        
         # Get WooCommerce credentials from settings
-        api_url = await get_setting("WOOCOMMERCE_API_URL")
-        consumer_key = await get_setting("WOOCOMMERCE_CONSUMER_KEY")
-        consumer_secret = await get_setting("WOOCOMMERCE_CONSUMER_SECRET")
+        async with pool.acquire() as conn:
+            api_url = await settings_service.get_setting(conn, "WOOCOMMERCE_API_URL")
+            consumer_key = await settings_service.get_setting(conn, "WOOCOMMERCE_CONSUMER_KEY")
+            consumer_secret = await settings_service.get_setting(conn, "WOOCOMMERCE_CONSUMER_SECRET")
         
         if not all([api_url, consumer_key, consumer_secret]):
             raise HTTPException(
