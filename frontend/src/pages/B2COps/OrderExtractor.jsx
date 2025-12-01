@@ -24,6 +24,10 @@ import {
     Accordion,
     AccordionSummary,
     AccordionDetails,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -40,6 +44,7 @@ export default function OrderExtractor() {
     // State
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [orderStatus, setOrderStatus] = useState('any');
     const [orders, setOrders] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -76,7 +81,7 @@ export default function OrderExtractor() {
 
         setLoading(true);
         try {
-            const response = await b2cOpsAPI.fetchOrders(startDate, endDate);
+            const response = await b2cOpsAPI.fetchOrders(startDate, endDate, orderStatus);
 
             // Transform orders for DataGrid
             const transformedOrders = response.orders.map((order, idx) => {
@@ -192,7 +197,7 @@ export default function OrderExtractor() {
             {/* Date Selection */}
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                    📅 Select Date Range
+                    📅 Select Date Range & Status
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, alignItems: 'center' }}>
                     <TextField
@@ -211,6 +216,22 @@ export default function OrderExtractor() {
                         InputLabelProps={{ shrink: true }}
                         fullWidth
                     />
+                    <FormControl fullWidth>
+                        <InputLabel>Order Status</InputLabel>
+                        <Select
+                            value={orderStatus}
+                            label="Order Status"
+                            onChange={(e) => setOrderStatus(e.target.value)}
+                        >
+                            <MenuItem value="any">Any Status</MenuItem>
+                            <MenuItem value="processing">Processing</MenuItem>
+                            <MenuItem value="pending">Pending Payment</MenuItem>
+                            <MenuItem value="on-hold">On Hold</MenuItem>
+                            <MenuItem value="completed">Completed</MenuItem>
+                            <MenuItem value="cancelled">Cancelled</MenuItem>
+                            <MenuItem value="failed">Failed</MenuItem>
+                        </Select>
+                    </FormControl>
                     <Button
                         variant="contained"
                         startIcon={loading ? <CircularProgress size={20} /> : <SearchIcon />}

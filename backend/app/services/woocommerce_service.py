@@ -151,7 +151,8 @@ class WooCommerceService:
     @staticmethod
     async def fetch_orders(
         start_date: date,
-        end_date: date
+        end_date: date,
+        status: str = "any"
     ) -> List[Dict[str, Any]]:
         """
         Fetch orders from WooCommerce between two dates with concurrent pagination
@@ -159,6 +160,7 @@ class WooCommerceService:
         Args:
             start_date: Start date for order fetching
             end_date: End date for order fetching
+            status: Order status filter (any, processing, pending, on-hold, completed, cancelled, failed)
             
         Returns:
             List of order dictionaries
@@ -181,52 +183,53 @@ class WooCommerceService:
                 timeout=30.0
             )
             
-            # Base parameters for all requests
-            base_params = {
-                "after": f"{start_date}T00:00:00",
-                "before": f"{end_date}T23:59:59",
-                "per_page": 100,
-                "status": "any",
-                "order": "asc",
-                "orderby": "id"
+            # Build query parameters
+            params = {
+                'after': f"{start_date}T00:00:00",
+                'before': f"{end_date}T23:59:59",
+                'per_page': 100,
+                'order': 'asc',
+                'orderby': 'id',
+                'page': 1
             }
             
-            # Fetch first page to determine total pages
-            page_num, orders, total_pages = WooCommerceService._fetch_single_page(
-                client, api_url, base_params, 1
+            # Add status filter if not 'any'
+            if status and status != 'any':
+                params['status'] = status
+            
+            # Fetch first page to get total pages
+            page_num, first_page_orders, total_pages = WooCommerceService._fetch_single_page(
+                client, api_url, params, 1
             )
+            all_orders.extend(first_page_orders)
             
-            if orders:
-                all_orders.extend(orders)
-            
-            # If multiple pages, fetch remaining pages concurrently
+            # If multiple pages, fetch concurrently using asyncio
             if total_pages > 1:
-                # Use ThreadPoolExecutor with 3 workers for concurrent fetching
-                with ThreadPoolExecutor(max_workers=3) as executor:
-                    # Submit all page fetches
-                    future_to_page = {
-                        executor.submit(
+                import asyncio
+                from concurrent.futures import ThreadPoolExecutor
+                
+                # Create tasks for remaining pages
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    loop = asyncio.get_event_loop()
+                    tasks = [
+                        loop.run_in_executor(
+                            executor,
                             WooCommerceService._fetch_single_page,
                             client,
                             api_url,
-                            base_params,
+                            params,
                             page
-                        ): page
+                        )
                         for page in range(2, total_pages + 1)
-                    }
+                    ]
                     
-                    # Collect results as they complete
-                    for future in as_completed(future_to_page):
-                        page_num = future_to_page[future]
-                        try:
-                            _, orders, _ = future.result()
-                            if orders:
-                                all_orders.extend(orders)
-                        except Exception as e:
-                            logger.error(f"Error fetching page {page_num}: {str(e)}", exc_info=True)
-                            # Continue with other pages even if one fails
+                    # Wait for all pages to complete
+                    results = await asyncio.gather(*tasks)
+                    
+                    # Collect orders from all pages
+                    for page_num, orders, _ in results:
+                        all_orders.extend(orders)
             
-            # Close the client
             client.close()
             
             logger.info(f"Successfully fetched {len(all_orders)} orders from WooCommerce")

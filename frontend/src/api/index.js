@@ -372,10 +372,11 @@ export const telegramAPI = {
 // ============================================================================
 export const b2cOpsAPI = {
   // Order Extractor
-  fetchOrders: async (startDate, endDate) => {
+  fetchOrders: async (startDate, endDate, status = 'any') => {
     const response = await apiClient.post('/b2c-ops/orders/fetch', {
       start_date: startDate,
-      end_date: endDate
+      end_date: endDate,
+      status: status
     });
     return response.data;
   },
