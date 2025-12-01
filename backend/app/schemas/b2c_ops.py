@@ -104,6 +104,7 @@ class OrderFetchRequest(BaseModel):
     """Request to fetch orders from WooCommerce"""
     start_date: date = Field(..., description="Start date for order fetching (YYYY-MM-DD)")
     end_date: date = Field(..., description="End date for order fetching (YYYY-MM-DD)")
+    status: str = Field(default="any", description="Order status filter (any, processing, pending, on-hold, completed, cancelled, failed)")
     
     @validator('end_date')
     def validate_date_range(cls, v, values):

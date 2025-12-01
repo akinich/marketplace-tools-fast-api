@@ -24,6 +24,11 @@ import {
     Accordion,
     AccordionSummary,
     AccordionDetails,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    LinearProgress,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -40,10 +45,12 @@ export default function OrderExtractor() {
     // State
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [orderStatus, setOrderStatus] = useState('any');
     const [orders, setOrders] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [fetchProgress, setFetchProgress] = useState({ current: 0, total: 0, estimatedTime: 0 });
 
     // Validate date range
     const validateDateRange = () => {
@@ -75,8 +82,27 @@ export default function OrderExtractor() {
         }
 
         setLoading(true);
+        setFetchProgress({ current: 0, total: 100, estimatedTime: 0 });
+
+        // Start progress simulation
+        const startTime = Date.now();
+        const progressInterval = setInterval(() => {
+            setFetchProgress(prev => {
+                const elapsed = (Date.now() - startTime) / 1000; // seconds
+                const newProgress = Math.min(prev.current + 2, 95); // Cap at 95% until complete
+                const estimatedTotal = elapsed / (newProgress / 100) || 0;
+                const remaining = Math.max(0, estimatedTotal - elapsed);
+
+                return {
+                    current: newProgress,
+                    total: 100,
+                    estimatedTime: Math.ceil(remaining)
+                };
+            });
+        }, 200);
+
         try {
-            const response = await b2cOpsAPI.fetchOrders(startDate, endDate);
+            const response = await b2cOpsAPI.fetchOrders(startDate, endDate, orderStatus);
 
             // Transform orders for DataGrid
             const transformedOrders = response.orders.map((order, idx) => {
@@ -121,13 +147,21 @@ export default function OrderExtractor() {
                 };
             });
 
+            // Complete progress
+            clearInterval(progressInterval);
+            setFetchProgress({ current: 100, total: 100, estimatedTime: 0 });
+
             setOrders(transformedOrders);
             setSelectedOrders(transformedOrders.map(o => o.id)); // Select all by default
             enqueueSnackbar(`Successfully fetched ${transformedOrders.length} orders!`, { variant: 'success' });
         } catch (error) {
+            clearInterval(progressInterval);
+            setFetchProgress({ current: 0, total: 0, estimatedTime: 0 });
             enqueueSnackbar(error.response?.data?.detail || 'Failed to fetch orders', { variant: 'error' });
         } finally {
+            clearInterval(progressInterval);
             setLoading(false);
+            setTimeout(() => setFetchProgress({ current: 0, total: 0, estimatedTime: 0 }), 1000);
         }
     };
 
@@ -192,7 +226,7 @@ export default function OrderExtractor() {
             {/* Date Selection */}
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                    📅 Select Date Range
+                    📅 Select Date Range & Status
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2, alignItems: 'center' }}>
                     <TextField
@@ -211,6 +245,22 @@ export default function OrderExtractor() {
                         InputLabelProps={{ shrink: true }}
                         fullWidth
                     />
+                    <FormControl fullWidth>
+                        <InputLabel>Order Status</InputLabel>
+                        <Select
+                            value={orderStatus}
+                            label="Order Status"
+                            onChange={(e) => setOrderStatus(e.target.value)}
+                        >
+                            <MenuItem value="any">Any Status</MenuItem>
+                            <MenuItem value="processing">Processing</MenuItem>
+                            <MenuItem value="pending">Pending Payment</MenuItem>
+                            <MenuItem value="on-hold">On Hold</MenuItem>
+                            <MenuItem value="completed">Completed</MenuItem>
+                            <MenuItem value="cancelled">Cancelled</MenuItem>
+                            <MenuItem value="failed">Failed</MenuItem>
+                        </Select>
+                    </FormControl>
                     <Button
                         variant="contained"
                         startIcon={loading ? <CircularProgress size={20} /> : <SearchIcon />}
@@ -224,6 +274,25 @@ export default function OrderExtractor() {
                 <Alert severity="info" sx={{ mt: 2 }}>
                     Maximum date range: 31 days
                 </Alert>
+
+                {/* Progress Bar */}
+                {loading && fetchProgress.total > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Fetching orders from WooCommerce...
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {fetchProgress.current}% {fetchProgress.estimatedTime > 0 && `• ~${fetchProgress.estimatedTime}s remaining`}
+                            </Typography>
+                        </Box>
+                        <LinearProgress
+                            variant="determinate"
+                            value={fetchProgress.current}
+                            sx={{ height: 8, borderRadius: 1 }}
+                        />
+                    </Box>
+                )}
             </Paper>
 
             {/* Orders Table */}

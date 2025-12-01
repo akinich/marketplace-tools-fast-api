@@ -66,7 +66,8 @@ async def fetch_orders(
         # Fetch orders from WooCommerce
         orders = await WooCommerceService.fetch_orders(
             request.start_date,
-            request.end_date
+            request.end_date,
+            request.status
         )
         
         # Log activity
