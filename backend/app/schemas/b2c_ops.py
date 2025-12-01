@@ -196,3 +196,29 @@ class LabelGenerateResponse(BaseModel):
     is_zip: bool
     filename: str
 
+
+# ============================================================================
+# MRP Label Generator Schemas
+# ============================================================================
+
+class MrpLabelPreviewResponse(BaseModel):
+    """Response from MRP label preview"""
+    total_items: int
+    total_pages: int
+    valid_rows: int
+    missing_pdfs: List[str]
+    data: List[Dict[str, Any]]
+
+
+class MrpLabelGenerateRequest(BaseModel):
+    """Request to generate merged MRP labels"""
+    data: List[Dict[str, Any]] = Field(..., description="List of items with quantity and pdf_filename")
+
+
+class PdfLibraryItem(BaseModel):
+    """PDF file in library"""
+    name: str
+    size: int
+    created_at: str
+    updated_at: str
+

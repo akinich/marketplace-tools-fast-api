@@ -38,10 +38,14 @@ from app.schemas.b2c_ops import (
     WooCommerceOrder,
     LabelPreviewResponse,
     LabelGenerateRequest,
-    LabelGenerateResponse
+    LabelGenerateResponse,
+    MrpLabelPreviewResponse,
+    MrpLabelGenerateRequest,
+    PdfLibraryItem
 )
 from app.services.woocommerce_service import WooCommerceService
 from app.services.label_service import LabelService
+from app.services.mrp_label_service import MrpLabelService
 from app.database import fetch_one, execute_query
 
 logger = logging.getLogger(__name__)
@@ -487,3 +491,123 @@ async def generate_labels(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate labels: {str(e)}"
         )
+
+
+# ============================================================================
+# MRP Label Generator Endpoints
+# ============================================================================
+
+@router.post("/mrp-labels/preview", response_model=MrpLabelPreviewResponse)
+async def preview_mrp_labels(
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(require_module_access("mrp_label_generator"))
+):
+    """Preview Excel file for MRP label generation"""
+    try:
+        content = await file.read()
+        result = await MrpLabelService.validate_excel(content, file.filename)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error previewing MRP labels: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mrp-labels/generate")
+async def generate_mrp_labels(
+    request: MrpLabelGenerateRequest,
+    current_user: CurrentUser = Depends(require_module_access("mrp_label_generator"))
+):
+    """Generate merged PDF for MRP labels"""
+    try:
+        file_bytes, filename, is_zip = await MrpLabelService.generate_merged_pdf(request.data)
+        
+        # Log activity
+        await execute_query(
+            """
+            INSERT INTO activity_logs (user_id, action_type, module_key, description, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            current_user.id,
+            'pdf_generation',
+            'mrp_label_generator',
+            f"Generated MRP labels: {filename}",
+            json.dumps({'filename': filename, 'is_zip': is_zip})
+        )
+        
+        media_type = "application/zip" if is_zip else "application/pdf"
+        return Response(
+            content=file_bytes,
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error generating MRP labels: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/mrp-labels/library", response_model=List[PdfLibraryItem])
+async def list_mrp_library(
+    current_user: CurrentUser = Depends(require_module_access("mrp_label_generator"))
+):
+    """List PDFs in library"""
+    try:
+        return await MrpLabelService.list_library_pdfs()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/mrp-labels/upload")
+async def upload_mrp_pdf(
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(require_module_access("mrp_label_generator"))
+):
+    """Upload PDF to library"""
+    try:
+        content = await file.read()
+        result = await MrpLabelService.upload_pdf(content, file.filename)
+        
+        # Log activity
+        await execute_query(
+            """
+            INSERT INTO activity_logs (user_id, action_type, module_key, description, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            current_user.id,
+            'file_upload',
+            'mrp_label_generator',
+            f"Uploaded PDF to library: {file.filename}",
+            json.dumps({'filename': file.filename})
+        )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/mrp-labels/library/{filename}")
+async def delete_mrp_pdf(
+    filename: str,
+    current_user: CurrentUser = Depends(require_module_access("mrp_label_generator"))
+):
+    """Delete PDF from library"""
+    try:
+        result = await MrpLabelService.delete_pdf(filename)
+        
+        # Log activity
+        await execute_query(
+            """
+            INSERT INTO activity_logs (user_id, action_type, module_key, description, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            current_user.id,
+            'file_deletion',
+            'mrp_label_generator',
+            f"Deleted PDF from library: {filename}",
+            json.dumps({'filename': filename})
+        )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

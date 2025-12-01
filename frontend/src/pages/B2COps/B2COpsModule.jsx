@@ -13,6 +13,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import OrderExtractor from './OrderExtractor';
 import LabelGenerator from './LabelGenerator';
+import MrpLabelGenerator from './MrpLabelGenerator';
 
 export default function B2COpsModule() {
     return (
@@ -20,6 +21,7 @@ export default function B2COpsModule() {
             <Route index element={<Navigate to="order-extractor" replace />} />
             <Route path="order-extractor" element={<OrderExtractor />} />
             <Route path="label-generator" element={<LabelGenerator />} />
+            <Route path="mrp-label-generator" element={<MrpLabelGenerator />} />
         </Routes>
     );
 }
