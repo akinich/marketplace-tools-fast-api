@@ -381,6 +381,7 @@ export default function DashboardLayout() {
     const b2cOpsRoutes = {
       order_extractor: '/b2c-ops/order-extractor',
       label_generator: '/b2c-ops/label-generator',
+      mrp_label_generator: '/b2c-ops/mrp-label-generator',
     };
 
     // Communication sub-modules

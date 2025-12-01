@@ -414,6 +414,42 @@ export const b2cOpsAPI = {
     });
     return response.data;
   },
+
+  // MRP Label Generator
+  previewMrpLabels: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/b2c-ops/mrp-labels/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  generateMrpLabels: async (data) => {
+    const response = await apiClient.post('/b2c-ops/mrp-labels/generate', { data }, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  listMrpLibrary: async () => {
+    const response = await apiClient.get('/b2c-ops/mrp-labels/library');
+    return response.data;
+  },
+
+  uploadMrpPdf: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/b2c-ops/mrp-labels/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+
+  deleteMrpPdf: async (filename) => {
+    const response = await apiClient.delete(`/b2c-ops/mrp-labels/library/${filename}`);
+    return response.data;
+  },
 };
 
 // Export all APIs
