@@ -124,9 +124,9 @@ class MrpLabelService:
                     missing_pdfs.add(filename)
                 
                 data_rows.append({
-                    'item_id': row['item_id'],
-                    'variation_id': row['variation_id'],
-                    'quantity': row['quantity'],
+                    'item_id': int(row['item_id']),
+                    'variation_id': int(row['variation_id']),
+                    'quantity': int(row['quantity']),
                     'pdf_filename': filename,
                     'is_available': filename in available_files
                 })
@@ -135,9 +135,9 @@ class MrpLabelService:
                     total_pages += row['quantity']
             
             return {
-                'total_items': len(df),
-                'total_pages': total_pages,
-                'valid_rows': len(data_rows),
+                'total_items': int(len(df)),
+                'total_pages': int(total_pages),
+                'valid_rows': int(len(data_rows)),
                 'missing_pdfs': list(missing_pdfs),
                 'data': data_rows
             }
