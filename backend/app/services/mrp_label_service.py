@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 from pypdf import PdfWriter, PdfReader
 
-from app.utils.supabase_client import get_supabase_client
+from app.utils.supabase_client import get_supabase_client_async
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class MrpLabelService:
                 raise ValueError("No valid data rows found")
             
             # 6. Check PDF Availability
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
             files = supabase.storage.from_(BUCKET_NAME).list()
             available_files = {f['name'] for f in files}
             
@@ -155,7 +155,7 @@ class MrpLabelService:
             Tuple(file_bytes, filename, is_zip)
         """
         try:
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
             merger = PdfWriter()
             total_pages = 0
             
@@ -236,7 +236,7 @@ class MrpLabelService:
     async def list_library_pdfs() -> List[Dict[str, Any]]:
         """List all PDFs in library"""
         try:
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
             files = supabase.storage.from_(BUCKET_NAME).list()
             
             # Sort by name (numeric aware if possible, but string sort is default)
@@ -267,7 +267,7 @@ class MrpLabelService:
             if not filename.lower().endswith('.pdf'):
                 raise ValueError("Only PDF files allowed")
             
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
             
             # Check if exists (to overwrite or error? Streamlit code implies overwrite or error handling)
             # Supabase upload with upsert=True is safest
@@ -286,7 +286,7 @@ class MrpLabelService:
     async def delete_pdf(filename: str) -> Dict[str, Any]:
         """Delete PDF from library"""
         try:
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
             supabase.storage.from_(BUCKET_NAME).remove([filename])
             return {"message": "Deleted successfully"}
         except Exception as e:
