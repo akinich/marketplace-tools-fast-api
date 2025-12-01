@@ -45,7 +45,7 @@ export default function OrderExtractor() {
     // State
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [orderStatus, setOrderStatus] = useState('any');
+    const [orderStatus, setOrderStatus] = useState([]);  // Multi-select array
     const [orders, setOrders] = useState([]);
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -102,7 +102,9 @@ export default function OrderExtractor() {
         }, 200);
 
         try {
-            const response = await b2cOpsAPI.fetchOrders(startDate, endDate, orderStatus);
+            // Convert status array to comma-separated string, or 'any' if empty
+            const statusParam = orderStatus.length > 0 ? orderStatus.join(',') : 'any';
+            const response = await b2cOpsAPI.fetchOrders(startDate, endDate, statusParam);
 
             // Transform orders for DataGrid
             const transformedOrders = response.orders.map((order, idx) => {
@@ -194,11 +196,12 @@ export default function OrderExtractor() {
         }
     };
 
-    // DataGrid columns
+    // DataGrid columns - Status moved to 4th position for display
     const columns = [
         { field: 'sNo', headerName: 'S.No', width: 70 },
         { field: 'orderNumber', headerName: 'Order #', width: 100 },
         { field: 'date', headerName: 'Date', width: 110 },
+        { field: 'orderStatus', headerName: 'Status', width: 120 },  // Moved to 4th position
         { field: 'customerName', headerName: 'Name', width: 150 },
         { field: 'itemsOrdered', headerName: 'Items Ordered', width: 250 },
         { field: 'totalItems', headerName: 'Total Items', width: 100 },
@@ -208,7 +211,6 @@ export default function OrderExtractor() {
         { field: 'orderTotal', headerName: 'Total', width: 100, type: 'number' },
         { field: 'paymentMethod', headerName: 'Payment Method', width: 150 },
         { field: 'transactionId', headerName: 'Transaction ID', width: 150 },
-        { field: 'orderStatus', headerName: 'Status', width: 120 },
     ];
 
     return (
@@ -235,6 +237,8 @@ export default function OrderExtractor() {
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         InputLabelProps={{ shrink: true }}
+                        inputProps={{ style: { cursor: 'pointer' } }}
+                        onClick={(e) => e.target.showPicker && e.target.showPicker()}
                         fullWidth
                     />
                     <TextField
@@ -243,16 +247,23 @@ export default function OrderExtractor() {
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         InputLabelProps={{ shrink: true }}
+                        inputProps={{ style: { cursor: 'pointer' } }}
+                        onClick={(e) => e.target.showPicker && e.target.showPicker()}
                         fullWidth
                     />
                     <FormControl fullWidth>
                         <InputLabel>Order Status</InputLabel>
                         <Select
+                            multiple
                             value={orderStatus}
                             label="Order Status"
                             onChange={(e) => setOrderStatus(e.target.value)}
+                            renderValue={(selected) =>
+                                selected.length === 0
+                                    ? 'Any Status'
+                                    : selected.map(s => s.charAt(0).toUpperCase() + s.slice(1).replace('-', ' ')).join(', ')
+                            }
                         >
-                            <MenuItem value="any">Any Status</MenuItem>
                             <MenuItem value="processing">Processing</MenuItem>
                             <MenuItem value="pending">Pending Payment</MenuItem>
                             <MenuItem value="on-hold">On Hold</MenuItem>
