@@ -12,7 +12,7 @@ Service for managing products, WooCommerce sync, and CRUD operations
 from typing import List, Dict, Optional, Tuple
 from fastapi import HTTPException, status
 import logging
-import requests
+import httpx
 from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query
@@ -390,14 +390,15 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
 async def fetch_wc_products(api_url: str, consumer_key: str, consumer_secret: str, limit: int) -> List[Dict]:
     """Fetch products from WooCommerce API"""
     try:
-        response = requests.get(
-            f"{api_url}/products",
-            auth=(consumer_key, consumer_secret),
-            params={'per_page': min(limit, 100), 'status': 'publish'},
-            timeout=30
-        )
-        response.raise_for_status()
-        products = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{api_url}/products",
+                auth=(consumer_key, consumer_secret),
+                params={'per_page': min(limit, 100), 'status': 'publish'},
+                timeout=30.0
+            )
+            response.raise_for_status()
+            products = response.json()
         
         parsed_products = []
         for product in products:
@@ -425,14 +426,15 @@ async def fetch_wc_products(api_url: str, consumer_key: str, consumer_secret: st
 async def fetch_wc_variations(api_url: str, consumer_key: str, consumer_secret: str, product_id: int) -> List[Dict]:
     """Fetch variations for a variable product"""
     try:
-        response = requests.get(
-            f"{api_url}/products/{product_id}/variations",
-            auth=(consumer_key, consumer_secret),
-            params={'per_page': 100},
-            timeout=30
-        )
-        response.raise_for_status()
-        variations = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{api_url}/products/{product_id}/variations",
+                auth=(consumer_key, consumer_secret),
+                params={'per_page': 100},
+                timeout=30.0
+            )
+            response.raise_for_status()
+            variations = response.json()
         
         parsed_variations = []
         for variation in variations:
