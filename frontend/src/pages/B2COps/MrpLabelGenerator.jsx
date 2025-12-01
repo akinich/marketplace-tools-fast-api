@@ -357,7 +357,7 @@ export default function MrpLabelGenerator() {
                                 <Typography variant="h6" gutterBottom>Data Preview</Typography>
                                 <Box sx={{ height: 400, width: '100%', mb: 3 }}>
                                     <DataGrid
-                                        rows={previewData.data.map((row, i) => ({ id: i, ...row }))}
+                                        rows={previewData.data?.map((row, i) => ({ id: i, ...row })) || []}
                                         columns={previewColumns}
                                         pageSizeOptions={[10, 25, 50]}
                                         initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
