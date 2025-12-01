@@ -380,8 +380,7 @@ export default function DashboardLayout() {
     // B2C Ops sub-modules
     const b2cOpsRoutes = {
       order_extractor: '/b2c-ops/order-extractor',
-      shipping_label_generator: '/b2c-ops/shipping-labels',
-      mrp_label_generator: '/b2c-ops/mrp-labels',
+      label_generator: '/b2c-ops/label-generator',
     };
 
     // Communication sub-modules
