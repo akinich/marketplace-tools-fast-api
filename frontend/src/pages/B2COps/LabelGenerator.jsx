@@ -127,6 +127,41 @@ export default function LabelGenerator() {
         }
     };
 
+    // Handle label generation
+    const handleGenerate = async () => {
+        if (!previewData) return;
+
+        setGenerating(true);
+        try {
+            const config = {
+                font_name: fontName,
+                font_adjustment: fontAdjustment,
+                width_mm: widthMm,
+                height_mm: heightMm,
+            };
+
+            const blob = await b2cOpsAPI.generateLabels(previewData.all_data, config);
+
+            // Download the file
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const timestamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '').slice(0, 13);
+            const isZip = previewData.valid_labels > 25;
+            link.download = `shipping_labels_${timestamp}.${isZip ? 'zip' : 'pdf'}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            enqueueSnackbar('Labels generated successfully!', { variant: 'success' });
+        } catch (error) {
+            enqueueSnackbar(error.response?.data?.detail || 'Failed to generate labels', { variant: 'error' });
+        } finally {
+            setGenerating(false);
+        }
+    };
+
     // DataGrid columns
     const columns = [
         { field: 'id', headerName: '#', width: 70 },
