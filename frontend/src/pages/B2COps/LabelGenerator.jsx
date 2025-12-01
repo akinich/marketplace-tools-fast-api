@@ -127,7 +127,18 @@ export default function LabelGenerator() {
         }
     };
 
-    // ... (rest of the code)
+    // DataGrid columns
+    const columns = [
+        { field: 'id', headerName: '#', width: 70 },
+        { field: 'order #', headerName: 'Order #', width: 150 },
+        { field: 'name', headerName: 'Customer Name', width: 300 },
+    ];
+
+    // Prepare rows for DataGrid
+    const rows = previewData?.preview_data?.map((item, idx) => ({
+        id: idx + 1,
+        ...item,
+    })) || [];
 
     return (
         <Box>
@@ -141,7 +152,69 @@ export default function LabelGenerator() {
                 </Typography>
             </Box>
 
-            {/* ... (Configuration Panel) ... */}
+            {/* Configuration Panel */}
+            <Accordion sx={{ mb: 3 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography>⚙️ Label Configuration</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+                        {/* Font Settings */}
+                        <Box>
+                            <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                                Font Settings
+                            </Typography>
+                            <FormControl fullWidth sx={{ mb: 2 }}>
+                                <InputLabel>Font Style</InputLabel>
+                                <Select
+                                    value={fontName}
+                                    label="Font Style"
+                                    onChange={(e) => setFontName(e.target.value)}
+                                >
+                                    {AVAILABLE_FONTS.map((font) => (
+                                        <MenuItem key={font.value} value={font.value}>
+                                            {font.label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <TextField
+                                label="Font Size Adjustment"
+                                type="number"
+                                value={fontAdjustment}
+                                onChange={(e) => setFontAdjustment(parseInt(e.target.value) || 0)}
+                                inputProps={{ min: -5, max: 5 }}
+                                fullWidth
+                                helperText="Fine-tune font size (+/- points)"
+                            />
+                        </Box>
+
+                        {/* Label Dimensions */}
+                        <Box>
+                            <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                                Label Dimensions
+                            </Typography>
+                            <TextField
+                                label="Width (mm)"
+                                type="number"
+                                value={widthMm}
+                                onChange={(e) => setWidthMm(parseInt(e.target.value) || 50)}
+                                inputProps={{ min: 10, max: 500 }}
+                                fullWidth
+                                sx={{ mb: 2 }}
+                            />
+                            <TextField
+                                label="Height (mm)"
+                                type="number"
+                                value={heightMm}
+                                onChange={(e) => setHeightMm(parseInt(e.target.value) || 30)}
+                                inputProps={{ min: 10, max: 500 }}
+                                fullWidth
+                            />
+                        </Box>
+                    </Box>
+                </AccordionDetails>
+            </Accordion>
 
             {/* File Upload */}
             <Paper
