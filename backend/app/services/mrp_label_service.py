@@ -23,7 +23,7 @@ import logging
 import pandas as pd
 from pypdf import PdfWriter, PdfReader
 
-from app.database import get_supabase_client
+from app.utils.supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
