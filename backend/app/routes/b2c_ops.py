@@ -20,8 +20,8 @@ Authentication:
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import StreamingResponse, Response
 from typing import List
 import pandas as pd
 from io import BytesIO
@@ -35,9 +35,13 @@ from app.schemas.b2c_ops import (
     OrderFetchRequest,
     OrderFetchResponse,
     OrderExportRequest,
-    WooCommerceOrder
+    WooCommerceOrder,
+    LabelPreviewResponse,
+    LabelGenerateRequest,
+    LabelGenerateResponse
 )
 from app.services.woocommerce_service import WooCommerceService
+from app.services.label_service import LabelService
 from app.database import fetch_one, execute_query
 
 logger = logging.getLogger(__name__)
@@ -331,3 +335,155 @@ def _generate_excel(orders: List[dict]) -> BytesIO:
     
     output.seek(0)
     return output
+
+
+# ============================================================================
+# Label Generator Endpoints
+# ============================================================================
+
+@router.post("/labels/preview", response_model=LabelPreviewResponse)
+async def preview_labels(
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(require_module_access("label_generator"))
+):
+    """
+    Preview uploaded file for label generation
+    
+    - **file**: Excel or CSV file with 'order #' and 'name' columns
+    
+    Returns preview data, statistics, and validation info
+    """
+    try:
+        # Validate file size (20MB max)
+        MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+        file_content = await file.read()
+        
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File too large ({len(file_content) / (1024*1024):.1f} MB). Maximum size is 20 MB."
+            )
+        
+        # Validate file type
+        if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file format. Please upload Excel (.xlsx, .xls) or CSV file."
+            )
+        
+        # Preview labels
+        preview_data = await LabelService.preview_labels(file_content, file.filename)
+        
+        # Log activity
+        await execute_query(
+            """
+            INSERT INTO activity_logs (user_id, action_type, module_key, description, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            current_user.id,
+            'file_upload',
+            'label_generator',
+            f"Uploaded file for preview: {file.filename}",
+            json.dumps({
+                'filename': file.filename,
+                'size_mb': round(len(file_content) / (1024*1024), 2),
+                'valid_labels': preview_data['valid_labels']
+            })
+        )
+        
+        return preview_data
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error previewing labels: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to preview file: {str(e)}"
+        )
+
+
+@router.post("/labels/generate")
+async def generate_labels(
+    request: LabelGenerateRequest,
+    current_user: CurrentUser = Depends(require_module_access("label_generator"))
+):
+    """
+    Generate PDF labels or ZIP file with multiple PDFs
+    
+    - **data**: List of orders with 'order #' and 'name'
+    - **config**: Label configuration (font, dimensions)
+    
+    Returns PDF file or ZIP file (if >25 labels)
+    """
+    try:
+        # Generate labels
+        file_bytes, filename, is_zip = await LabelService.generate_labels(
+            data=request.data,
+            font_name=request.config.font_name,
+            font_adjustment=request.config.font_adjustment,
+            width_mm=request.config.width_mm,
+            height_mm=request.config.height_mm
+        )
+        
+        # Calculate stats
+        label_count = len(request.data)
+        pdf_count = (label_count + 24) // 25  # Ceiling division
+        file_size_mb = len(file_bytes) / (1024 * 1024)
+        
+        # Log activity
+        await execute_query(
+            """
+            INSERT INTO activity_logs (user_id, action_type, module_key, description, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            current_user.id,
+            'pdf_generation',
+            'label_generator',
+            f"Generated {label_count} shipping labels",
+            json.dumps({
+                'label_count': label_count,
+                'pdf_count': pdf_count,
+                'font': request.config.font_name,
+                'dimensions': f"{request.config.width_mm}x{request.config.height_mm}mm",
+                'file_size_mb': round(file_size_mb, 2),
+                'is_zip': is_zip,
+                'filename': filename
+            })
+        )
+        
+        # Return file
+        media_type = "application/zip" if is_zip else "application/pdf"
+        
+        return Response(
+            content=file_bytes,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generating labels: {str(e)}", exc_info=True)
+        
+        # Log error
+        await execute_query(
+            """
+            INSERT INTO activity_logs (user_id, action_type, module_key, description, metadata, success)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            """,
+            current_user.id,
+            'module_error',
+            'label_generator',
+            f"Failed to generate labels: {str(e)}",
+            json.dumps({'error': str(e)}),
+            False
+        )
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate labels: {str(e)}"
+        )

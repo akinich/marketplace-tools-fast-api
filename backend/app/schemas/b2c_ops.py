@@ -158,3 +158,41 @@ class OrderExportRequest(BaseModel):
                 "end_date": "2025-11-30"
             }
         }
+
+
+# ============================================================================
+# Label Generator Schemas
+# ============================================================================
+
+class LabelPreviewResponse(BaseModel):
+    """Response from label preview endpoint"""
+    total_entries: int
+    duplicates_removed: int
+    valid_labels: int
+    preview_data: List[Dict[str, str]]
+    columns: List[str]
+    all_data: List[Dict[str, str]]  # For generation
+
+
+class LabelConfig(BaseModel):
+    """Configuration for label generation"""
+    font_name: str = Field(default="Courier-Bold", description="Font to use for labels")
+    font_adjustment: int = Field(default=0, ge=-5, le=5, description="Font size adjustment")
+    width_mm: int = Field(default=50, ge=10, le=500, description="Label width in mm")
+    height_mm: int = Field(default=30, ge=10, le=500, description="Label height in mm")
+
+
+class LabelGenerateRequest(BaseModel):
+    """Request to generate PDF labels"""
+    data: List[Dict[str, str]] = Field(..., description="List of orders with 'order #' and 'name'")
+    config: LabelConfig = Field(default_factory=LabelConfig)
+
+
+class LabelGenerateResponse(BaseModel):
+    """Response from label generation"""
+    label_count: int
+    pdf_count: int
+    file_size_mb: float
+    is_zip: bool
+    filename: str
+

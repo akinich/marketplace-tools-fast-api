@@ -391,6 +391,29 @@ export const b2cOpsAPI = {
     });
     return response.data;
   },
+
+  // Label Generator
+  previewLabels: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post('/b2c-ops/labels/preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  generateLabels: async (data, config) => {
+    const response = await apiClient.post('/b2c-ops/labels/generate', {
+      data: data,
+      config: config
+    }, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
 };
 
 // Export all APIs
