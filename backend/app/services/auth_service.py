@@ -48,7 +48,7 @@ from app.auth.jwt import create_access_token, create_refresh_token, verify_refre
 from app.auth.password import verify_password, hash_password, validate_password_strength
 from app.config import settings
 from app.schemas.auth import LoginResponse, UserInfo
-from app.utils.supabase_client import get_supabase_client
+from app.utils.supabase_client import get_supabase_client_async
 
 # Account lockout settings
 MAX_FAILED_ATTEMPTS = 5
@@ -334,7 +334,7 @@ async def send_password_reset_email(email: str) -> Dict[str, str]:
 
         if user:
             # Use Supabase Auth to send password reset email
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
 
             # Supabase will send the email with the configured template
             response = supabase.auth.reset_password_for_email(
@@ -395,7 +395,7 @@ async def reset_password(recovery_token: str, new_password: str) -> Dict[str, st
     """
     try:
         # Verify the recovery token with Supabase
-        supabase = get_supabase_client()
+        supabase = await get_supabase_client_async()
 
         # Get user from Supabase using the recovery token
         user_response = supabase.auth.get_user(recovery_token)
@@ -581,7 +581,7 @@ async def change_password(user_id: str, current_password: str, new_password: str
 
         # Also update in Supabase Auth
         try:
-            supabase = get_supabase_client()
+            supabase = await get_supabase_client_async()
             supabase.auth.admin.update_user_by_id(user_id, {"password": new_password})
         except Exception as e:
             logger.warning(f"Failed to update password in Supabase Auth: {e}")
