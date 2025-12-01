@@ -230,8 +230,8 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
 
         # Use Supabase Admin API to create user with confirmed email
         # This ensures password reset emails will be sent properly
-        from app.utils.supabase_client import get_supabase_client
-        supabase = get_supabase_client()
+        from app.utils.supabase_client import get_supabase_client_async
+        supabase = await get_supabase_client_async()
 
         # Create user via Supabase Admin API
         user_response = supabase.auth.admin.create_user({
@@ -446,8 +446,8 @@ async def delete_user(user_id: str, deleted_by_id: str, hard_delete: bool = Fals
     if hard_delete:
         # Hard delete - permanently remove user from Supabase
         try:
-            from app.utils.supabase_client import get_supabase_client
-            supabase = get_supabase_client()
+            from app.utils.supabase_client import get_supabase_client_async
+            supabase = await get_supabase_client_async()
 
             # Delete from Supabase auth (will cascade to user_profiles due to ON DELETE CASCADE)
             supabase.auth.admin.delete_user(user_id)
