@@ -74,7 +74,7 @@ function ZohoCustomerMaster() {
                 search: searchTerm || undefined,
                 active_only: filterActive === 'active',
                 product_type: filterProductType === 'all' ? undefined : filterProductType,
-                limit: 1000,
+                limit: 5000,
             };
 
             const response = await zohoCustomerAPI.getItems(params);

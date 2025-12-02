@@ -37,7 +37,7 @@ async def list_zoho_items(
     active_only: bool = Query(True, description="Filter active items only"),
     item_type: Optional[str] = Query(None, description="Filter by item_type"),
     product_type: Optional[str] = Query(None, description="Filter by product_type: goods, service"),
-    limit: int = Query(1000, ge=1, le=1000, description="Results limit"),
+    limit: int = Query(1000, ge=1, le=10000, description="Results limit"),
     offset: int = Query(0, ge=0, description="Results offset"),
     current_user: CurrentUser = Depends(get_current_user)
 ):
