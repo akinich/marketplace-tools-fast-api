@@ -169,26 +169,47 @@ function ZohoItemMaster() {
         setSyncResult(null);
         setSyncProgress(null);
 
-        // Start polling for progress
-        const progressInterval = setInterval(async () => {
-            const stillInProgress = await pollSyncProgress();
-            if (!stillInProgress) {
-                clearInterval(progressInterval);
-            }
-        }, 1000); // Poll every 1 second
-
         try {
+            // Start the sync (returns immediately)
             const response = await zohoItemAPI.syncFromZohoBooks(false);
-            clearInterval(progressInterval);
-            setSyncResult(response);
-            enqueueSnackbar(response.message, { variant: 'success' });
-            setRefreshTrigger((prev) => prev + 1);
+            enqueueSnackbar('Sync started! Tracking progress...', { variant: 'info' });
+
+            // Poll for progress until complete
+            const progressInterval = setInterval(async () => {
+                const progress = await pollSyncProgress();
+
+                if (!progress) {
+                    // Sync is complete
+                    clearInterval(progressInterval);
+
+                    // Get final progress to show results
+                    const finalProgress = syncProgress;
+                    if (finalProgress) {
+                        setSyncResult({
+                            total: finalProgress.total,
+                            added: finalProgress.added,
+                            updated: finalProgress.updated,
+                            skipped: finalProgress.skipped,
+                            errors: finalProgress.errors,
+                            message: `Sync completed: ${finalProgress.total} items processed`
+                        });
+
+                        const successMsg = `Sync completed: ${finalProgress.added} added, ${finalProgress.updated} updated, ${finalProgress.skipped} skipped, ${finalProgress.errors} errors`;
+                        enqueueSnackbar(successMsg, {
+                            variant: finalProgress.errors > 0 ? 'warning' : 'success'
+                        });
+                    }
+
+                    setSyncing(false);
+                    setSyncProgress(null);
+                    setRefreshTrigger((prev) => prev + 1);
+                }
+            }, 1000); // Poll every 1 second
+
         } catch (error) {
-            clearInterval(progressInterval);
-            enqueueSnackbar(error.response?.data?.detail || 'Sync failed', { variant: 'error' });
-        } finally {
             setSyncing(false);
             setSyncProgress(null);
+            enqueueSnackbar(error.response?.data?.detail || 'Failed to start sync', { variant: 'error' });
         }
     };
 
