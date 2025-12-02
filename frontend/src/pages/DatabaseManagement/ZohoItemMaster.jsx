@@ -158,18 +158,45 @@ function ZohoItemMaster() {
                             added: progress.added,
                             updated: progress.updated,
                             skipped: progress.skipped,
-                            errors: progress.errors
+                            errors: progress.errors,
+                            status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
                         });
-                        enqueueSnackbar('Sync completed!', { variant: 'success' });
+
+                        // Show appropriate notification based on result
+                        if (progress.errors > 0 && progress.added === 0 && progress.updated === 0) {
+                            enqueueSnackbar('Sync failed with errors!', { variant: 'error' });
+                        } else if (progress.errors > 0) {
+                            enqueueSnackbar('Sync completed with some errors', { variant: 'warning' });
+                        } else {
+                            enqueueSnackbar('Sync completed successfully!', { variant: 'success' });
+                        }
+
                         setSyncing(false);
                         setRefreshTrigger((prev) => prev + 1);
                     }
                 } catch (err) {
                     clearInterval(checkInterval);
+                    setSyncResult({
+                        status: 'failed',
+                        errors: 1,
+                        total: 0,
+                        added: 0,
+                        updated: 0,
+                        skipped: 0
+                    });
+                    enqueueSnackbar('Sync failed: Unable to fetch sync progress', { variant: 'error' });
                     setSyncing(false);
                 }
             }, 2000);
         } catch (error) {
+            setSyncResult({
+                status: 'failed',
+                errors: 1,
+                total: 0,
+                added: 0,
+                updated: 0,
+                skipped: 0
+            });
             setSyncing(false);
             enqueueSnackbar(error.response?.data?.detail || 'Failed to start sync', { variant: 'error' });
         }
@@ -375,9 +402,12 @@ function ZohoItemMaster() {
                         {/* Sync Result */}
                         {syncResult && !syncing && (
                             <Box sx={{ mt: 3 }}>
-                                <Alert severity={syncResult.errors > 0 ? 'warning' : 'success'}>
+                                <Alert severity={syncResult.status === 'failed' ? 'error' : (syncResult.errors > 0 ? 'warning' : 'success')}>
                                     <Typography variant="body2">
-                                        <strong>Sync Complete!</strong>
+                                        <strong>
+                                            {syncResult.status === 'failed' ? '❌ Sync Failed!' :
+                                             syncResult.errors > 0 ? '⚠️ Sync Completed with Errors' : '✅ Sync Complete!'}
+                                        </strong>
                                     </Typography>
                                     <Typography variant="body2" sx={{ mt: 1 }}>
                                         📊 Total Items: {syncResult.total}
@@ -386,6 +416,11 @@ function ZohoItemMaster() {
                                         ✅ Added: {syncResult.added} | 🔄 Updated: {syncResult.updated} |
                                         ⏭️ Skipped: {syncResult.skipped} | ❌ Errors: {syncResult.errors}
                                     </Typography>
+                                    {syncResult.status === 'failed' && (
+                                        <Typography variant="body2" sx={{ mt: 1, color: 'error.main' }}>
+                                            ⚠️ Please check logs or contact admin for details.
+                                        </Typography>
+                                    )}
                                 </Alert>
                             </Box>
                         )}
