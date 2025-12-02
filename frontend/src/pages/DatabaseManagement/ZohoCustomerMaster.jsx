@@ -222,21 +222,23 @@ function ZohoCustomerMaster() {
     // Export to CSV
     const handleExport = () => {
         const csvContent = [
-            ['ID', 'Item ID', 'Name', 'SKU', 'Description', 'Rate', 'Purchase Rate', 'Item Type', 'Product Type', 'HSN/SAC', 'Unit', 'Status', 'Taxable'],
-            ...customers.map((item) => [
-                item.id,
-                item.item_id,
-                item.name,
-                item.sku || '',
-                item.description || '',
-                item.rate || '',
-                item.purchase_rate || '',
-                item.item_type || '',
-                item.product_type || '',
-                item.hsn_or_sac || '',
-                item.unit || '',
-                item.status,
-                item.is_taxable ? 'Yes' : 'No',
+            ['ID', 'Contact ID', 'Contact Name', 'Company Name', 'Email', 'Phone', 'Mobile', 'Customer Type', 'GST No', 'PAN No', 'Payment Terms', 'Outstanding', 'Credit Limit', 'Status', 'Notes'],
+            ...customers.map((customer) => [
+                customer.id,
+                customer.contact_id,
+                customer.contact_name,
+                customer.company_name || '',
+                customer.email || '',
+                customer.phone || '',
+                customer.mobile || '',
+                customer.customer_type || '',
+                customer.gst_no || '',
+                customer.pan_no || '',
+                customer.payment_terms_label || '',
+                customer.outstanding_receivable_amount || '',
+                customer.credit_limit || '',
+                customer.status,
+                customer.notes || '',
             ]),
         ]
             .map((row) => row.join(','))
@@ -254,18 +256,20 @@ function ZohoCustomerMaster() {
     // DataGrid columns
     const columns = [
         { field: 'id', headerName: 'DB ID', width: 80, editable: false },
-        { field: 'item_id', headerName: 'Zoho Item ID', width: 120, editable: false },
-        { field: 'name', headerName: 'Item Name', width: 250, editable: isAdmin },
-        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin },
-        { field: 'description', headerName: 'Description', width: 200, editable: isAdmin },
-        { field: 'rate', headerName: 'Selling Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'purchase_rate', headerName: 'Purchase Price', width: 130, editable: isAdmin, type: 'number' },
-        { field: 'item_type', headerName: 'Item Type', width: 150, editable: isAdmin },
-        { field: 'product_type', headerName: 'Product Type', width: 120, editable: isAdmin },
-        { field: 'hsn_or_sac', headerName: 'HSN/SAC', width: 120, editable: isAdmin },
-        { field: 'unit', headerName: 'Unit', width: 100, editable: isAdmin },
-        { field: 'status', headerName: 'Status', width: 100, editable: isAdmin },
-        { field: 'is_taxable', headerName: 'Taxable', width: 100, editable: isAdmin, type: 'boolean' },
+        { field: 'contact_id', headerName: 'Zoho Contact ID', width: 120, editable: false },
+        { field: 'contact_name', headerName: 'Contact Name', width: 200, editable: false },
+        { field: 'company_name', headerName: 'Company Name', width: 200, editable: false },
+        { field: 'email', headerName: 'Email', width: 200, editable: false },
+        { field: 'phone', headerName: 'Phone', width: 130, editable: false },
+        { field: 'mobile', headerName: 'Mobile', width: 130, editable: false },
+        { field: 'customer_type', headerName: 'Type', width: 100, editable: false },
+        { field: 'gst_no', headerName: 'GST No', width: 150, editable: false },
+        { field: 'pan_no', headerName: 'PAN No', width: 120, editable: false },
+        { field: 'payment_terms_label', headerName: 'Payment Terms', width: 150, editable: false },
+        { field: 'outstanding_receivable_amount', headerName: 'Outstanding', width: 120, editable: false, type: 'number' },
+        { field: 'credit_limit', headerName: 'Credit Limit', width: 120, editable: false, type: 'number' },
+        { field: 'status', headerName: 'Status', width: 100, editable: false },
+        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
     ];
 
     return (
