@@ -12,15 +12,18 @@ APScheduler-based background task management for recurring operations.
 Tasks:
 ------
 1. Sync Zoho Items from Zoho Books (daily at 4:00 AM IST)
-2. Process webhook delivery queue (every 1 minute)
-3. Process email queue (every 5 minutes)
+2. Sync Woo Items from WooCommerce (daily at 4:00 AM IST)
+3. Process webhook delivery queue (every 1 minute)
+4. Process email queue (every 5 minutes)
 
 Changelog:
 ----------
 v2.2.0 (2025-12-02):
   - Added Zoho Items sync scheduled task
-  - Runs daily at 4:00 AM IST
-  - Only syncs items modified in last 24 hours (not force refresh)
+  - Added Woo Items sync scheduled task
+  - Both run daily at 4:00 AM IST
+  - Zoho: Only syncs items modified in last 24 hours (not force refresh)
+  - Woo: Syncs up to 1000 items with update_existing=True
   - Uses system user ID for automated syncs
 
 v2.1.0 (2025-11-22):
@@ -42,7 +45,8 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
-from app.services import telegram_service, webhook_service, email_service, zoho_item_service
+from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
+from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +78,33 @@ async def sync_zoho_items_daily():
 
     except Exception as e:
         logger.error(f"❌ Error in scheduled Zoho sync: {e}", exc_info=True)
+
+
+async def sync_woo_items_daily():
+    """
+    Sync items from WooCommerce daily at 4:00 AM IST.
+    This is a scheduled task that runs automatically.
+    """
+    try:
+        logger.info("🔄 Starting scheduled WooCommerce sync...")
+
+        # Use system user ID for scheduled syncs
+        system_user_id = "00000000-0000-0000-0000-000000000000"
+
+        sync_request = WooCommerceSyncRequest(limit=1000, update_existing=True)
+        result = await product_service.sync_from_woocommerce(
+            sync_request=sync_request,
+            synced_by=system_user_id
+        )
+
+        logger.info(
+            f"✅ Scheduled WooCommerce sync completed: "
+            f"{result['added']} added, {result['updated']} updated, "
+            f"{result['skipped']} skipped, {result['errors']} errors"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled WooCommerce sync: {e}", exc_info=True)
 
 
 
@@ -153,10 +184,21 @@ def start_scheduler():
             max_instances=1,
         )
 
+        # Task 4: Sync Woo Items daily at 4:00 AM IST
+        scheduler.add_job(
+            sync_woo_items_daily,
+            trigger=CronTrigger(hour=4, minute=0, timezone='Asia/Kolkata'),
+            id="sync_woo_items_daily",
+            name="Sync Woo Items from WooCommerce",
+            replace_existing=True,
+            max_instances=1,
+        )
+
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
         logger.info("   - Sync Zoho Items: Daily at 4:00 AM IST")
+        logger.info("   - Sync Woo Items: Daily at 4:00 AM IST")
         logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
 
