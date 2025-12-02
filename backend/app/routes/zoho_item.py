@@ -9,7 +9,7 @@ API endpoints for Zoho Item Master module
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from typing import List, Optional
 
 from app.auth.dependencies import get_current_user
@@ -65,15 +65,17 @@ async def list_zoho_items(
 # ZOHO BOOKS SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/zoho-items/sync", response_model=ZohoSyncResponse)
+@router.post("/zoho-items/sync")
 async def sync_zoho_items(
     sync_request: ZohoSyncRequest,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
-    Sync items from Zoho Books API
+    Start Zoho Books sync in background
 
     Requires: Admin role
+    Returns immediately, use /sync-progress to track progress
     """
     # Check if user is admin
     if current_user.role != "Admin":
@@ -82,21 +84,24 @@ async def sync_zoho_items(
             detail="Only admins can sync Zoho items"
         )
 
-    result = await zoho_item_service.sync_from_zoho_books(
+    # Check if sync is already in progress
+    current_progress = await zoho_item_service.get_sync_progress()
+    if current_progress["in_progress"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sync already in progress. Please wait for it to complete."
+        )
+
+    # Start sync in background
+    background_tasks.add_task(
+        zoho_item_service.sync_from_zoho_books,
         synced_by=current_user.id,
         force_refresh=sync_request.force_refresh
     )
 
-    message = f"Sync completed: {result['total']} items processed - "
-    message += f"{result['added']} added, {result['updated']} updated"
-    if result['skipped'] > 0:
-        message += f", {result['skipped']} skipped"
-    if result['errors'] > 0:
-        message += f", {result['errors']} errors"
-
     return {
-        **result,
-        "message": message
+        "message": "Sync started in background. Use /sync-progress to track progress.",
+        "in_progress": True
     }
 
 
