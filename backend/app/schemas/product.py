@@ -3,9 +3,9 @@
 Product Management - Pydantic Schemas
 ================================================================================
 Version: 1.0.0
-Created: 2025-12-01
+Product Management Schemas
 
-Schemas for B2C Item Master module
+Schemas for Woo Item Master module
 ================================================================================
 """
 

@@ -50,6 +50,7 @@ import WebSocketSettingsPage from './pages/WebSocketSettingsPage';
 
 // Other Module Pages
 import B2COpsModule from './pages/B2COps/B2COpsModule';
+import DatabaseManagementModule from './pages/DatabaseManagement/DatabaseManagementModule';
 import TicketsModule from './pages/TicketsModule';
 import DevelopmentModule from './pages/DevelopmentModule';
 import DocsModule from './pages/DocsModule';
@@ -135,6 +136,7 @@ function App() {
 
         {/* Other Module Routes */}
         <Route path="b2c-ops/*" element={<B2COpsModule />} />
+        <Route path="database-management/*" element={<DatabaseManagementModule />} />
         <Route path="tickets/*" element={<TicketsModule />} />
         <Route path="development/*" element={<DevelopmentModule />} />
         <Route path="docs/*" element={<DocsModule />} />

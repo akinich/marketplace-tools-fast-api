@@ -1,11 +1,11 @@
 """
 ================================================================================
-Product Management Routes
+Product Management API Routes
 ================================================================================
 Version: 1.0.0
 Created: 2025-12-01
 
-API endpoints for B2C Item Master module
+API endpoints for Woo Item Master module
 ================================================================================
 """
 

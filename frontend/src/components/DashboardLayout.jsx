@@ -101,6 +101,7 @@ import {
   Code as DevelopmentIcon,
   Campaign as CommunicationIcon,
   VpnKey as VpnKeyIcon,
+  Storage as DatabaseIcon,
   AccountCircle,
   Logout,
   Lock,
@@ -358,6 +359,7 @@ export default function DashboardLayout() {
       tickets: <TicketsIcon />,
       development: <DevelopmentIcon />,
       communication: <CommunicationIcon />,
+      database_management: <DatabaseIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
@@ -382,7 +384,11 @@ export default function DashboardLayout() {
       order_extractor: '/b2c-ops/order-extractor',
       label_generator: '/b2c-ops/label-generator',
       mrp_label_generator: '/b2c-ops/mrp-label-generator',
-      b2c_item_master: '/b2c-ops/item-master',
+    };
+
+    // Database Management sub-modules
+    const databaseManagementRoutes = {
+      woo_item_master: '/database-management/woo-item-master',
     };
 
     // Communication sub-modules
@@ -400,6 +406,8 @@ export default function DashboardLayout() {
       return b2cOpsRoutes[subModuleKey] || `/b2c-ops/${subModuleKey.replace('b2c_ops_', '')}`;
     } else if (parentModuleKey === 'communication') {
       return communicationRoutes[subModuleKey] || `/communication/${subModuleKey.replace('com_', '')}`;
+    } else if (parentModuleKey === 'database_management') {
+      return databaseManagementRoutes[subModuleKey] || `/database-management/${subModuleKey}`;
     }
 
     // Default: construct route from keys
