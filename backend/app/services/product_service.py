@@ -427,6 +427,11 @@ async def fetch_wc_products(api_url: str, consumer_key: str, consumer_secret: st
         
         parsed_products = []
         for product in products:
+            # Handle None values from WooCommerce
+            stock_qty = product.get('stock_quantity')
+            if stock_qty is None:
+                stock_qty = 0
+
             parsed = {
                 'id': product['id'],
                 'name': product['name'],
@@ -434,7 +439,7 @@ async def fetch_wc_products(api_url: str, consumer_key: str, consumer_secret: st
                 'type': product.get('type', 'simple'),
                 'regular_price': float(product.get('regular_price', 0) or 0),
                 'sale_price': float(product.get('sale_price', 0) or 0),
-                'stock_quantity': product.get('stock_quantity', 0),
+                'stock_quantity': int(stock_qty),
                 'status': product.get('status', 'publish'),
                 'categories': ', '.join([cat['name'] for cat in product.get('categories', [])]),
                 'variation_id': None
@@ -464,7 +469,12 @@ async def fetch_wc_variations(api_url: str, consumer_key: str, consumer_secret: 
         parsed_variations = []
         for variation in variations:
             attrs = ', '.join([f"{attr['name']}: {attr['option']}" for attr in variation.get('attributes', [])])
-            
+
+            # Handle None values from WooCommerce
+            stock_qty = variation.get('stock_quantity')
+            if stock_qty is None:
+                stock_qty = 0
+
             parsed = {
                 'id': product_id,  # Parent product ID
                 'variation_id': variation['id'],
@@ -473,7 +483,7 @@ async def fetch_wc_variations(api_url: str, consumer_key: str, consumer_secret: 
                 'type': 'variation',
                 'regular_price': float(variation.get('regular_price', 0) or 0),
                 'sale_price': float(variation.get('sale_price', 0) or 0),
-                'stock_quantity': variation.get('stock_quantity', 0),
+                'stock_quantity': int(stock_qty),
                 'status': variation.get('status', 'publish'),
                 'attributes': attrs,
                 'categories': ''
