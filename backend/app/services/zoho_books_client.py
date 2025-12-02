@@ -208,7 +208,132 @@ async def fetch_item_by_id(item_id: str) -> Optional[Dict]:
             response.raise_for_status()
             data = response.json()
             return data.get("item")
-            
+
     except Exception as e:
         logger.error(f"Error fetching Zoho item {item_id}: {e}")
+        return None
+
+
+async def fetch_all_contacts(contact_type: str = "vendor") -> List[Dict]:
+    """
+    Fetch all contacts (vendors or customers) from Zoho Books with automatic pagination
+
+    Args:
+        contact_type: Type of contact to fetch - "vendor" or "customer"
+
+    Returns:
+        List of contact dictionaries
+    """
+    try:
+        access_token = await get_access_token()
+
+        # Get organization ID and base URL from settings
+        pool = get_db()
+        async with pool.acquire() as conn:
+            organization_id = await settings_service.get_setting(conn, "zoho.organization_id")
+            base_url = await settings_service.get_setting(conn, "zoho.base_url")
+
+        if not organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Zoho organization_id not configured in system settings"
+            )
+
+        if not base_url:
+            base_url = "https://books.zoho.com/api/v3"
+
+        headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+        contacts = []
+        page = 1
+
+        async with httpx.AsyncClient() as client:
+            while True:
+                logger.info(f"Fetching Zoho {contact_type}s page {page}...")
+
+                response = await client.get(
+                    f"{base_url}/contacts",
+                    headers=headers,
+                    params={
+                        "organization_id": organization_id,
+                        "contact_type": contact_type,
+                        "page": page
+                    },
+                    timeout=30.0
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"Zoho API error: {response.text}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Zoho Books API error: {response.text}"
+                    )
+
+                data = response.json()
+                page_contacts = data.get("contacts", [])
+
+                if not page_contacts:
+                    break
+
+                contacts.extend(page_contacts)
+
+                # Check if there are more pages
+                page_context = data.get("page_context", {})
+                if not page_context.get("has_more_page"):
+                    break
+
+                page += 1
+
+        logger.info(f"Successfully fetched {len(contacts)} {contact_type}s from Zoho Books")
+        return contacts
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching Zoho {contact_type}s: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch {contact_type}s from Zoho Books: {str(e)}"
+        )
+
+
+async def fetch_contact_by_id(contact_id: str) -> Optional[Dict]:
+    """
+    Fetch a single contact from Zoho Books by ID
+
+    Args:
+        contact_id: Zoho contact ID
+
+    Returns:
+        Contact dictionary or None
+    """
+    try:
+        access_token = await get_access_token()
+
+        pool = get_db()
+        async with pool.acquire() as conn:
+            organization_id = await settings_service.get_setting(conn, "zoho.organization_id")
+            base_url = await settings_service.get_setting(conn, "zoho.base_url")
+
+        if not base_url:
+            base_url = "https://books.zoho.com/api/v3"
+
+        headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{base_url}/contacts/{contact_id}",
+                headers=headers,
+                params={"organization_id": organization_id},
+                timeout=30.0
+            )
+
+            if response.status_code == 404:
+                return None
+
+            response.raise_for_status()
+            data = response.json()
+            return data.get("contact")
+
+    except Exception as e:
+        logger.error(f"Error fetching Zoho contact {contact_id}: {e}")
         return None

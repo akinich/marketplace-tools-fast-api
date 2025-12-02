@@ -46,6 +46,7 @@ from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
+from app.services import zoho_vendor_service, zoho_customer_service
 from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,58 @@ async def sync_woo_items_daily():
 
     except Exception as e:
         logger.error(f"❌ Error in scheduled WooCommerce sync: {e}", exc_info=True)
+
+
+async def sync_zoho_vendors_daily():
+    """
+    Sync vendors from Zoho Books daily at 4:00 AM IST.
+    This is a scheduled task that runs automatically.
+    """
+    try:
+        logger.info("🔄 Starting scheduled Zoho Vendors sync...")
+
+        # Use system user ID for scheduled syncs
+        system_user_id = "00000000-0000-0000-0000-000000000000"
+
+        result = await zoho_vendor_service.sync_from_zoho_books(
+            synced_by=system_user_id,
+            force_refresh=False  # Only sync vendors modified in last 24 hours
+        )
+
+        logger.info(
+            f"✅ Scheduled Zoho Vendors sync completed: "
+            f"{result['added']} added, {result['updated']} updated, "
+            f"{result['skipped']} skipped, {result['errors']} errors"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled Zoho Vendors sync: {e}", exc_info=True)
+
+
+async def sync_zoho_customers_daily():
+    """
+    Sync customers from Zoho Books daily at 4:00 AM IST.
+    This is a scheduled task that runs automatically.
+    """
+    try:
+        logger.info("🔄 Starting scheduled Zoho Customers sync...")
+
+        # Use system user ID for scheduled syncs
+        system_user_id = "00000000-0000-0000-0000-000000000000"
+
+        result = await zoho_customer_service.sync_from_zoho_books(
+            synced_by=system_user_id,
+            force_refresh=False  # Only sync customers modified in last 24 hours
+        )
+
+        logger.info(
+            f"✅ Scheduled Zoho Customers sync completed: "
+            f"{result['added']} added, {result['updated']} updated, "
+            f"{result['skipped']} skipped, {result['errors']} errors"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled Zoho Customers sync: {e}", exc_info=True)
 
 
 
@@ -194,11 +247,33 @@ def start_scheduler():
             max_instances=1,
         )
 
+        # Task 5: Sync Zoho Vendors daily at 4:00 AM IST
+        scheduler.add_job(
+            sync_zoho_vendors_daily,
+            trigger=CronTrigger(hour=4, minute=0, timezone='Asia/Kolkata'),
+            id="sync_zoho_vendors_daily",
+            name="Sync Zoho Vendors from Zoho Books",
+            replace_existing=True,
+            max_instances=1,
+        )
+
+        # Task 6: Sync Zoho Customers daily at 4:00 AM IST
+        scheduler.add_job(
+            sync_zoho_customers_daily,
+            trigger=CronTrigger(hour=4, minute=0, timezone='Asia/Kolkata'),
+            id="sync_zoho_customers_daily",
+            name="Sync Zoho Customers from Zoho Books",
+            replace_existing=True,
+            max_instances=1,
+        )
+
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
         logger.info("   - Sync Zoho Items: Daily at 4:00 AM IST")
         logger.info("   - Sync Woo Items: Daily at 4:00 AM IST")
+        logger.info("   - Sync Zoho Vendors: Daily at 4:00 AM IST")
+        logger.info("   - Sync Zoho Customers: Daily at 4:00 AM IST")
         logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
 
