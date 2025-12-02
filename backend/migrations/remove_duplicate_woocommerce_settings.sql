@@ -35,11 +35,12 @@ WHERE setting_key IN (
 );
 
 -- Ensure correct settings exist with proper dotted notation
+-- Note: Empty string values must be valid JSON (use '""' not '')
 INSERT INTO system_settings (category, setting_key, setting_value, data_type, is_public, is_encrypted, description)
 VALUES
-    ('woocommerce', 'woocommerce.api_url', '', 'string', false, false, 'WooCommerce API URL (e.g., https://your-site.com/wp-json/wc/v3)'),
-    ('woocommerce', 'woocommerce.consumer_key', '', 'string', false, true, 'WooCommerce API Consumer Key'),
-    ('woocommerce', 'woocommerce.consumer_secret', '', 'string', false, true, 'WooCommerce API Consumer Secret')
+    ('woocommerce', 'woocommerce.api_url', '""', 'string', false, false, 'WooCommerce API URL (e.g., https://your-site.com/wp-json/wc/v3)'),
+    ('woocommerce', 'woocommerce.consumer_key', '""', 'string', false, true, 'WooCommerce API Consumer Key'),
+    ('woocommerce', 'woocommerce.consumer_secret', '""', 'string', false, true, 'WooCommerce API Consumer Secret')
 ON CONFLICT (setting_key) DO UPDATE SET
     description = EXCLUDED.description,
     category = EXCLUDED.category;
