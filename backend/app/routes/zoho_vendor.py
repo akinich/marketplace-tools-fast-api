@@ -18,8 +18,8 @@ from app.schemas.zoho_vendor import (
     ZohoVendorUpdate,
     ZohoVendorResponse,
     ZohoVendorListResponse,
-    ZohoSyncRequest,
-    ZohoSyncResponse,
+    ZohoVendorSyncRequest,
+    ZohoVendorSyncResponse,
     ZohoVendorStatsResponse
 )
 from app.services import zoho_vendor_service
@@ -67,7 +67,7 @@ async def list_zoho_vendors(
 
 @router.post("/zoho-vendors/sync")
 async def sync_zoho_vendors(
-    sync_request: ZohoSyncRequest,
+    sync_request: ZohoVendorSyncRequest,
     background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user)
 ):
