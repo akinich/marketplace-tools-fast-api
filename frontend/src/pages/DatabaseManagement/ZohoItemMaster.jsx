@@ -169,13 +169,32 @@ function ZohoItemMaster() {
         setSyncResult(null);
         setSyncProgress(null);
 
+        let syncStarted = false;
+        let pollCount = 0;
+        const maxPollsBeforeTimeout = 120; // 60 seconds timeout (120 * 500ms)
+
         // Start polling immediately (before triggering sync)
         const progressInterval = setInterval(async () => {
+            pollCount++;
             const progress = await pollSyncProgress();
 
-            if (!progress) {
-                // Sync is complete
+            // If sync has started (in_progress is true), mark it
+            if (progress) {
+                syncStarted = true;
+            }
+
+            // Only stop polling if:
+            // 1. Sync was started AND is now complete (in_progress = false)
+            // 2. OR timeout reached
+            if ((syncStarted && !progress) || pollCount > maxPollsBeforeTimeout) {
                 clearInterval(progressInterval);
+
+                if (pollCount > maxPollsBeforeTimeout) {
+                    enqueueSnackbar('Progress tracking timed out, but sync may still be running in background', { variant: 'warning' });
+                    setSyncing(false);
+                    setSyncProgress(null);
+                    return;
+                }
 
                 // Get final progress to show results
                 const finalProgress = syncProgress;
