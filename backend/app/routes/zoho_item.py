@@ -100,6 +100,20 @@ async def sync_zoho_items(
     }
 
 
+@router.get("/zoho-items/sync-progress")
+async def get_sync_progress(
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Get current sync progress
+
+    Requires: Any authenticated user
+    Returns progress percentage, ETA, and counts
+    """
+    progress = await zoho_item_service.get_sync_progress()
+    return progress
+
+
 # ============================================================================
 # STATISTICS ENDPOINTS
 # ============================================================================

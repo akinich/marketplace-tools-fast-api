@@ -14,12 +14,45 @@ from fastapi import HTTPException, status
 import logging
 from datetime import datetime
 import json
+from dateutil import parser as date_parser
 
 from app.database import fetch_one, fetch_all, execute_query
 from app.schemas.zoho_item import ZohoItemCreate, ZohoItemUpdate
 from app.services import zoho_books_client
 
 logger = logging.getLogger(__name__)
+
+# Global progress tracking for sync operations
+_sync_progress = {
+    "in_progress": False,
+    "current": 0,
+    "total": 0,
+    "added": 0,
+    "updated": 0,
+    "skipped": 0,
+    "errors": 0,
+    "start_time": None
+}
+
+
+def parse_zoho_datetime(date_string: str) -> Optional[datetime]:
+    """
+    Parse Zoho datetime string to Python datetime object
+
+    Args:
+        date_string: ISO format datetime string from Zoho API
+
+    Returns:
+        datetime object or None if parsing fails
+    """
+    if not date_string:
+        return None
+    try:
+        # Zoho returns dates like '2021-03-02T16:56:44+0530'
+        return date_parser.parse(date_string)
+    except Exception as e:
+        logger.warning(f"Failed to parse datetime '{date_string}': {e}")
+        return None
 
 
 # ============================================================================
@@ -265,6 +298,16 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
         total_items = len(zoho_items)
         logger.info(f"Fetched {total_items} items from Zoho Books")
 
+        # Initialize progress tracking
+        _sync_progress["in_progress"] = True
+        _sync_progress["current"] = 0
+        _sync_progress["total"] = total_items
+        _sync_progress["added"] = 0
+        _sync_progress["updated"] = 0
+        _sync_progress["skipped"] = 0
+        _sync_progress["errors"] = 0
+        _sync_progress["start_time"] = datetime.utcnow()
+
         added = 0
         updated = 0
         skipped = 0
@@ -285,12 +328,16 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                     item_id
                 )
 
+                # Update progress
+                _sync_progress["current"] = index
+
                 # Skip if not force_refresh and item was synced in last 24 hours
                 if not force_refresh and existing and existing['last_sync_at']:
                     from datetime import timedelta
                     hours_since_sync = (datetime.utcnow() - existing['last_sync_at']).total_seconds() / 3600
                     if hours_since_sync < 24:
                         skipped += 1
+                        _sync_progress["skipped"] = skipped
                         continue
 
                 # Prepare item data
@@ -311,8 +358,8 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                     'is_taxable': item.get('is_taxable', True),
                     'unit': item.get('unit'),
                     'account_id': item.get('account_id'),
-                    'created_time': item.get('created_time'),
-                    'last_modified_time': item.get('last_modified_time'),
+                    'created_time': parse_zoho_datetime(item.get('created_time')),
+                    'last_modified_time': parse_zoho_datetime(item.get('last_modified_time')),
                     'raw_json': json.dumps(item),
                     'last_sync_at': datetime.utcnow()
                 }
@@ -340,6 +387,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         item_data['raw_json'], item_data['last_sync_at']
                     )
                     updated += 1
+                    _sync_progress["updated"] = updated
                 else:
                     # Insert new item
                     await execute_query(
@@ -366,18 +414,24 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         item_data['last_sync_at']
                     )
                     added += 1
+                    _sync_progress["added"] = added
 
             except ValueError as e:
                 logger.error(f"Invalid item_id format for item {item.get('item_id', 'unknown')}: {e}")
                 errors += 1
+                _sync_progress["errors"] = errors
             except Exception as e:
                 logger.error(f"Error syncing Zoho item {item.get('item_id', 'unknown')}: {e}")
                 errors += 1
+                _sync_progress["errors"] = errors
         
         logger.info(
             f"Zoho Books sync completed: {total_items} total items, "
             f"{added} added, {updated} updated, {skipped} skipped, {errors} errors"
         )
+
+        # Reset progress tracking
+        _sync_progress["in_progress"] = False
 
         return {
             "added": added,
@@ -389,10 +443,43 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
         
     except Exception as e:
         logger.error(f"Zoho Books sync failed: {e}")
+        # Reset progress tracking on error
+        _sync_progress["in_progress"] = False
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Sync failed: {str(e)}"
         )
+
+
+async def get_sync_progress() -> Dict:
+    """
+    Get current sync progress
+
+    Returns:
+        Dict with progress information including percentage and ETA
+    """
+    progress = _sync_progress.copy()
+
+    # Calculate percentage
+    if progress["total"] > 0:
+        progress["percentage"] = round((progress["current"] / progress["total"]) * 100, 1)
+    else:
+        progress["percentage"] = 0
+
+    # Calculate ETA
+    if progress["in_progress"] and progress["start_time"] and progress["current"] > 0:
+        elapsed = (datetime.utcnow() - progress["start_time"]).total_seconds()
+        items_per_second = progress["current"] / elapsed if elapsed > 0 else 0
+        remaining_items = progress["total"] - progress["current"]
+        eta_seconds = remaining_items / items_per_second if items_per_second > 0 else 0
+        progress["eta_seconds"] = int(eta_seconds)
+    else:
+        progress["eta_seconds"] = 0
+
+    # Remove start_time from response (not JSON serializable)
+    progress.pop("start_time", None)
+
+    return progress
 
 
 # ============================================================================

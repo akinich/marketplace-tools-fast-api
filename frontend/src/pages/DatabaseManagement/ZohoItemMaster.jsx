@@ -39,6 +39,7 @@ function ZohoItemMaster() {
     const [stats, setStats] = useState(null);
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState(null);
+    const [syncProgress, setSyncProgress] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [lastSyncTime, setLastSyncTime] = useState(null);
 
@@ -60,6 +61,18 @@ function ZohoItemMaster() {
         if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
         if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
         return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    };
+
+    // Format ETA seconds to human readable string
+    const formatETA = (seconds) => {
+        if (seconds === 0) return 'Calculating...';
+        if (seconds < 60) return `${seconds}s`;
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        if (mins < 60) return `${mins}m ${secs}s`;
+        const hours = Math.floor(mins / 60);
+        const remainingMins = mins % 60;
+        return `${hours}h ${remainingMins}m`;
     };
 
     // Fetch items
@@ -138,19 +151,44 @@ function ZohoItemMaster() {
         }
     };
 
-    // Handle sync
+    // Poll for sync progress
+    const pollSyncProgress = async () => {
+        try {
+            const progress = await zohoItemAPI.getSyncProgress();
+            setSyncProgress(progress);
+            return progress.in_progress;
+        } catch (error) {
+            console.error('Failed to get sync progress:', error);
+            return false;
+        }
+    };
+
+    // Handle sync with progress polling
     const handleSync = async () => {
         setSyncing(true);
         setSyncResult(null);
+        setSyncProgress(null);
+
+        // Start polling for progress
+        const progressInterval = setInterval(async () => {
+            const stillInProgress = await pollSyncProgress();
+            if (!stillInProgress) {
+                clearInterval(progressInterval);
+            }
+        }, 1000); // Poll every 1 second
+
         try {
             const response = await zohoItemAPI.syncFromZohoBooks(false);
+            clearInterval(progressInterval);
             setSyncResult(response);
             enqueueSnackbar(response.message, { variant: 'success' });
             setRefreshTrigger((prev) => prev + 1);
         } catch (error) {
+            clearInterval(progressInterval);
             enqueueSnackbar(error.response?.data?.detail || 'Sync failed', { variant: 'error' });
         } finally {
             setSyncing(false);
+            setSyncProgress(null);
         }
     };
 
@@ -344,10 +382,36 @@ function ZohoItemMaster() {
                         {/* Sync Progress */}
                         {syncing && (
                             <Box sx={{ mt: 3 }}>
-                                <Typography variant="body2" color="text.secondary" gutterBottom>
-                                    🔄 Syncing items from Zoho Books... Please wait, this may take a few minutes.
-                                </Typography>
-                                <LinearProgress sx={{ mt: 1 }} />
+                                {syncProgress && syncProgress.in_progress ? (
+                                    <>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                🔄 Syncing: {syncProgress.current}/{syncProgress.total} items ({syncProgress.percentage}%)
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                ⏱️ ETA: {formatETA(syncProgress.eta_seconds)}
+                                            </Typography>
+                                        </Box>
+                                        <LinearProgress
+                                            variant="determinate"
+                                            value={syncProgress.percentage}
+                                            sx={{ height: 8, borderRadius: 4 }}
+                                        />
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                ✅ {syncProgress.added} added | 🔄 {syncProgress.updated} updated |
+                                                ⏭️ {syncProgress.skipped} skipped | ❌ {syncProgress.errors} errors
+                                            </Typography>
+                                        </Box>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                                            🔄 Starting sync from Zoho Books... Please wait.
+                                        </Typography>
+                                        <LinearProgress sx={{ mt: 1 }} />
+                                    </>
+                                )}
                             </Box>
                         )}
 
