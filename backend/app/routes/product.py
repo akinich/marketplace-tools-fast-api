@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
 
 from app.auth.dependencies import get_current_user
+from app.schemas.auth import CurrentUser
 from app.schemas.product import (
     ProductCreate,
     ProductUpdate,
@@ -38,7 +39,7 @@ async def list_products(
     product_type: Optional[str] = Query(None, description="Filter by type: simple, variations"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(100, ge=1, le=1000, description="Results per page"),
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     List products with optional search and filters
@@ -74,7 +75,7 @@ async def list_products(
 @router.post("/products/sync", response_model=WooCommerceSyncResponse)
 async def sync_products(
     sync_request: WooCommerceSyncRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Sync products from WooCommerce API
@@ -82,7 +83,7 @@ async def sync_products(
     Requires: Admin role
     """
     # Check if user is admin
-    if current_user.get("role") != "Admin":
+    if current_user.role != "Admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can sync products"
@@ -90,7 +91,7 @@ async def sync_products(
 
     result = await product_service.sync_from_woocommerce(
         limit=sync_request.limit,
-        synced_by=current_user["user_id"]
+        synced_by=current_user.id
     )
 
     message = f"Sync completed: {result['added']} added, {result['skipped']} skipped"
@@ -109,7 +110,7 @@ async def sync_products(
 
 @router.get("/products/stats", response_model=ProductStatsResponse)
 async def get_product_stats(
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Get product statistics
@@ -127,7 +128,7 @@ async def get_product_stats(
 @router.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(
     product_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Get a single product by ID
@@ -148,7 +149,7 @@ async def get_product(
 @router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: ProductCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Create a new product manually
@@ -156,7 +157,7 @@ async def create_product(
     Requires: Admin role
     """
     # Check if user is admin
-    if current_user.get("role") != "Admin":
+    if current_user.role != "Admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can create products"
@@ -164,7 +165,7 @@ async def create_product(
 
     product = await product_service.create_product(
         product_data,
-        created_by=current_user["user_id"]
+        created_by=current_user.id
     )
 
     return product
@@ -174,7 +175,7 @@ async def create_product(
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Update a product
@@ -182,12 +183,12 @@ async def update_product(
     Admins: Can edit all fields
     Users: Can only edit HSN, Zoho Name, Usage Units, Notes
     """
-    is_admin = current_user.get("role") == "Admin"
+    is_admin = current_user.role == "Admin"
 
     product = await product_service.update_product(
         product_id,
         product_data,
-        updated_by=current_user["user_id"],
+        updated_by=current_user.id,
         is_admin=is_admin
     )
 
