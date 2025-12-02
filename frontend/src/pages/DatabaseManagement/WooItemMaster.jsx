@@ -266,11 +266,13 @@ function ItemMaster() {
                                         experimentalFeatures={{ newEditingApi: true }}
                                     />
                                 </Box>
-                                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                                    <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport}>
-                                        Export to CSV
-                                    </Button>
-                                </Box>
+                                {isAdmin && (
+                                    <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                                        <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport}>
+                                            Export to CSV
+                                        </Button>
+                                    </Box>
+                                )}
                             </>
                         )}
                     </Box>
