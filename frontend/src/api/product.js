@@ -47,8 +47,11 @@ export const productAPI = {
   /**
    * Sync products from WooCommerce
    */
-  syncFromWooCommerce: async (limit = 100) => {
-    const response = await apiClient.post('/products/sync', { limit });
+  syncFromWooCommerce: async (limit = 100, updateExisting = false) => {
+    const response = await apiClient.post('/products/sync', {
+      limit,
+      update_existing: updateExisting
+    });
     return response.data;
   },
 
