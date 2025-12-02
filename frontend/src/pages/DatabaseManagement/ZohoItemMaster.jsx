@@ -40,6 +40,11 @@ function ZohoItemMaster() {
     const [syncResult, setSyncResult] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [lastSyncTime, setLastSyncTime] = useState(null);
+    const [lastSyncRunTime, setLastSyncRunTime] = useState(() => {
+        // Load from localStorage on mount
+        const stored = localStorage.getItem('zoho_last_sync_run');
+        return stored ? stored : null;
+    });
 
     // Get user role
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -157,6 +162,12 @@ function ZohoItemMaster() {
 
                     if (!progress.in_progress) {
                         clearInterval(checkInterval);
+
+                        // Store sync completion time
+                        const syncCompletionTime = new Date().toISOString();
+                        setLastSyncRunTime(syncCompletionTime);
+                        localStorage.setItem('zoho_last_sync_run', syncCompletionTime);
+
                         setSyncResult({
                             total: progress.total,
                             added: progress.added,
@@ -335,11 +346,18 @@ function ZohoItemMaster() {
                                     <Typography variant="body2">
                                         ✅ Found {items.length} items
                                     </Typography>
-                                    {lastSyncTime && (
-                                        <Typography variant="body2" color="text.secondary">
-                                            🔄 Last synced: {formatTimeSince(lastSyncTime)}
-                                        </Typography>
-                                    )}
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                        {lastSyncRunTime && (
+                                            <Typography variant="body2" color="text.secondary">
+                                                🔄 Last sync run: {formatTimeSince(lastSyncRunTime)}
+                                            </Typography>
+                                        )}
+                                        {lastSyncTime && lastSyncTime !== lastSyncRunTime && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                Last item update: {formatTimeSince(lastSyncTime)}
+                                            </Typography>
+                                        )}
+                                    </Box>
                                 </Box>
                                 <Box sx={{ height: 600, width: '100%' }}>
                                     <DataGrid
