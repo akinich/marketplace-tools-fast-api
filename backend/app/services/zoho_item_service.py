@@ -261,18 +261,28 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
 
         # Fetch all items from Zoho Books
         zoho_items = await zoho_books_client.fetch_all_items()
-        
+
+        total_items = len(zoho_items)
+        logger.info(f"Fetched {total_items} items from Zoho Books")
+
         added = 0
         updated = 0
         skipped = 0
         errors = 0
-        
-        for item in zoho_items:
+
+        for index, item in enumerate(zoho_items, 1):
             try:
+                # Convert item_id to int (Zoho returns as string)
+                item_id = int(item.get('item_id'))
+
+                # Log progress every 50 items
+                if index % 50 == 0 or index == total_items:
+                    logger.info(f"Syncing progress: {index}/{total_items} items processed")
+
                 # Check if item already exists
                 existing = await fetch_one(
                     "SELECT id, last_sync_at FROM zoho_items WHERE item_id = $1",
-                    item.get('item_id')
+                    item_id
                 )
 
                 # Skip if not force_refresh and item was synced in last 24 hours
@@ -282,10 +292,10 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                     if hours_since_sync < 24:
                         skipped += 1
                         continue
-                
+
                 # Prepare item data
                 item_data = {
-                    'item_id': item.get('item_id'),
+                    'item_id': item_id,
                     'name': item.get('name'),
                     'sku': item.get('sku'),
                     'description': item.get('description'),
@@ -356,18 +366,25 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         item_data['last_sync_at']
                     )
                     added += 1
-                    
+
+            except ValueError as e:
+                logger.error(f"Invalid item_id format for item {item.get('item_id', 'unknown')}: {e}")
+                errors += 1
             except Exception as e:
-                logger.error(f"Error syncing Zoho item {item.get('item_id')}: {e}")
+                logger.error(f"Error syncing Zoho item {item.get('item_id', 'unknown')}: {e}")
                 errors += 1
         
-        logger.info(f"Zoho Books sync completed: {added} added, {updated} updated, {errors} errors")
-        
+        logger.info(
+            f"Zoho Books sync completed: {total_items} total items, "
+            f"{added} added, {updated} updated, {skipped} skipped, {errors} errors"
+        )
+
         return {
             "added": added,
             "updated": updated,
             "skipped": skipped,
-            "errors": errors
+            "errors": errors,
+            "total": total_items
         }
         
     except Exception as e:

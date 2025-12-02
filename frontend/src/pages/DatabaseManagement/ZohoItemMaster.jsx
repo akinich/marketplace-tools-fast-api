@@ -12,6 +12,7 @@ import {
     FormControl,
     InputLabel,
     CircularProgress,
+    LinearProgress,
     Alert,
     Grid,
     Card,
@@ -37,6 +38,7 @@ function ZohoItemMaster() {
     const [filterProductType, setFilterProductType] = useState('all');
     const [stats, setStats] = useState(null);
     const [syncing, setSyncing] = useState(false);
+    const [syncResult, setSyncResult] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [lastSyncTime, setLastSyncTime] = useState(null);
 
@@ -139,8 +141,10 @@ function ZohoItemMaster() {
     // Handle sync
     const handleSync = async () => {
         setSyncing(true);
+        setSyncResult(null);
         try {
             const response = await zohoItemAPI.syncFromZohoBooks(false);
+            setSyncResult(response);
             enqueueSnackbar(response.message, { variant: 'success' });
             setRefreshTrigger((prev) => prev + 1);
         } catch (error) {
@@ -336,6 +340,34 @@ function ZohoItemMaster() {
                         >
                             {syncing ? 'Syncing...' : '🔄 Sync Now'}
                         </Button>
+
+                        {/* Sync Progress */}
+                        {syncing && (
+                            <Box sx={{ mt: 3 }}>
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    🔄 Syncing items from Zoho Books... Please wait, this may take a few minutes.
+                                </Typography>
+                                <LinearProgress sx={{ mt: 1 }} />
+                            </Box>
+                        )}
+
+                        {/* Sync Result */}
+                        {syncResult && !syncing && (
+                            <Box sx={{ mt: 3 }}>
+                                <Alert severity={syncResult.errors > 0 ? 'warning' : 'success'}>
+                                    <Typography variant="body2">
+                                        <strong>Sync Complete!</strong>
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ mt: 1 }}>
+                                        📊 Total Items: {syncResult.total}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        ✅ Added: {syncResult.added} | 🔄 Updated: {syncResult.updated} |
+                                        ⏭️ Skipped: {syncResult.skipped} | ❌ Errors: {syncResult.errors}
+                                    </Typography>
+                                </Alert>
+                            </Box>
+                        )}
                     </Box>
                 )}
 

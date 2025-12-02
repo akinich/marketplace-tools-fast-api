@@ -87,9 +87,8 @@ async def sync_zoho_items(
         force_refresh=sync_request.force_refresh
     )
 
-    message = f"Sync completed: {result['added']} added"
-    if result['updated'] > 0:
-        message += f", {result['updated']} updated"
+    message = f"Sync completed: {result['total']} items processed - "
+    message += f"{result['added']} added, {result['updated']} updated"
     if result['skipped'] > 0:
         message += f", {result['skipped']} skipped"
     if result['errors'] > 0:
