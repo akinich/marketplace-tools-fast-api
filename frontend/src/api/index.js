@@ -27,7 +27,7 @@
 
 import apiClient from './client';
 import { authAPI } from './auth';
-
+import { productAPI } from './product';
 import { docsAPI } from './docs';
 import { settingsAPI } from './settings';
 
@@ -453,7 +453,7 @@ export const b2cOpsAPI = {
 };
 
 // Export all APIs
-export { authAPI, docsAPI, settingsAPI, apiClient };
+export { authAPI, docsAPI, settingsAPI, productAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
@@ -464,4 +464,5 @@ export default {
   telegram: telegramAPI,
   settings: settingsAPI,
   b2cOps: b2cOpsAPI,
+  product: productAPI,
 };

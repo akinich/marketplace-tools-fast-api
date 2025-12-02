@@ -30,9 +30,7 @@ import {
     Download as DownloadIcon,
     Assessment as AssessmentIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+import { productAPI } from '../../api';
 
 function ItemMaster() {
     const { enqueueSnackbar } = useSnackbar();
@@ -75,7 +73,6 @@ function ItemMaster() {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             const params = {
                 search: searchTerm || undefined,
                 active_only: filterActive === 'active',
@@ -83,12 +80,8 @@ function ItemMaster() {
                 limit: 1000,
             };
 
-            const response = await axios.get(`${API_BASE_URL}/products`, {
-                headers: { Authorization: `Bearer ${token}` },
-                params,
-            });
-
-            setProducts(response.data.products || []);
+            const response = await productAPI.getProducts(params);
+            setProducts(response.products || []);
         } catch (error) {
             enqueueSnackbar(error.response?.data?.detail || 'Failed to load products', { variant: 'error' });
         } finally {
@@ -99,11 +92,8 @@ function ItemMaster() {
     // Fetch stats
     const fetchStats = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_BASE_URL}/products/stats`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setStats(response.data);
+            const stats = await productAPI.getStats();
+            setStats(stats);
         } catch (error) {
             console.error('Failed to fetch stats:', error);
         }
@@ -118,7 +108,6 @@ function ItemMaster() {
     // Handle product update
     const handleProductUpdate = async (updatedRow, originalRow) => {
         try {
-            const token = localStorage.getItem('token');
             const changes = {};
 
             // Find changed fields
@@ -132,9 +121,7 @@ function ItemMaster() {
                 return originalRow;
             }
 
-            await axios.patch(`${API_BASE_URL}/products/${updatedRow.id}`, changes, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await productAPI.updateProduct(updatedRow.id, changes);
 
             enqueueSnackbar('Product updated successfully', { variant: 'success' });
             return updatedRow;
@@ -148,14 +135,8 @@ function ItemMaster() {
     const handleSync = async () => {
         setSyncing(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.post(
-                `${API_BASE_URL}/products/sync`,
-                { limit: syncLimit },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            enqueueSnackbar(response.data.message, { variant: 'success' });
+            const response = await productAPI.syncFromWooCommerce(syncLimit);
+            enqueueSnackbar(response.message, { variant: 'success' });
             setRefreshTrigger((prev) => prev + 1);
         } catch (error) {
             enqueueSnackbar(error.response?.data?.detail || 'Sync failed', { variant: 'error' });
@@ -167,10 +148,7 @@ function ItemMaster() {
     // Handle add product
     const handleAddProduct = async () => {
         try {
-            const token = localStorage.getItem('token');
-            await axios.post(`${API_BASE_URL}/products`, newProduct, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await productAPI.createProduct(newProduct);
 
             enqueueSnackbar('Product added successfully', { variant: 'success' });
             setAddDialogOpen(false);
