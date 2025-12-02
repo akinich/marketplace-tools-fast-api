@@ -13,6 +13,7 @@ from typing import List, Dict, Optional, Tuple
 from fastapi import HTTPException, status
 import logging
 import httpx
+import os
 from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
@@ -297,19 +298,38 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
     try:
         # Get database connection pool
         pool = get_db()
-        
-        # Get WooCommerce credentials from settings
+
+        # Get WooCommerce credentials from settings (with fallback to environment variables)
         async with pool.acquire() as conn:
             api_url = await settings_service.get_setting(conn, "WOOCOMMERCE_API_URL")
             consumer_key = await settings_service.get_setting(conn, "WOOCOMMERCE_CONSUMER_KEY")
             consumer_secret = await settings_service.get_setting(conn, "WOOCOMMERCE_CONSUMER_SECRET")
-        
+
+        # Fallback to environment variables if not in database
+        if not api_url:
+            api_url = os.getenv("WOOCOMMERCE_API_URL")
+            if api_url:
+                logger.info("Using WOOCOMMERCE_API_URL from environment variable")
+
+        if not consumer_key:
+            consumer_key = os.getenv("WOOCOMMERCE_CONSUMER_KEY")
+            if consumer_key:
+                logger.info("Using WOOCOMMERCE_CONSUMER_KEY from environment variable")
+
+        if not consumer_secret:
+            consumer_secret = os.getenv("WOOCOMMERCE_CONSUMER_SECRET")
+            if consumer_secret:
+                logger.info("Using WOOCOMMERCE_CONSUMER_SECRET from environment variable")
+
         if not all([api_url, consumer_key, consumer_secret]):
+            logger.error(f"Missing WooCommerce credentials - API URL: {bool(api_url)}, Consumer Key: {bool(consumer_key)}, Consumer Secret: {bool(consumer_secret)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="WooCommerce API credentials not configured. Please set WOOCOMMERCE_API_URL, WOOCOMMERCE_CONSUMER_KEY, and WOOCOMMERCE_CONSUMER_SECRET in system settings."
+                detail="WooCommerce API credentials not configured. Please set WOOCOMMERCE_API_URL, WOOCOMMERCE_CONSUMER_KEY, and WOOCOMMERCE_CONSUMER_SECRET in system settings or environment variables."
             )
-        
+
+        logger.info(f"Starting WooCommerce sync with limit={limit}, API URL={api_url[:40]}...")
+
         # Fetch simple products
         products = await fetch_wc_products(api_url, consumer_key, consumer_secret, limit)
         
