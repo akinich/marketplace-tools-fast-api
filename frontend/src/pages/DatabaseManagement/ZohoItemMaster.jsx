@@ -39,7 +39,6 @@ function ZohoItemMaster() {
     const [stats, setStats] = useState(null);
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState(null);
-    const [syncProgress, setSyncProgress] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [lastSyncTime, setLastSyncTime] = useState(null);
 
@@ -61,18 +60,6 @@ function ZohoItemMaster() {
         if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
         if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
         return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-    };
-
-    // Format ETA seconds to human readable string
-    const formatETA = (seconds) => {
-        if (seconds === 0) return 'Calculating...';
-        if (seconds < 60) return `${seconds}s`;
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        if (mins < 60) return `${mins}m ${secs}s`;
-        const hours = Math.floor(mins / 60);
-        const remainingMins = mins % 60;
-        return `${hours}h ${remainingMins}m`;
     };
 
     // Fetch items
@@ -151,83 +138,39 @@ function ZohoItemMaster() {
         }
     };
 
-    // Poll for sync progress
-    const pollSyncProgress = async () => {
-        try {
-            const progress = await zohoItemAPI.getSyncProgress();
-            setSyncProgress(progress);
-            return progress.in_progress;
-        } catch (error) {
-            console.error('Failed to get sync progress:', error);
-            return false;
-        }
-    };
-
-    // Handle sync with progress polling
+    // Handle sync
     const handleSync = async () => {
         setSyncing(true);
         setSyncResult(null);
-        setSyncProgress(null);
-
-        let syncStarted = false;
-        let pollCount = 0;
-        const maxPollsBeforeTimeout = 120; // 60 seconds timeout (120 * 500ms)
-
-        // Start polling immediately (before triggering sync)
-        const progressInterval = setInterval(async () => {
-            pollCount++;
-            const progress = await pollSyncProgress();
-
-            // If sync has started (in_progress is true), mark it
-            if (progress) {
-                syncStarted = true;
-            }
-
-            // Only stop polling if:
-            // 1. Sync was started AND is now complete (in_progress = false)
-            // 2. OR timeout reached
-            if ((syncStarted && !progress) || pollCount > maxPollsBeforeTimeout) {
-                clearInterval(progressInterval);
-
-                if (pollCount > maxPollsBeforeTimeout) {
-                    enqueueSnackbar('Progress tracking timed out, but sync may still be running in background', { variant: 'warning' });
-                    setSyncing(false);
-                    setSyncProgress(null);
-                    return;
-                }
-
-                // Get final progress to show results
-                const finalProgress = syncProgress;
-                if (finalProgress) {
-                    setSyncResult({
-                        total: finalProgress.total,
-                        added: finalProgress.added,
-                        updated: finalProgress.updated,
-                        skipped: finalProgress.skipped,
-                        errors: finalProgress.errors,
-                        message: `Sync completed: ${finalProgress.total} items processed`
-                    });
-
-                    const successMsg = `Sync completed: ${finalProgress.added} added, ${finalProgress.updated} updated, ${finalProgress.skipped} skipped, ${finalProgress.errors} errors`;
-                    enqueueSnackbar(successMsg, {
-                        variant: finalProgress.errors > 0 ? 'warning' : 'success'
-                    });
-                }
-
-                setSyncing(false);
-                setSyncProgress(null);
-                setRefreshTrigger((prev) => prev + 1);
-            }
-        }, 500); // Poll every 500ms for more responsive updates
+        enqueueSnackbar('Sync started in background...', { variant: 'info' });
 
         try {
-            // Trigger the sync (returns immediately)
             await zohoItemAPI.syncFromZohoBooks(false);
-            enqueueSnackbar('Sync started! Watch progress below...', { variant: 'info' });
+
+            // Poll to check when sync completes
+            const checkInterval = setInterval(async () => {
+                try {
+                    const progress = await zohoItemAPI.getSyncProgress();
+                    if (!progress.in_progress) {
+                        clearInterval(checkInterval);
+                        setSyncResult({
+                            total: progress.total,
+                            added: progress.added,
+                            updated: progress.updated,
+                            skipped: progress.skipped,
+                            errors: progress.errors
+                        });
+                        enqueueSnackbar('Sync completed!', { variant: 'success' });
+                        setSyncing(false);
+                        setRefreshTrigger((prev) => prev + 1);
+                    }
+                } catch (err) {
+                    clearInterval(checkInterval);
+                    setSyncing(false);
+                }
+            }, 2000);
         } catch (error) {
-            clearInterval(progressInterval);
             setSyncing(false);
-            setSyncProgress(null);
             enqueueSnackbar(error.response?.data?.detail || 'Failed to start sync', { variant: 'error' });
         }
     };
@@ -422,36 +365,10 @@ function ZohoItemMaster() {
                         {/* Sync Progress */}
                         {syncing && (
                             <Box sx={{ mt: 3 }}>
-                                {syncProgress && syncProgress.in_progress ? (
-                                    <>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                🔄 Syncing: {syncProgress.current}/{syncProgress.total} items ({syncProgress.percentage}%)
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                ⏱️ ETA: {formatETA(syncProgress.eta_seconds)}
-                                            </Typography>
-                                        </Box>
-                                        <LinearProgress
-                                            variant="determinate"
-                                            value={syncProgress.percentage}
-                                            sx={{ height: 8, borderRadius: 4 }}
-                                        />
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                ✅ {syncProgress.added} added | 🔄 {syncProgress.updated} updated |
-                                                ⏭️ {syncProgress.skipped} skipped | ❌ {syncProgress.errors} errors
-                                            </Typography>
-                                        </Box>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                                            🔄 Starting sync from Zoho Books... Please wait.
-                                        </Typography>
-                                        <LinearProgress sx={{ mt: 1 }} />
-                                    </>
-                                )}
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                    🔄 Syncing in progress... Please wait.
+                                </Typography>
+                                <LinearProgress sx={{ mt: 1 }} />
                             </Box>
                         )}
 
