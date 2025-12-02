@@ -77,7 +77,7 @@ function ZohoCustomerMaster() {
                 limit: 1000,
             };
 
-            const response = await zohoCustomerAPI.getCustomers(params);
+            const response = await zohoCustomerAPI.getItems(params);
             setCustomers(response.customers || []);
 
             // Calculate last sync time from customers
@@ -435,7 +435,7 @@ function ZohoCustomerMaster() {
                                     <Typography variant="body2">
                                         <strong>
                                             {syncResult.status === 'failed' ? '❌ Sync Failed!' :
-                                             syncResult.errors > 0 ? '⚠️ Sync Completed with Errors' : '✅ Sync Complete!'}
+                                                syncResult.errors > 0 ? '⚠️ Sync Completed with Errors' : '✅ Sync Complete!'}
                                         </strong>
                                     </Typography>
                                     <Typography variant="body2" sx={{ mt: 1 }}>
