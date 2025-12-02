@@ -32,7 +32,9 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// Ensure API_BASE_URL always includes /api/v1
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = BASE_URL.includes('/api/v1') ? BASE_URL : `${BASE_URL}/api/v1`;
 
 function ItemMaster() {
     const { enqueueSnackbar } = useSnackbar();
