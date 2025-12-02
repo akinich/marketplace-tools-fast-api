@@ -390,6 +390,8 @@ export default function DashboardLayout() {
     const databaseManagementRoutes = {
       woo_item_master: '/database-management/woo-item-master',
       zoho_item_master: '/database-management/zoho-item-master',
+      zoho_vendor_master: '/database-management/zoho-vendor-master',
+      zoho_customer_master: '/database-management/zoho-customer-master',
     };
 
     // Communication sub-modules
