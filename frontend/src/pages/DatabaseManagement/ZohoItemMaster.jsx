@@ -12,7 +12,6 @@ import {
     FormControl,
     InputLabel,
     CircularProgress,
-    LinearProgress,
     Alert,
     Grid,
     Card,
@@ -389,13 +388,14 @@ function ZohoItemMaster() {
                             {syncing ? 'Syncing...' : '🔄 Sync Now'}
                         </Button>
 
-                        {/* Sync Progress */}
+                        {/* Sync Status */}
                         {syncing && (
                             <Box sx={{ mt: 3 }}>
-                                <Typography variant="body2" color="text.secondary" gutterBottom>
-                                    🔄 Syncing in progress... Please wait.
-                                </Typography>
-                                <LinearProgress sx={{ mt: 1 }} />
+                                <Alert severity="info">
+                                    <Typography variant="body2">
+                                        🔄 Syncing in progress... Please wait.
+                                    </Typography>
+                                </Alert>
                             </Box>
                         )}
 
