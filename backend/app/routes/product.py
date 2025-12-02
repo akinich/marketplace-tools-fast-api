@@ -42,11 +42,11 @@ async def list_products(
 ):
     """
     List products with optional search and filters
-    
+
     Requires: Any authenticated user
     """
     offset = (page - 1) * limit
-    
+
     products = await product_service.get_products(
         search=search,
         active_only=active_only,
@@ -54,87 +54,17 @@ async def list_products(
         limit=limit,
         offset=offset
     )
-    
+
     # Get total count for pagination
     # For simplicity, using the returned count (could be optimized with separate count query)
     total = len(products)
-    
+
     return {
         "products": products,
         "total": total,
         "page": page,
         "limit": limit
     }
-
-
-@router.get("/products/{product_id}", response_model=ProductResponse)
-async def get_product(
-    product_id: int,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get a single product by ID
-    
-    Requires: Any authenticated user
-    """
-    product = await product_service.get_product_by_id(product_id)
-    
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Product not found"
-        )
-    
-    return product
-
-
-@router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-async def create_product(
-    product_data: ProductCreate,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Create a new product manually
-    
-    Requires: Admin role
-    """
-    # Check if user is admin
-    if current_user.get("role") != "Admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can create products"
-        )
-    
-    product = await product_service.create_product(
-        product_data,
-        created_by=current_user["user_id"]
-    )
-    
-    return product
-
-
-@router.patch("/products/{product_id}", response_model=ProductResponse)
-async def update_product(
-    product_id: int,
-    product_data: ProductUpdate,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Update a product
-    
-    Admins: Can edit all fields
-    Users: Can only edit HSN, Zoho Name, Usage Units, Notes
-    """
-    is_admin = current_user.get("role") == "Admin"
-    
-    product = await product_service.update_product(
-        product_id,
-        product_data,
-        updated_by=current_user["user_id"],
-        is_admin=is_admin
-    )
-    
-    return product
 
 
 # ============================================================================
@@ -148,7 +78,7 @@ async def sync_products(
 ):
     """
     Sync products from WooCommerce API
-    
+
     Requires: Admin role
     """
     # Check if user is admin
@@ -157,16 +87,16 @@ async def sync_products(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can sync products"
         )
-    
+
     result = await product_service.sync_from_woocommerce(
         limit=sync_request.limit,
         synced_by=current_user["user_id"]
     )
-    
+
     message = f"Sync completed: {result['added']} added, {result['skipped']} skipped"
     if result['errors'] > 0:
         message += f", {result['errors']} errors"
-    
+
     return {
         **result,
         "message": message
@@ -183,8 +113,82 @@ async def get_product_stats(
 ):
     """
     Get product statistics
-    
+
     Requires: Any authenticated user
     """
     stats = await product_service.get_product_stats()
     return stats
+
+
+# ============================================================================
+# PRODUCT DETAIL ENDPOINTS (Must come after specific routes like /sync, /stats)
+# ============================================================================
+
+@router.get("/products/{product_id}", response_model=ProductResponse)
+async def get_product(
+    product_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get a single product by ID
+
+    Requires: Any authenticated user
+    """
+    product = await product_service.get_product_by_id(product_id)
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    return product
+
+
+@router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+async def create_product(
+    product_data: ProductCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Create a new product manually
+
+    Requires: Admin role
+    """
+    # Check if user is admin
+    if current_user.get("role") != "Admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create products"
+        )
+
+    product = await product_service.create_product(
+        product_data,
+        created_by=current_user["user_id"]
+    )
+
+    return product
+
+
+@router.patch("/products/{product_id}", response_model=ProductResponse)
+async def update_product(
+    product_id: int,
+    product_data: ProductUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update a product
+
+    Admins: Can edit all fields
+    Users: Can only edit HSN, Zoho Name, Usage Units, Notes
+    """
+    is_admin = current_user.get("role") == "Admin"
+
+    product = await product_service.update_product(
+        product_id,
+        product_data,
+        updated_by=current_user["user_id"],
+        is_admin=is_admin
+    )
+
+    return product
