@@ -53,4 +53,12 @@ export const zohoItemAPI = {
         const response = await apiClient.get('/zoho-items/stats');
         return response.data;
     },
+
+    /**
+     * Get sync progress
+     */
+    getSyncProgress: async () => {
+        const response = await apiClient.get('/zoho-items/sync-progress');
+        return response.data;
+    },
 };
