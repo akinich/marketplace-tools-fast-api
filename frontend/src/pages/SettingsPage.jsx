@@ -66,6 +66,7 @@ const CATEGORY_LABELS = {
   auth: 'Authentication',
   telegram: 'Telegram',
   integrations: 'Integrations',
+  zoho: 'Zoho Books',
   email: 'Email / SMTP',
   woocommerce: 'WooCommerce',
   webhooks: 'Webhooks',

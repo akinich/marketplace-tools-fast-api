@@ -33,10 +33,10 @@ async def get_items(
     product_type: Optional[str] = None,
     limit: int = 1000,
     offset: int = 0
-) -> List[Dict]:
+) -> tuple[List[Dict], int]:
     """
     Get Zoho items with optional search and filters
-    
+
     Args:
         search: Search term for item name or SKU
         active_only: Filter for active items only
@@ -44,13 +44,46 @@ async def get_items(
         product_type: Filter by product_type (goods, service)
         limit: Max results
         offset: Pagination offset
-    
+
     Returns:
-        List of item dictionaries
+        Tuple of (List of item dictionaries, total count)
     """
     try:
-        query = """
-            SELECT 
+        # Build WHERE clause for both queries
+        where_conditions = []
+        params = []
+        param_count = 0
+
+        if active_only:
+            param_count += 1
+            where_conditions.append(f"status = ${param_count}")
+            params.append('active')
+
+        if search:
+            param_count += 1
+            where_conditions.append(f"(name ILIKE ${param_count} OR sku ILIKE ${param_count} OR hsn_or_sac ILIKE ${param_count})")
+            params.append(f"%{search}%")
+
+        if item_type:
+            param_count += 1
+            where_conditions.append(f"item_type = ${param_count}")
+            params.append(item_type)
+
+        if product_type:
+            param_count += 1
+            where_conditions.append(f"product_type = ${param_count}")
+            params.append(product_type)
+
+        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+        # Get total count
+        count_query = f"SELECT COUNT(*) as total FROM zoho_items WHERE {where_clause}"
+        count_result = await fetch_one(count_query, *params)
+        total_count = count_result['total'] if count_result else 0
+
+        # Get paginated items
+        query = f"""
+            SELECT
                 id, item_id, name, sku, description,
                 rate, purchase_rate, item_type, product_type, status,
                 hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
@@ -58,42 +91,16 @@ async def get_items(
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_items
-            WHERE 1=1
+            WHERE {where_clause}
+            ORDER BY name
+            LIMIT ${param_count + 1}
+            OFFSET ${param_count + 2}
         """
-        params = []
-        param_count = 0
-        
-        if active_only:
-            param_count += 1
-            query += f" AND status = ${param_count}"
-            params.append('active')
-        
-        if search:
-            param_count += 1
-            query += f" AND (name ILIKE ${param_count} OR sku ILIKE ${param_count} OR hsn_or_sac ILIKE ${param_count})"
-            params.append(f"%{search}%")
-        
-        if item_type:
-            param_count += 1
-            query += f" AND item_type = ${param_count}"
-            params.append(item_type)
-        
-        if product_type:
-            param_count += 1
-            query += f" AND product_type = ${param_count}"
-            params.append(product_type)
-        
-        query += " ORDER BY name"
-        param_count += 1
-        query += f" LIMIT ${param_count}"
-        params.append(limit)
-        param_count += 1
-        query += f" OFFSET ${param_count}"
-        params.append(offset)
-        
+        params.extend([limit, offset])
+
         items = await fetch_all(query, *params)
-        return [dict(item) for item in items]
-        
+        return [dict(item) for item in items], total_count
+
     except Exception as e:
         logger.error(f"Error fetching Zoho items: {e}")
         raise HTTPException(
@@ -215,19 +222,43 @@ async def update_item(
 # ZOHO BOOKS SYNC
 # ============================================================================
 
-async def sync_from_zoho_books(synced_by: str) -> Dict[str, int]:
+async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> Dict[str, int]:
     """
     Sync items from Zoho Books API
-    
+
     Args:
         synced_by: User ID performing sync
-    
+        force_refresh: If True, sync all items; if False, only sync items modified in last 24 hours
+
     Returns:
         Dict with added, updated, skipped, errors counts
     """
     try:
-        logger.info(f"Starting Zoho Books sync by {synced_by}")
-        
+        logger.info(f"Starting Zoho Books sync by {synced_by} (force_refresh={force_refresh})")
+
+        # Validate Zoho credentials are configured
+        from app.database import get_db
+        from app.services import settings_service
+
+        pool = get_db()
+        async with pool.acquire() as conn:
+            client_id = await settings_service.get_setting(conn, "zoho.client_id")
+            client_secret = await settings_service.get_setting(conn, "zoho.client_secret")
+            refresh_token = await settings_service.get_setting(conn, "zoho.refresh_token")
+            organization_id = await settings_service.get_setting(conn, "zoho.organization_id")
+
+        if not all([client_id, client_secret, refresh_token, organization_id]):
+            missing = []
+            if not client_id: missing.append("zoho.client_id")
+            if not client_secret: missing.append("zoho.client_secret")
+            if not refresh_token: missing.append("zoho.refresh_token")
+            if not organization_id: missing.append("zoho.organization_id")
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Zoho Books API credentials not configured. Missing: {', '.join(missing)}. Please configure in System Settings → Zoho Books."
+            )
+
         # Fetch all items from Zoho Books
         zoho_items = await zoho_books_client.fetch_all_items()
         
@@ -240,9 +271,17 @@ async def sync_from_zoho_books(synced_by: str) -> Dict[str, int]:
             try:
                 # Check if item already exists
                 existing = await fetch_one(
-                    "SELECT id FROM zoho_items WHERE item_id = $1",
+                    "SELECT id, last_sync_at FROM zoho_items WHERE item_id = $1",
                     item.get('item_id')
                 )
+
+                # Skip if not force_refresh and item was synced in last 24 hours
+                if not force_refresh and existing and existing['last_sync_at']:
+                    from datetime import timedelta
+                    hours_since_sync = (datetime.utcnow() - existing['last_sync_at']).total_seconds() / 3600
+                    if hours_since_sync < 24:
+                        skipped += 1
+                        continue
                 
                 # Prepare item data
                 item_data = {

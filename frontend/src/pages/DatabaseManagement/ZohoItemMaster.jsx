@@ -38,10 +38,27 @@ function ZohoItemMaster() {
     const [stats, setStats] = useState(null);
     const [syncing, setSyncing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [lastSyncTime, setLastSyncTime] = useState(null);
 
     // Get user role
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = user.role === 'Admin';
+
+    // Format time difference
+    const formatTimeSince = (dateString) => {
+        if (!dateString) return 'Never';
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+        return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    };
 
     // Fetch items
     const fetchItems = async () => {
@@ -56,6 +73,20 @@ function ZohoItemMaster() {
 
             const response = await zohoItemAPI.getItems(params);
             setItems(response.items || []);
+
+            // Calculate last sync time from items
+            if (response.items && response.items.length > 0) {
+                const syncTimes = response.items
+                    .map(item => item.last_sync_at)
+                    .filter(time => time !== null);
+
+                if (syncTimes.length > 0) {
+                    const mostRecent = syncTimes.reduce((latest, current) => {
+                        return new Date(current) > new Date(latest) ? current : latest;
+                    });
+                    setLastSyncTime(mostRecent);
+                }
+            }
         } catch (error) {
             enqueueSnackbar(error.response?.data?.detail || 'Failed to load items', { variant: 'error' });
         } finally {
@@ -242,18 +273,28 @@ function ZohoItemMaster() {
                             </Box>
                         ) : (
                             <>
-                                <Typography variant="body2" sx={{ mb: 2 }}>
-                                    ✅ Found {items.length} items
-                                </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                    <Typography variant="body2">
+                                        ✅ Found {items.length} items
+                                    </Typography>
+                                    {lastSyncTime && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            🔄 Last synced: {formatTimeSince(lastSyncTime)}
+                                        </Typography>
+                                    )}
+                                </Box>
                                 <Box sx={{ height: 600, width: '100%' }}>
                                     <DataGrid
                                         rows={items}
                                         columns={columns}
-                                        pageSize={25}
-                                        rowsPerPageOptions={[10, 25, 50, 100]}
-                                        disableSelectionOnClick
+                                        initialState={{
+                                            pagination: {
+                                                paginationModel: { pageSize: 25 },
+                                            },
+                                        }}
+                                        pageSizeOptions={[10, 25, 50, 100]}
+                                        disableRowSelectionOnClick
                                         processRowUpdate={handleItemUpdate}
-                                        experimentalFeatures={{ newEditingApi: true }}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
