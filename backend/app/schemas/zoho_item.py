@@ -101,6 +101,7 @@ class ZohoSyncResponse(BaseModel):
     updated: int
     skipped: int
     errors: int
+    total: int = 0
     message: str
 
 
