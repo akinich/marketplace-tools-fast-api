@@ -18,8 +18,8 @@ from app.schemas.zoho_customer import (
     ZohoCustomerUpdate,
     ZohoCustomerResponse,
     ZohoCustomerListResponse,
-    ZohoSyncRequest,
-    ZohoSyncResponse,
+    ZohoCustomerSyncRequest,
+    ZohoCustomerSyncResponse,
     ZohoCustomerStatsResponse
 )
 from app.services import zoho_customer_service
@@ -67,7 +67,7 @@ async def list_zoho_customers(
 
 @router.post("/zoho-customers/sync")
 async def sync_zoho_customers(
-    sync_request: ZohoSyncRequest,
+    sync_request: ZohoCustomerSyncRequest,
     background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user)
 ):
