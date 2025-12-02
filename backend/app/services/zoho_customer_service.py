@@ -56,7 +56,7 @@ def parse_zoho_datetime(date_string: str) -> Optional[datetime]:
 
 
 # ============================================================================
-# ZOHO ITEM CRUD OPERATIONS
+# ZOHO CUSTOMER CRUD OPERATIONS
 # ============================================================================
 
 async def get_items(
@@ -71,15 +71,15 @@ async def get_items(
     Get Zoho customers with optional search and filters
 
     Args:
-        search: Search term for item name or SKU
-        active_only: Filter for active items only
-        item_type: Filter by item_type (sales, purchases, etc.)
-        product_type: Filter by product_type (goods, service)
+        search: Search term for contact name, company name, email
+        active_only: Filter for active customers only
+        item_type: Not used for customers (kept for API compatibility)
+        product_type: Can be used to filter by customer_type (business, individual)
         limit: Max results
         offset: Pagination offset
 
     Returns:
-        Tuple of (List of item dictionaries, total count)
+        Tuple of (List of customer dictionaries, total count)
     """
     try:
         # Build WHERE clause for both queries
@@ -94,17 +94,13 @@ async def get_items(
 
         if search:
             param_count += 1
-            where_conditions.append(f"(name ILIKE ${param_count} OR sku ILIKE ${param_count} OR hsn_or_sac ILIKE ${param_count})")
+            where_conditions.append(f"(contact_name ILIKE ${param_count} OR company_name ILIKE ${param_count} OR email ILIKE ${param_count})")
             params.append(f"%{search}%")
 
-        if item_type:
-            param_count += 1
-            where_conditions.append(f"item_type = ${param_count}")
-            params.append(item_type)
-
+        # Use product_type param as customer_type filter
         if product_type:
             param_count += 1
-            where_conditions.append(f"product_type = ${param_count}")
+            where_conditions.append(f"customer_type = ${param_count}")
             params.append(product_type)
 
         where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
@@ -114,25 +110,29 @@ async def get_items(
         count_result = await fetch_one(count_query, *params)
         total_count = count_result['total'] if count_result else 0
 
-        # Get paginated items
+        # Get paginated customers
         query = f"""
             SELECT
-                id, contact_id, name, sku, description,
-                rate, purchase_rate, item_type, product_type, status,
-                hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                unit, account_id,
+                id, contact_id, contact_name, company_name, email,
+                phone, mobile, contact_person,
+                billing_address, shipping_address,
+                payment_terms, payment_terms_label, customer_type, status,
+                gst_no, gst_treatment, pan_no, tax_id,
+                place_of_contact, is_taxable,
+                outstanding_receivable_amount, unused_credits, credit_limit,
+                notes,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_customers
             WHERE {where_clause}
-            ORDER BY name
+            ORDER BY contact_name
             LIMIT ${param_count + 1}
             OFFSET ${param_count + 2}
         """
         params.extend([limit, offset])
 
-        items = await fetch_all(query, *params)
-        return [dict(item) for item in items], total_count
+        customers = await fetch_all(query, *params)
+        return [dict(customer) for customer in customers], total_count
 
     except Exception as e:
         logger.error(f"Error fetching Zoho customers: {e}")
@@ -143,15 +143,19 @@ async def get_items(
 
 
 async def get_item_by_id(contact_id: int) -> Optional[Dict]:
-    """Get a single Zoho item by database ID"""
+    """Get a single Zoho customer by database ID"""
     try:
-        item = await fetch_one(
+        customer = await fetch_one(
             """
-            SELECT 
-                id, contact_id, name, sku, description,
-                rate, purchase_rate, item_type, product_type, status,
-                hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                unit, account_id,
+            SELECT
+                id, contact_id, contact_name, company_name, email,
+                phone, mobile, contact_person,
+                billing_address, shipping_address,
+                payment_terms, payment_terms_label, customer_type, status,
+                gst_no, gst_treatment, pan_no, tax_id,
+                place_of_contact, is_taxable,
+                outstanding_receivable_amount, unused_credits, credit_limit,
+                notes,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_customers
@@ -159,9 +163,9 @@ async def get_item_by_id(contact_id: int) -> Optional[Dict]:
             """,
             contact_id
         )
-        return dict(item) if item else None
+        return dict(customer) if customer else None
     except Exception as e:
-        logger.error(f"Error fetching Zoho item {contact_id}: {e}")
+        logger.error(f"Error fetching Zoho customer {contact_id}: {e}")
         return None
 
 
@@ -172,82 +176,85 @@ async def update_item(
     is_admin: bool
 ) -> Dict:
     """
-    Update a Zoho item (limited fields - Zoho is source of truth)
-    
+    Update a Zoho customer (limited fields - Zoho is source of truth)
+
     Args:
-        contact_id: Item database ID
+        contact_id: Customer database ID
         item_data: Update data
-        updated_by: User ID updating the item
+        updated_by: User ID updating the customer
         is_admin: Whether user is admin
-    
+
     Returns:
-        Updated item dictionary
+        Updated customer dictionary
     """
     try:
         # Build dynamic update query based on provided fields
         update_fields = []
         params = []
         param_count = 0
-        
-        # For now, all fields are read-only since Zoho is source of truth
-        # In future, you can add editable fields here if needed
-        # user_editable_fields = []
-        
+
+        # Notes field is user-editable for all users
+        user_editable_fields = ['notes']
+
         for field, value in item_data.model_dump(exclude_unset=True).items():
-            # Only admins can update (for now)
-            if not is_admin:
+            # Only admins can update non-editable fields
+            if field not in user_editable_fields and not is_admin:
                 continue
-            
+
             param_count += 1
             update_fields.append(f"{field} = ${param_count}")
             params.append(value)
-        
+
         if not update_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No valid fields to update or insufficient permissions"
             )
-        
+
         # Add updated_at
         param_count += 1
         update_fields.append(f"updated_at = ${param_count}")
         params.append(datetime.now(timezone.utc))
-        
+
         # Add contact_id to params
         param_count += 1
         params.append(contact_id)
-        
+
         query = f"""
             UPDATE zoho_customers
             SET {', '.join(update_fields)}
             WHERE id = ${param_count}
-            RETURNING 
-                id, contact_id, name, sku, description,
-                rate, purchase_rate, item_type, product_type, status,
-                hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                unit, account_id,
+            RETURNING
+                id, contact_id, contact_name, company_name, email,
+                phone, mobile, contact_person,
+                billing_address, shipping_address,
+                payment_terms, payment_terms_label, customer_type, status,
+                gst_no, gst_treatment, pan_no, tax_id,
+                place_of_contact, is_taxable,
+                outstanding_receivable_amount, unused_credits, credit_limit,
+                notes,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
         """
-        
-        item = await fetch_one(query, *params)
-        
-        if not item:
+
+        customer = await fetch_one(query, *params)
+
+        if not customer:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Zoho item not found"
+                detail="Zoho customer not found"
             )
-        
-        logger.info(f"Zoho item {contact_id} updated by {updated_by}")
-        return dict(item)
-        
+
+        logger.info(f"Zoho customer {contact_id} updated by {updated_by}")
+        return dict(customer)
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating Zoho item {contact_id}: {e}")
+        logger.error(f"Error updating Zoho customer {contact_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update Zoho item: {str(e)}"
+            detail=f"Failed to update Zoho customer: {str(e)}"
         )
 
 
@@ -257,17 +264,17 @@ async def update_item(
 
 async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> Dict[str, int]:
     """
-    Sync items from Zoho Books API
+    Sync customers from Zoho Books API
 
     Args:
         synced_by: User ID performing sync
-        force_refresh: If True, sync all items; if False, only sync items modified in last 24 hours
+        force_refresh: If True, sync all customers; if False, only sync customers modified in last 24 hours
 
     Returns:
         Dict with added, updated, skipped, errors counts
     """
     try:
-        logger.info(f"Starting Zoho Books sync by {synced_by} (force_refresh={force_refresh})")
+        logger.info(f"Starting Zoho Books customer sync by {synced_by} (force_refresh={force_refresh})")
 
         # Validate Zoho credentials are configured
         from app.database import get_db
@@ -292,16 +299,16 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                 detail=f"Zoho Books API credentials not configured. Missing: {', '.join(missing)}. Please configure in System Settings → Zoho Books."
             )
 
-        # Fetch all items from Zoho Books
+        # Fetch all customers from Zoho Books
         zoho_customers = await zoho_books_client.fetch_all_contacts("customer")
 
-        total_items = len(zoho_customers)
-        logger.info(f"Fetched {total_items} items from Zoho Books")
+        total_customers = len(zoho_customers)
+        logger.info(f"Fetched {total_customers} customers from Zoho Books")
 
         # Initialize progress tracking
         _sync_progress["in_progress"] = True
         _sync_progress["current"] = 0
-        _sync_progress["total"] = total_items
+        _sync_progress["total"] = total_customers
         _sync_progress["added"] = 0
         _sync_progress["updated"] = 0
         _sync_progress["skipped"] = 0
@@ -313,16 +320,16 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
         skipped = 0
         errors = 0
 
-        for index, item in enumerate(zoho_customers, 1):
+        for index, customer in enumerate(zoho_customers, 1):
             try:
                 # Convert contact_id to int (Zoho returns as string)
-                contact_id = int(item.get('contact_id'))
+                contact_id = int(customer.get('contact_id'))
 
-                # Log progress every 50 items
-                if index % 50 == 0 or index == total_items:
-                    logger.info(f"Syncing progress: {index}/{total_items} items processed")
+                # Log progress every 50 customers
+                if index % 50 == 0 or index == total_customers:
+                    logger.info(f"Syncing progress: {index}/{total_customers} customers processed")
 
-                # Check if item already exists
+                # Check if customer already exists
                 existing = await fetch_one(
                     "SELECT id, last_sync_at FROM zoho_customers WHERE contact_id = $1",
                     contact_id
@@ -331,7 +338,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                 # Update progress
                 _sync_progress["current"] = index
 
-                # Skip if not force_refresh and item was synced in last 24 hours
+                # Skip if not force_refresh and customer was synced in last 24 hours
                 if not force_refresh and existing and existing['last_sync_at']:
                     from datetime import timedelta
                     # Both datetimes are now timezone-aware (UTC)
@@ -341,93 +348,113 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         _sync_progress["skipped"] = skipped
                         continue
 
-                # Prepare item data
-                item_data = {
+                # Prepare customer data
+                customer_data = {
                     'contact_id': contact_id,
-                    'name': item.get('name'),
-                    'sku': item.get('sku'),
-                    'description': item.get('description'),
-                    'rate': item.get('rate'),
-                    'purchase_rate': item.get('purchase_rate'),
-                    'item_type': item.get('item_type'),
-                    'product_type': item.get('product_type'),
-                    'status': item.get('status', 'active'),
-                    'hsn_or_sac': item.get('hsn_or_sac'),
-                    'tax_id': item.get('tax_id'),
-                    'tax_name': item.get('tax_name'),
-                    'tax_percentage': item.get('tax_percentage'),
-                    'is_taxable': item.get('is_taxable', True),
-                    'unit': item.get('unit'),
-                    'account_id': item.get('account_id'),
-                    'created_time': parse_zoho_datetime(item.get('created_time')),
-                    'last_modified_time': parse_zoho_datetime(item.get('last_modified_time')),
-                    'raw_json': json.dumps(item),
+                    'contact_name': customer.get('contact_name'),
+                    'company_name': customer.get('company_name'),
+                    'email': customer.get('email'),
+                    'phone': customer.get('phone'),
+                    'mobile': customer.get('mobile'),
+                    'contact_person': customer.get('contact_person'),
+                    'billing_address': customer.get('billing_address', {}).get('address') if isinstance(customer.get('billing_address'), dict) else customer.get('billing_address'),
+                    'shipping_address': customer.get('shipping_address', {}).get('address') if isinstance(customer.get('shipping_address'), dict) else customer.get('shipping_address'),
+                    'payment_terms': customer.get('payment_terms'),
+                    'payment_terms_label': customer.get('payment_terms_label'),
+                    'customer_type': customer.get('customer_type', 'business'),
+                    'status': customer.get('status', 'active'),
+                    'gst_no': customer.get('gst_no'),
+                    'gst_treatment': customer.get('gst_treatment'),
+                    'pan_no': customer.get('pan_no'),
+                    'tax_id': customer.get('tax_id'),
+                    'place_of_contact': customer.get('place_of_contact'),
+                    'is_taxable': customer.get('is_taxable', True),
+                    'outstanding_receivable_amount': customer.get('outstanding_receivable_amount', 0),
+                    'unused_credits': customer.get('unused_credits_receivable_amount', 0) or customer.get('unused_credits', 0),
+                    'credit_limit': customer.get('credit_limit', 0),
+                    'created_time': parse_zoho_datetime(customer.get('created_time')),
+                    'last_modified_time': parse_zoho_datetime(customer.get('last_modified_time')),
+                    'raw_json': json.dumps(customer),
                     'last_sync_at': datetime.now(timezone.utc)
                 }
-                
+
                 if existing:
-                    # Update existing item
+                    # Update existing customer
                     await execute_query(
                         """
                         UPDATE zoho_customers SET
-                            name = $2, sku = $3, description = $4,
-                            rate = $5, purchase_rate = $6, item_type = $7, product_type = $8,
-                            status = $9, hsn_or_sac = $10, tax_id = $11, tax_name = $12,
-                            tax_percentage = $13, is_taxable = $14, unit = $15, account_id = $16,
-                            created_time = $17, last_modified_time = $18,
-                            raw_json = $19, last_sync_at = $20, updated_at = NOW()
+                            contact_name = $2, company_name = $3, email = $4,
+                            phone = $5, mobile = $6, contact_person = $7,
+                            billing_address = $8, shipping_address = $9,
+                            payment_terms = $10, payment_terms_label = $11, customer_type = $12, status = $13,
+                            gst_no = $14, gst_treatment = $15, pan_no = $16, tax_id = $17,
+                            place_of_contact = $18, is_taxable = $19,
+                            outstanding_receivable_amount = $20, unused_credits = $21, credit_limit = $22,
+                            created_time = $23, last_modified_time = $24,
+                            raw_json = $25, last_sync_at = $26, updated_at = NOW()
                         WHERE id = $1
                         """,
                         existing['id'],
-                        item_data['name'], item_data['sku'], item_data['description'],
-                        item_data['rate'], item_data['purchase_rate'], item_data['item_type'],
-                        item_data['product_type'], item_data['status'], item_data['hsn_or_sac'],
-                        item_data['tax_id'], item_data['tax_name'], item_data['tax_percentage'],
-                        item_data['is_taxable'], item_data['unit'], item_data['account_id'],
-                        item_data['created_time'], item_data['last_modified_time'],
-                        item_data['raw_json'], item_data['last_sync_at']
+                        customer_data['contact_name'], customer_data['company_name'], customer_data['email'],
+                        customer_data['phone'], customer_data['mobile'], customer_data['contact_person'],
+                        customer_data['billing_address'], customer_data['shipping_address'],
+                        customer_data['payment_terms'], customer_data['payment_terms_label'],
+                        customer_data['customer_type'], customer_data['status'],
+                        customer_data['gst_no'], customer_data['gst_treatment'], customer_data['pan_no'],
+                        customer_data['tax_id'], customer_data['place_of_contact'], customer_data['is_taxable'],
+                        customer_data['outstanding_receivable_amount'], customer_data['unused_credits'],
+                        customer_data['credit_limit'],
+                        customer_data['created_time'], customer_data['last_modified_time'],
+                        customer_data['raw_json'], customer_data['last_sync_at']
                     )
                     updated += 1
                     _sync_progress["updated"] = updated
                 else:
-                    # Insert new item
+                    # Insert new customer
                     await execute_query(
                         """
                         INSERT INTO zoho_customers (
-                            contact_id, name, sku, description,
-                            rate, purchase_rate, item_type, product_type, status,
-                            hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                            unit, account_id,
+                            contact_id, contact_name, company_name, email,
+                            phone, mobile, contact_person,
+                            billing_address, shipping_address,
+                            payment_terms, payment_terms_label, customer_type, status,
+                            gst_no, gst_treatment, pan_no, tax_id,
+                            place_of_contact, is_taxable,
+                            outstanding_receivable_amount, unused_credits, credit_limit,
                             created_time, last_modified_time,
                             raw_json, last_sync_at
                         ) VALUES (
                             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+                            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+                            $21, $22, $23, $24, $25, $26
                         )
                         """,
-                        item_data['contact_id'], item_data['name'], item_data['sku'],
-                        item_data['description'], item_data['rate'], item_data['purchase_rate'],
-                        item_data['item_type'], item_data['product_type'], item_data['status'],
-                        item_data['hsn_or_sac'], item_data['tax_id'], item_data['tax_name'],
-                        item_data['tax_percentage'], item_data['is_taxable'], item_data['unit'],
-                        item_data['account_id'], item_data['created_time'],
-                        item_data['last_modified_time'], item_data['raw_json'],
-                        item_data['last_sync_at']
+                        customer_data['contact_id'], customer_data['contact_name'], customer_data['company_name'],
+                        customer_data['email'], customer_data['phone'], customer_data['mobile'],
+                        customer_data['contact_person'], customer_data['billing_address'], customer_data['shipping_address'],
+                        customer_data['payment_terms'], customer_data['payment_terms_label'],
+                        customer_data['customer_type'], customer_data['status'],
+                        customer_data['gst_no'], customer_data['gst_treatment'], customer_data['pan_no'],
+                        customer_data['tax_id'], customer_data['place_of_contact'], customer_data['is_taxable'],
+                        customer_data['outstanding_receivable_amount'], customer_data['unused_credits'],
+                        customer_data['credit_limit'],
+                        customer_data['created_time'], customer_data['last_modified_time'],
+                        customer_data['raw_json'], customer_data['last_sync_at']
                     )
                     added += 1
                     _sync_progress["added"] = added
 
             except ValueError as e:
-                logger.error(f"Invalid contact_id format for item {item.get('contact_id', 'unknown')}: {e}")
+                logger.error(f"Invalid contact_id format for customer {customer.get('contact_id', 'unknown')}: {e}")
                 errors += 1
                 _sync_progress["errors"] = errors
             except Exception as e:
-                logger.error(f"Error syncing Zoho item {item.get('contact_id', 'unknown')}: {e}")
+                logger.error(f"Error syncing Zoho customer {customer.get('contact_id', 'unknown')}: {e}")
                 errors += 1
                 _sync_progress["errors"] = errors
-        
+
         logger.info(
-            f"Zoho Books sync completed: {total_items} total items, "
+            f"Zoho Books customer sync completed: {total_customers} total customers, "
             f"{added} added, {updated} updated, {skipped} skipped, {errors} errors"
         )
 
@@ -439,11 +466,11 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
             "updated": updated,
             "skipped": skipped,
             "errors": errors,
-            "total": total_items
+            "total": total_customers
         }
-        
+
     except Exception as e:
-        logger.error(f"Zoho Books sync failed: {e}")
+        logger.error(f"Zoho Books customer sync failed: {e}")
         # Reset progress tracking on error
         _sync_progress["in_progress"] = False
         raise HTTPException(
@@ -488,40 +515,43 @@ async def get_sync_progress() -> Dict:
 # ============================================================================
 
 async def get_item_stats() -> Dict[str, int]:
-    """Get Zoho item statistics"""
+    """Get Zoho customer statistics"""
     try:
         stats = await fetch_one(
             """
-            SELECT 
+            SELECT
                 COUNT(*) as total,
                 COUNT(*) FILTER (WHERE status = 'active') as active,
                 COUNT(*) FILTER (WHERE status = 'inactive') as inactive,
-                COUNT(*) FILTER (WHERE product_type = 'goods') as goods,
-                COUNT(*) FILTER (WHERE product_type = 'service') as services,
-                COUNT(*) FILTER (WHERE is_taxable = TRUE) as taxable,
-                COUNT(*) FILTER (WHERE is_taxable = FALSE) as non_taxable
+                COUNT(*) FILTER (WHERE customer_type = 'business') as business,
+                COUNT(*) FILTER (WHERE customer_type = 'individual') as individual,
+                COUNT(*) FILTER (WHERE gst_no IS NOT NULL AND gst_no != '') as with_gst,
+                COUNT(*) FILTER (WHERE gst_no IS NULL OR gst_no = '') as without_gst,
+                COUNT(*) FILTER (WHERE outstanding_receivable_amount > 0) as with_outstanding
             FROM zoho_customers
             """
         )
-        
+
         return dict(stats) if stats else {
             "total": 0,
             "active": 0,
             "inactive": 0,
-            "goods": 0,
-            "services": 0,
-            "taxable": 0,
-            "non_taxable": 0
+            "business": 0,
+            "individual": 0,
+            "with_gst": 0,
+            "without_gst": 0,
+            "with_outstanding": 0
         }
-        
+
     except Exception as e:
-        logger.error(f"Error fetching Zoho item stats: {e}")
+        logger.error(f"Error fetching Zoho customer stats: {e}")
         return {
             "total": 0,
             "active": 0,
             "inactive": 0,
-            "goods": 0,
-            "services": 0,
-            "taxable": 0,
-            "non_taxable": 0
+            "business": 0,
+            "individual": 0,
+            "with_gst": 0,
+            "without_gst": 0,
+            "with_outstanding": 0
         }
