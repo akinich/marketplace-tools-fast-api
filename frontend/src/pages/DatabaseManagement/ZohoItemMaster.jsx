@@ -169,44 +169,44 @@ function ZohoItemMaster() {
         setSyncResult(null);
         setSyncProgress(null);
 
-        try {
-            // Start the sync (returns immediately)
-            const response = await zohoItemAPI.syncFromZohoBooks(false);
-            enqueueSnackbar('Sync started! Tracking progress...', { variant: 'info' });
+        // Start polling immediately (before triggering sync)
+        const progressInterval = setInterval(async () => {
+            const progress = await pollSyncProgress();
 
-            // Poll for progress until complete
-            const progressInterval = setInterval(async () => {
-                const progress = await pollSyncProgress();
+            if (!progress) {
+                // Sync is complete
+                clearInterval(progressInterval);
 
-                if (!progress) {
-                    // Sync is complete
-                    clearInterval(progressInterval);
+                // Get final progress to show results
+                const finalProgress = syncProgress;
+                if (finalProgress) {
+                    setSyncResult({
+                        total: finalProgress.total,
+                        added: finalProgress.added,
+                        updated: finalProgress.updated,
+                        skipped: finalProgress.skipped,
+                        errors: finalProgress.errors,
+                        message: `Sync completed: ${finalProgress.total} items processed`
+                    });
 
-                    // Get final progress to show results
-                    const finalProgress = syncProgress;
-                    if (finalProgress) {
-                        setSyncResult({
-                            total: finalProgress.total,
-                            added: finalProgress.added,
-                            updated: finalProgress.updated,
-                            skipped: finalProgress.skipped,
-                            errors: finalProgress.errors,
-                            message: `Sync completed: ${finalProgress.total} items processed`
-                        });
-
-                        const successMsg = `Sync completed: ${finalProgress.added} added, ${finalProgress.updated} updated, ${finalProgress.skipped} skipped, ${finalProgress.errors} errors`;
-                        enqueueSnackbar(successMsg, {
-                            variant: finalProgress.errors > 0 ? 'warning' : 'success'
-                        });
-                    }
-
-                    setSyncing(false);
-                    setSyncProgress(null);
-                    setRefreshTrigger((prev) => prev + 1);
+                    const successMsg = `Sync completed: ${finalProgress.added} added, ${finalProgress.updated} updated, ${finalProgress.skipped} skipped, ${finalProgress.errors} errors`;
+                    enqueueSnackbar(successMsg, {
+                        variant: finalProgress.errors > 0 ? 'warning' : 'success'
+                    });
                 }
-            }, 1000); // Poll every 1 second
 
+                setSyncing(false);
+                setSyncProgress(null);
+                setRefreshTrigger((prev) => prev + 1);
+            }
+        }, 500); // Poll every 500ms for more responsive updates
+
+        try {
+            // Trigger the sync (returns immediately)
+            await zohoItemAPI.syncFromZohoBooks(false);
+            enqueueSnackbar('Sync started! Watch progress below...', { variant: 'info' });
         } catch (error) {
+            clearInterval(progressInterval);
             setSyncing(false);
             setSyncProgress(null);
             enqueueSnackbar(error.response?.data?.detail || 'Failed to start sync', { variant: 'error' });
