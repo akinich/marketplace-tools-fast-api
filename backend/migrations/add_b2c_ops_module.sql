@@ -43,9 +43,10 @@ INSERT INTO modules (
 
 -- Add WooCommerce API settings to system_settings
 -- Using dotted notation (category.key) to match codebase standard
+-- Note: Empty values must be valid JSON format ('""' not '')
 INSERT INTO system_settings (category, setting_key, setting_value, data_type, is_public, is_encrypted, description)
 VALUES
-    ('woocommerce', 'woocommerce.api_url', '', 'string', false, false, 'WooCommerce API URL (e.g., https://your-site.com/wp-json/wc/v3)'),
-    ('woocommerce', 'woocommerce.consumer_key', '', 'string', false, true, 'WooCommerce API Consumer Key'),
-    ('woocommerce', 'woocommerce.consumer_secret', '', 'string', false, true, 'WooCommerce API Consumer Secret')
+    ('woocommerce', 'woocommerce.api_url', '""', 'string', false, false, 'WooCommerce API URL (e.g., https://your-site.com/wp-json/wc/v3)'),
+    ('woocommerce', 'woocommerce.consumer_key', '""', 'string', false, true, 'WooCommerce API Consumer Key'),
+    ('woocommerce', 'woocommerce.consumer_secret', '""', 'string', false, true, 'WooCommerce API Consumer Secret')
 ON CONFLICT (setting_key) DO NOTHING;
