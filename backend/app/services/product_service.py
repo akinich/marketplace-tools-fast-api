@@ -301,10 +301,10 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
 
         # Get WooCommerce credentials from settings (with fallback to environment variables)
         async with pool.acquire() as conn:
-            # Try lowercase keys first (from DB migration)
-            api_url = await settings_service.get_setting(conn, "api_url")
-            consumer_key = await settings_service.get_setting(conn, "consumer_key")
-            consumer_secret = await settings_service.get_setting(conn, "consumer_secret")
+            # Use dotted notation matching codebase standard (category.key)
+            api_url = await settings_service.get_setting(conn, "woocommerce.api_url")
+            consumer_key = await settings_service.get_setting(conn, "woocommerce.consumer_key")
+            consumer_secret = await settings_service.get_setting(conn, "woocommerce.consumer_secret")
 
         # Fallback to environment variables if not in database
         if not api_url:
