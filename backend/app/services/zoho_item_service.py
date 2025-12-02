@@ -334,7 +334,9 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                 # Skip if not force_refresh and item was synced in last 24 hours
                 if not force_refresh and existing and existing['last_sync_at']:
                     from datetime import timedelta
-                    hours_since_sync = (datetime.utcnow() - existing['last_sync_at']).total_seconds() / 3600
+                    # Remove timezone info for comparison (both should be UTC)
+                    last_sync_naive = existing['last_sync_at'].replace(tzinfo=None) if existing['last_sync_at'].tzinfo else existing['last_sync_at']
+                    hours_since_sync = (datetime.utcnow() - last_sync_naive).total_seconds() / 3600
                     if hours_since_sync < 24:
                         skipped += 1
                         _sync_progress["skipped"] = skipped
