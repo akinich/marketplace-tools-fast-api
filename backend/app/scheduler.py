@@ -2,8 +2,8 @@
 ================================================================================
 Marketplace ERP - Background Task Scheduler
 ================================================================================
-Version: 2.1.0
-Last Updated: 2025-11-22
+Version: 2.2.0
+Last Updated: 2025-12-02
 
 Purpose:
 --------
@@ -11,12 +11,18 @@ APScheduler-based background task management for recurring operations.
 
 Tasks:
 ------
-
-4. Process webhook delivery queue (every 2 minutes)
-5. Process email queue (every 5 minutes)
+1. Sync Zoho Items from Zoho Books (daily at 4:00 AM IST)
+2. Process webhook delivery queue (every 1 minute)
+3. Process email queue (every 5 minutes)
 
 Changelog:
 ----------
+v2.2.0 (2025-12-02):
+  - Added Zoho Items sync scheduled task
+  - Runs daily at 4:00 AM IST
+  - Only syncs items modified in last 24 hours (not force refresh)
+  - Uses system user ID for automated syncs
+
 v2.1.0 (2025-11-22):
   - Added webhook delivery queue processing task
   - Runs every 2 minutes to send pending webhooks
@@ -36,7 +42,7 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
-from app.services import telegram_service, webhook_service, email_service
+from app.services import telegram_service, webhook_service, email_service, zoho_item_service
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +50,30 @@ logger = logging.getLogger(__name__)
 scheduler = None
 
 
+async def sync_zoho_items_daily():
+    """
+    Sync items from Zoho Books daily at 4:00 AM IST.
+    This is a scheduled task that runs automatically.
+    """
+    try:
+        logger.info("🔄 Starting scheduled Zoho Items sync...")
+
+        # Use system user ID for scheduled syncs
+        system_user_id = "00000000-0000-0000-0000-000000000000"
+
+        result = await zoho_item_service.sync_from_zoho_books(
+            synced_by=system_user_id,
+            force_refresh=False  # Only sync items modified in last 24 hours
+        )
+
+        logger.info(
+            f"✅ Scheduled Zoho sync completed: "
+            f"{result['added']} added, {result['updated']} updated, "
+            f"{result['skipped']} skipped, {result['errors']} errors"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled Zoho sync: {e}", exc_info=True)
 
 
 
@@ -93,9 +123,17 @@ def start_scheduler():
     try:
         scheduler = AsyncIOScheduler()
 
+        # Task 1: Sync Zoho Items daily at 4:00 AM IST
+        scheduler.add_job(
+            sync_zoho_items_daily,
+            trigger=CronTrigger(hour=4, minute=0, timezone='Asia/Kolkata'),
+            id="sync_zoho_items_daily",
+            name="Sync Zoho Items from Zoho Books",
+            replace_existing=True,
+            max_instances=1,
+        )
 
-
-        # Task 4: Process webhook delivery queue every 1 minute
+        # Task 2: Process webhook delivery queue every 1 minute
         scheduler.add_job(
             process_webhook_queue,
             trigger=IntervalTrigger(minutes=1),
@@ -105,7 +143,7 @@ def start_scheduler():
             max_instances=1,
         )
 
-        # Task 5: Process email queue every 5 minutes
+        # Task 3: Process email queue every 5 minutes
         scheduler.add_job(
             process_email_queue,
             trigger=IntervalTrigger(minutes=5),
@@ -118,7 +156,7 @@ def start_scheduler():
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
-
+        logger.info("   - Sync Zoho Items: Daily at 4:00 AM IST")
         logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
 

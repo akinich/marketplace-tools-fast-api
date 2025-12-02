@@ -46,7 +46,7 @@ async def list_zoho_items(
 
     Requires: Any authenticated user
     """
-    items = await zoho_item_service.get_items(
+    items, total_count = await zoho_item_service.get_items(
         search=search,
         active_only=active_only,
         item_type=item_type,
@@ -57,7 +57,7 @@ async def list_zoho_items(
 
     return {
         "items": items,
-        "total": len(items)
+        "total": total_count
     }
 
 
@@ -83,12 +83,15 @@ async def sync_zoho_items(
         )
 
     result = await zoho_item_service.sync_from_zoho_books(
-        synced_by=current_user.id
+        synced_by=current_user.id,
+        force_refresh=sync_request.force_refresh
     )
 
     message = f"Sync completed: {result['added']} added"
     if result['updated'] > 0:
         message += f", {result['updated']} updated"
+    if result['skipped'] > 0:
+        message += f", {result['skipped']} skipped"
     if result['errors'] > 0:
         message += f", {result['errors']} errors"
 
