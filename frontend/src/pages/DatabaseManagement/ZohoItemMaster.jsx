@@ -147,9 +147,14 @@ function ZohoItemMaster() {
             await zohoItemAPI.syncFromZohoBooks(false);
 
             // Poll to check when sync completes
+            let pollAttempts = 0;
+            const maxPollAttempts = 150; // Max 5 minutes (150 * 2 seconds)
+
             const checkInterval = setInterval(async () => {
                 try {
                     const progress = await zohoItemAPI.getSyncProgress();
+                    pollAttempts = 0; // Reset on successful fetch
+
                     if (!progress.in_progress) {
                         clearInterval(checkInterval);
                         setSyncResult({
@@ -174,17 +179,19 @@ function ZohoItemMaster() {
                         setRefreshTrigger((prev) => prev + 1);
                     }
                 } catch (err) {
-                    clearInterval(checkInterval);
-                    setSyncResult({
-                        status: 'failed',
-                        errors: 1,
-                        total: 0,
-                        added: 0,
-                        updated: 0,
-                        skipped: 0
-                    });
-                    enqueueSnackbar('Sync failed: Unable to fetch sync progress', { variant: 'error' });
-                    setSyncing(false);
+                    pollAttempts++;
+                    console.error(`Failed to fetch sync progress (attempt ${pollAttempts}):`, err);
+
+                    // Only stop polling after multiple failures or max attempts reached
+                    if (pollAttempts >= 5 || pollAttempts >= maxPollAttempts) {
+                        clearInterval(checkInterval);
+                        setSyncing(false);
+                        enqueueSnackbar(
+                            'Lost connection to sync progress. Sync may still be running in background. Please refresh the page to see results.',
+                            { variant: 'warning', autoHideDuration: 8000 }
+                        );
+                    }
+                    // Otherwise, keep polling (transient network error)
                 }
             }, 2000);
         } catch (error) {
