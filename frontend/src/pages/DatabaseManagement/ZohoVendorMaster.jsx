@@ -77,7 +77,7 @@ function ZohoVendorMaster() {
                 limit: 1000,
             };
 
-            const response = await zohoVendorAPI.getVendors(params);
+            const response = await zohoVendorAPI.getItems(params);
             setVendors(response.vendors || []);
 
             // Calculate last sync time from vendors
