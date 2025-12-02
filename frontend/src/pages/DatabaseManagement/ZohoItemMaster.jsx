@@ -74,7 +74,7 @@ function ZohoItemMaster() {
                 search: searchTerm || undefined,
                 active_only: filterActive === 'active',
                 product_type: filterProductType === 'all' ? undefined : filterProductType,
-                limit: 1000,
+                limit: 5000,
             };
 
             const response = await zohoItemAPI.getItems(params);
@@ -431,7 +431,7 @@ function ZohoItemMaster() {
                                     <Typography variant="body2">
                                         <strong>
                                             {syncResult.status === 'failed' ? '❌ Sync Failed!' :
-                                             syncResult.errors > 0 ? '⚠️ Sync Completed with Errors' : '✅ Sync Complete!'}
+                                                syncResult.errors > 0 ? '⚠️ Sync Completed with Errors' : '✅ Sync Complete!'}
                                         </strong>
                                     </Typography>
                                     <Typography variant="body2" sx={{ mt: 1 }}>
