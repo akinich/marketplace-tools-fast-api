@@ -11,12 +11,14 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import WooItemMaster from './WooItemMaster';
+import ZohoItemMaster from './ZohoItemMaster';
 
 export default function DatabaseManagementModule() {
     return (
         <Routes>
             <Route index element={<Navigate to="woo-item-master" replace />} />
             <Route path="woo-item-master" element={<WooItemMaster />} />
+            <Route path="zoho-item-master" element={<ZohoItemMaster />} />
         </Routes>
     );
 }

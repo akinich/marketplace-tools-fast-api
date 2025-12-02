@@ -285,7 +285,7 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, dashboard, tickets, development, docs, telegram, security, webhooks, email, api_keys, websocket, b2c_ops, product
+from app.routes import auth, admin, dashboard, tickets, development, docs, telegram, security, webhooks, email, api_keys, websocket, b2c_ops, product, zoho_item
 from app.routes import settings as settings_router
 
 # Mount routers
@@ -306,6 +306,7 @@ app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settin
 app.include_router(websocket.router, tags=["WebSocket"])
 app.include_router(b2c_ops.router, prefix=f"{settings.API_PREFIX}", tags=["B2C Operations"])
 app.include_router(product.router, prefix=f"{settings.API_PREFIX}", tags=["Product Management"])
+app.include_router(zoho_item.router, prefix=f"{settings.API_PREFIX}", tags=["Zoho Item Master"])
 
 
 # ============================================================================
