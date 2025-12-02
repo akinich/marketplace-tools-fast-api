@@ -12,7 +12,7 @@ Service for managing Zoho items, sync operations, and CRUD
 from typing import List, Dict, Optional
 from fastapi import HTTPException, status
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from dateutil import parser as date_parser
 
@@ -211,7 +211,7 @@ async def update_item(
         # Add updated_at
         param_count += 1
         update_fields.append(f"updated_at = ${param_count}")
-        params.append(datetime.utcnow())
+        params.append(datetime.now(timezone.utc))
         
         # Add item_id to params
         param_count += 1
@@ -306,7 +306,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
         _sync_progress["updated"] = 0
         _sync_progress["skipped"] = 0
         _sync_progress["errors"] = 0
-        _sync_progress["start_time"] = datetime.utcnow()
+        _sync_progress["start_time"] = datetime.now(timezone.utc)
 
         added = 0
         updated = 0
@@ -334,9 +334,8 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                 # Skip if not force_refresh and item was synced in last 24 hours
                 if not force_refresh and existing and existing['last_sync_at']:
                     from datetime import timedelta
-                    # Remove timezone info for comparison (both should be UTC)
-                    last_sync_naive = existing['last_sync_at'].replace(tzinfo=None) if existing['last_sync_at'].tzinfo else existing['last_sync_at']
-                    hours_since_sync = (datetime.utcnow() - last_sync_naive).total_seconds() / 3600
+                    # Both datetimes are now timezone-aware (UTC)
+                    hours_since_sync = (datetime.now(timezone.utc) - existing['last_sync_at']).total_seconds() / 3600
                     if hours_since_sync < 24:
                         skipped += 1
                         _sync_progress["skipped"] = skipped
@@ -363,7 +362,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                     'created_time': parse_zoho_datetime(item.get('created_time')),
                     'last_modified_time': parse_zoho_datetime(item.get('last_modified_time')),
                     'raw_json': json.dumps(item),
-                    'last_sync_at': datetime.utcnow()
+                    'last_sync_at': datetime.now(timezone.utc)
                 }
                 
                 if existing:
@@ -470,7 +469,7 @@ async def get_sync_progress() -> Dict:
 
     # Calculate ETA
     if progress["in_progress"] and progress["start_time"] and progress["current"] > 0:
-        elapsed = (datetime.utcnow() - progress["start_time"]).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - progress["start_time"]).total_seconds()
         items_per_second = progress["current"] / elapsed if elapsed > 0 else 0
         remaining_items = progress["total"] - progress["current"]
         eta_seconds = remaining_items / items_per_second if items_per_second > 0 else 0
