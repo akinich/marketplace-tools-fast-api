@@ -86,12 +86,14 @@ class ProductListResponse(BaseModel):
 
 class WooCommerceSyncRequest(BaseModel):
     """Schema for WooCommerce sync request"""
-    limit: int = Field(default=100, ge=1, le=100, description="Number of products to fetch (max 100)")
+    limit: int = Field(default=100, ge=1, le=1000, description="Number of products to fetch (max 1000)")
+    update_existing: bool = Field(default=False, description="Update existing products with latest WooCommerce data")
 
 
 class WooCommerceSyncResponse(BaseModel):
     """Schema for WooCommerce sync response"""
     added: int
+    updated: int
     skipped: int
     errors: int
     message: str

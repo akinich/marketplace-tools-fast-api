@@ -284,17 +284,18 @@ async def bulk_update_products(updates: List[Tuple[int, Dict]], updated_by: str,
 # WOOCOMMERCE SYNC
 # ============================================================================
 
-async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
+async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
     """
     Sync products from WooCommerce API
-    
+
     Args:
-        limit: Number of products to fetch (max 100)
+        sync_request: WooCommerceSyncRequest with limit and update_existing flags
         synced_by: User ID performing sync
-    
+
     Returns:
-        Dict with added, skipped, errors counts
+        Dict with added, updated, skipped, errors counts
     """
+    limit = sync_request.limit
     try:
         # Get database connection pool
         pool = get_db()
@@ -349,9 +350,10 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
         
         # Sync to database
         added = 0
+        updated = 0
         skipped = 0
         errors = 0
-        
+
         for product in all_products:
             try:
                 # Check if product already exists
@@ -360,11 +362,32 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
                     product.get('id'),
                     product.get('variation_id')
                 )
-                
+
                 if existing:
-                    skipped += 1
+                    if sync_request.update_existing:
+                        # Update existing product with latest WooCommerce data
+                        product_update = ProductUpdate(
+                            sku=product.get('sku', ''),
+                            product_name=product.get('name', ''),
+                            parent_product=product.get('parent_name'),
+                            stock_quantity=product.get('stock_quantity', 0),
+                            regular_price=product.get('regular_price'),
+                            sale_price=product.get('sale_price'),
+                            categories=product.get('categories', ''),
+                            attribute=product.get('attributes', ''),
+                            product_status=product.get('status', 'publish')
+                        )
+                        await update_product(
+                            existing['id'],
+                            product_update,
+                            updated_by=synced_by,
+                            is_admin=True
+                        )
+                        updated += 1
+                    else:
+                        skipped += 1
                     continue
-                
+
                 # Insert new product
                 product_create = ProductCreate(
                     product_id=product.get('id'),
@@ -380,10 +403,10 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
                     product_status=product.get('status', 'publish'),
                     is_active=True
                 )
-                
+
                 await create_product(product_create, synced_by)
                 added += 1
-                
+
             except Exception as e:
                 logger.error(f"Error syncing product {product.get('id')}: {e}")
                 errors += 1
@@ -394,10 +417,11 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
             [p.get('id') for p in all_products]
         )
         
-        logger.info(f"WooCommerce sync completed: {added} added, {skipped} skipped, {errors} errors")
-        
+        logger.info(f"WooCommerce sync completed: {added} added, {updated} updated, {skipped} skipped, {errors} errors")
+
         return {
             "added": added,
+            "updated": updated,
             "skipped": skipped,
             "errors": errors
         }
@@ -413,41 +437,71 @@ async def sync_from_woocommerce(limit: int, synced_by: str) -> Dict[str, int]:
 
 
 async def fetch_wc_products(api_url: str, consumer_key: str, consumer_secret: str, limit: int) -> List[Dict]:
-    """Fetch products from WooCommerce API"""
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{api_url}/products",
-                auth=(consumer_key, consumer_secret),
-                params={'per_page': min(limit, 100), 'status': 'publish'},
-                timeout=30.0
-            )
-            response.raise_for_status()
-            products = response.json()
-        
-        parsed_products = []
-        for product in products:
-            # Handle None values from WooCommerce
-            stock_qty = product.get('stock_quantity')
-            if stock_qty is None:
-                stock_qty = 0
+    """
+    Fetch products from WooCommerce API with pagination support
 
-            parsed = {
-                'id': product['id'],
-                'name': product['name'],
-                'sku': product.get('sku', ''),
-                'type': product.get('type', 'simple'),
-                'regular_price': float(product.get('regular_price', 0) or 0),
-                'sale_price': float(product.get('sale_price', 0) or 0),
-                'stock_quantity': int(stock_qty),
-                'status': product.get('status', 'publish'),
-                'categories': ', '.join([cat['name'] for cat in product.get('categories', [])]),
-                'variation_id': None
-            }
-            parsed_products.append(parsed)
-        
-        return parsed_products
-        
+    Args:
+        limit: Total number of products to fetch (will fetch multiple pages if needed)
+    """
+    try:
+        all_products = []
+        page = 1
+        per_page = 100  # WooCommerce API max per page
+
+        async with httpx.AsyncClient() as client:
+            while len(all_products) < limit:
+                # Calculate how many to fetch this page
+                remaining = limit - len(all_products)
+                current_per_page = min(per_page, remaining)
+
+                response = await client.get(
+                    f"{api_url}/products",
+                    auth=(consumer_key, consumer_secret),
+                    params={
+                        'per_page': current_per_page,
+                        'status': 'publish',
+                        'page': page
+                    },
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                products = response.json()
+
+                # No more products to fetch
+                if not products:
+                    break
+
+                # Parse and add to results
+                for product in products:
+                    # Handle None values from WooCommerce
+                    stock_qty = product.get('stock_quantity')
+                    if stock_qty is None:
+                        stock_qty = 0
+
+                    parsed = {
+                        'id': product['id'],
+                        'name': product['name'],
+                        'sku': product.get('sku', ''),
+                        'type': product.get('type', 'simple'),
+                        'regular_price': float(product.get('regular_price', 0) or 0),
+                        'sale_price': float(product.get('sale_price', 0) or 0),
+                        'stock_quantity': int(stock_qty),
+                        'status': product.get('status', 'publish'),
+                        'categories': ', '.join([cat['name'] for cat in product.get('categories', [])]),
+                        'variation_id': None
+                    }
+                    all_products.append(parsed)
+
+                # If we got less than per_page, we've reached the end
+                if len(products) < current_per_page:
+                    break
+
+                page += 1
+                logger.info(f"Fetched page {page-1}, total products so far: {len(all_products)}")
+
+        logger.info(f"Fetched total of {len(all_products)} products from WooCommerce")
+        return all_products
+
     except Exception as e:
         logger.error(f"Error fetching WooCommerce products: {e}")
         raise

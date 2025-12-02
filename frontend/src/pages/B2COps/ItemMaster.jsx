@@ -16,17 +16,12 @@ import {
     Grid,
     Card,
     CardContent,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
     Sync as SyncIcon,
-    Add as AddIcon,
     Download as DownloadIcon,
     Assessment as AssessmentIcon,
 } from '@mui/icons-material';
@@ -42,8 +37,8 @@ function ItemMaster() {
     const [filterType, setFilterType] = useState('all');
     const [stats, setStats] = useState(null);
     const [syncLimit, setSyncLimit] = useState(100);
+    const [updateExisting, setUpdateExisting] = useState(false);
     const [syncing, setSyncing] = useState(false);
-    const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Get user role
@@ -51,24 +46,6 @@ function ItemMaster() {
     const isAdmin = user.role === 'Admin';
 
     // New product form state
-    const [newProduct, setNewProduct] = useState({
-        product_id: 0,
-        variation_id: null,
-        sku: '',
-        product_name: '',
-        parent_product: '',
-        attribute: '',
-        regular_price: 0,
-        sale_price: 0,
-        stock_quantity: 0,
-        product_status: 'publish',
-        hsn: '',
-        zoho_name: '',
-        usage_units: '',
-        categories: '',
-        notes: '',
-    });
-
     // Fetch products
     const fetchProducts = async () => {
         setLoading(true);
@@ -135,7 +112,7 @@ function ItemMaster() {
     const handleSync = async () => {
         setSyncing(true);
         try {
-            const response = await productAPI.syncFromWooCommerce(syncLimit);
+            const response = await productAPI.syncFromWooCommerce(syncLimit, updateExisting);
             enqueueSnackbar(response.message, { variant: 'success' });
             setRefreshTrigger((prev) => prev + 1);
         } catch (error) {
@@ -145,35 +122,6 @@ function ItemMaster() {
         }
     };
 
-    // Handle add product
-    const handleAddProduct = async () => {
-        try {
-            await productAPI.createProduct(newProduct);
-
-            enqueueSnackbar('Product added successfully', { variant: 'success' });
-            setAddDialogOpen(false);
-            setNewProduct({
-                product_id: 0,
-                variation_id: null,
-                sku: '',
-                product_name: '',
-                parent_product: '',
-                attribute: '',
-                regular_price: 0,
-                sale_price: 0,
-                stock_quantity: 0,
-                product_status: 'publish',
-                hsn: '',
-                zoho_name: '',
-                usage_units: '',
-                categories: '',
-                notes: '',
-            });
-            setRefreshTrigger((prev) => prev + 1);
-        } catch (error) {
-            enqueueSnackbar(error.response?.data?.detail || 'Failed to add product', { variant: 'error' });
-        }
-    };
 
     // Export to Excel
     const handleExport = () => {
@@ -249,7 +197,6 @@ function ItemMaster() {
                 <Tabs value={currentTab} onChange={(e, v) => setCurrentTab(v)}>
                     <Tab label="📊 Products" />
                     {isAdmin && <Tab label="🔄 Sync from WooCommerce" />}
-                    {isAdmin && <Tab label="➕ Add Product" />}
                     {isAdmin && <Tab label="📈 Statistics" />}
                 </Tabs>
 
@@ -338,9 +285,9 @@ function ItemMaster() {
                         <Alert severity="info" sx={{ mb: 2 }}>
                             <strong>How Sync Works:</strong>
                             <ul>
-                                <li>Fetches products from WooCommerce API</li>
-                                <li>Only ADDS new products (doesn't update existing ones)</li>
-                                <li>Maximum 100 products per sync</li>
+                                <li>Fetches products from WooCommerce API (with pagination)</li>
+                                <li>{updateExisting ? 'UPDATES existing products with latest data' : 'Only ADDS new products (skips existing)'}</li>
+                                <li>Maximum 1000 products per sync</li>
                                 <li>Includes simple products and variations</li>
                             </ul>
                         </Alert>
@@ -352,13 +299,26 @@ function ItemMaster() {
                                     type="number"
                                     label="Products to fetch"
                                     value={syncLimit}
-                                    onChange={(e) => setSyncLimit(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
-                                    inputProps={{ min: 1, max: 100 }}
+                                    onChange={(e) => setSyncLimit(Math.min(1000, Math.max(1, parseInt(e.target.value) || 100)))}
+                                    inputProps={{ min: 1, max: 1000 }}
+                                    helperText="1-1000 products (fetches in pages of 100)"
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Max per sync: 100 (WooCommerce API limit)
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                    <input
+                                        type="checkbox"
+                                        id="updateExisting"
+                                        checked={updateExisting}
+                                        onChange={(e) => setUpdateExisting(e.target.checked)}
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                    />
+                                    <label htmlFor="updateExisting" style={{ cursor: 'pointer', fontSize: '14px' }}>
+                                        <strong>Update Existing Products</strong> - Refresh prices, stock, details
+                                    </label>
+                                </Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: '28px', display: 'block' }}>
+                                    Use this to sync price/stock changes from WooCommerce
                                 </Typography>
                             </Grid>
                         </Grid>
@@ -370,177 +330,14 @@ function ItemMaster() {
                             onClick={handleSync}
                             disabled={syncing}
                         >
-                            {syncing ? 'Syncing...' : '🚀 Start Sync'}
+                            {syncing ? 'Syncing...' : updateExisting ? '🔄 Sync & Update All' : '🚀 Sync New Products'}
                         </Button>
                     </Box>
                 )}
 
-                {/* Add Product Tab */}
-                {currentTab === 2 && isAdmin && (
-                    <Box sx={{ p: 3 }}>
-                        <Typography variant="h6" gutterBottom>
-                            ➕ Add Product Manually
-                        </Typography>
-                        <Alert severity="info" sx={{ mb: 2 }}>
-                            Add a product that's not synced from WooCommerce, or create a custom entry.
-                        </Alert>
-
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Product ID"
-                                    type="number"
-                                    value={newProduct.product_id}
-                                    onChange={(e) => setNewProduct({ ...newProduct, product_id: parseInt(e.target.value) || 0 })}
-                                    helperText="WooCommerce product ID or 0 for custom"
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Variation ID"
-                                    type="number"
-                                    value={newProduct.variation_id || ''}
-                                    onChange={(e) => setNewProduct({ ...newProduct, variation_id: parseInt(e.target.value) || null })}
-                                    helperText="0 for simple products"
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="SKU"
-                                    value={newProduct.sku}
-                                    onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    required
-                                    label="Product Name"
-                                    value={newProduct.product_name}
-                                    onChange={(e) => setNewProduct({ ...newProduct, product_name: e.target.value })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Parent Product"
-                                    value={newProduct.parent_product}
-                                    onChange={(e) => setNewProduct({ ...newProduct, parent_product: e.target.value })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Attributes"
-                                    value={newProduct.attribute}
-                                    onChange={(e) => setNewProduct({ ...newProduct, attribute: e.target.value })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                                <TextField
-                                    fullWidth
-                                    label="Regular Price"
-                                    type="number"
-                                    value={newProduct.regular_price}
-                                    onChange={(e) => setNewProduct({ ...newProduct, regular_price: parseFloat(e.target.value) || 0 })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                                <TextField
-                                    fullWidth
-                                    label="Sale Price"
-                                    type="number"
-                                    value={newProduct.sale_price}
-                                    onChange={(e) => setNewProduct({ ...newProduct, sale_price: parseFloat(e.target.value) || 0 })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={4}>
-                                <TextField
-                                    fullWidth
-                                    label="Stock Quantity"
-                                    type="number"
-                                    value={newProduct.stock_quantity}
-                                    onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: parseInt(e.target.value) || 0 })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <FormControl fullWidth>
-                                    <InputLabel>Status</InputLabel>
-                                    <Select
-                                        value={newProduct.product_status}
-                                        onChange={(e) => setNewProduct({ ...newProduct, product_status: e.target.value })}
-                                    >
-                                        <MenuItem value="publish">Publish</MenuItem>
-                                        <MenuItem value="draft">Draft</MenuItem>
-                                        <MenuItem value="private">Private</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="HSN"
-                                    value={newProduct.hsn}
-                                    onChange={(e) => setNewProduct({ ...newProduct, hsn: e.target.value })}
-                                    helperText="Numeric only"
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Zoho Name"
-                                    value={newProduct.zoho_name}
-                                    onChange={(e) => setNewProduct({ ...newProduct, zoho_name: e.target.value })}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Usage Units"
-                                    value={newProduct.usage_units}
-                                    onChange={(e) => setNewProduct({ ...newProduct, usage_units: e.target.value })}
-                                    helperText="e.g., kg, liters, pieces"
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Categories"
-                                    value={newProduct.categories}
-                                    onChange={(e) => setNewProduct({ ...newProduct, categories: e.target.value })}
-                                    helperText="Comma-separated"
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    multiline
-                                    rows={3}
-                                    label="Notes"
-                                    value={newProduct.notes}
-                                    onChange={(e) => setNewProduct({ ...newProduct, notes: e.target.value })}
-                                />
-                            </Grid>
-                        </Grid>
-
-                        <Button
-                            variant="contained"
-                            size="large"
-                            startIcon={<AddIcon />}
-                            onClick={handleAddProduct}
-                            disabled={!newProduct.product_name}
-                            sx={{ mt: 2 }}
-                        >
-                            ➕ Add Product
-                        </Button>
-                    </Box>
-                )}
 
                 {/* Statistics Tab */}
-                {currentTab === 3 && isAdmin && (
+                {currentTab === 2 && isAdmin && (
                     <Box sx={{ p: 3 }}>
                         <Typography variant="h6" gutterBottom>
                             📈 Product Statistics

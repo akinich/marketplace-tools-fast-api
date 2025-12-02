@@ -90,11 +90,14 @@ async def sync_products(
         )
 
     result = await product_service.sync_from_woocommerce(
-        limit=sync_request.limit,
+        sync_request=sync_request,
         synced_by=current_user.id
     )
 
-    message = f"Sync completed: {result['added']} added, {result['skipped']} skipped"
+    message = f"Sync completed: {result['added']} added"
+    if result['updated'] > 0:
+        message += f", {result['updated']} updated"
+    message += f", {result['skipped']} skipped"
     if result['errors'] > 0:
         message += f", {result['errors']} errors"
 
