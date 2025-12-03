@@ -293,6 +293,8 @@ async def sync_from_woocommerce(synced_by: str) -> Dict:
                 logger.error(f"Error processing customer {woo_customer.get('id')}: {e}")
                 _sync_progress["errors"] += 1
         
+        
+        # Log final counts before marking as complete
         logger.info(
             f"WooCommerce customer sync completed: "
             f"{_sync_progress['total']} total, "
@@ -302,7 +304,8 @@ async def sync_from_woocommerce(synced_by: str) -> Dict:
             f"{_sync_progress['errors']} errors"
         )
         
-        return {
+        # Store final result for return
+        final_result = {
             "total": _sync_progress["total"],
             "added": _sync_progress["added"],
             "updated": _sync_progress["updated"],
@@ -310,15 +313,19 @@ async def sync_from_woocommerce(synced_by: str) -> Dict:
             "errors": _sync_progress["errors"]
         }
         
+        # Mark sync as complete (but preserve the counts in _sync_progress)
+        _sync_progress["in_progress"] = False
+        
+        return final_result
+        
     except Exception as e:
         logger.error(f"WooCommerce customer sync failed: {e}")
         _sync_progress["errors"] += 1
+        _sync_progress["in_progress"] = False
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Sync failed: {str(e)}"
         )
-    finally:
-        _sync_progress["in_progress"] = False
 
 
 async def _process_customer(woo_customer: Dict, synced_by: str):
