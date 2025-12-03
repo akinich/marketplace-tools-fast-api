@@ -37,6 +37,7 @@ function WooCustomerMaster() {
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [error, setError] = useState(null);
     const [lastSyncRunTime, setLastSyncRunTime] = useState(() => {
         // Load from localStorage on mount
         const stored = localStorage.getItem('woo_customer_last_sync_run');
@@ -66,6 +67,7 @@ function WooCustomerMaster() {
     // Fetch customers
     const fetchCustomers = async () => {
         setLoading(true);
+        setError(null);
         try {
             const params = {
                 search: searchTerm || undefined,
@@ -76,7 +78,10 @@ function WooCustomerMaster() {
             const response = await wooCustomerAPI.getCustomers(params);
             setCustomers(response.customers || []);
         } catch (error) {
-            enqueueSnackbar(error.response?.data?.detail || 'Failed to load customers', { variant: 'error' });
+            console.error('Error fetching customers:', error);
+            const errorMsg = error.response?.data?.detail || error.message || 'Failed to load customers';
+            setError(errorMsg);
+            enqueueSnackbar(errorMsg, { variant: 'error' });
         } finally {
             setLoading(false);
         }
@@ -94,6 +99,7 @@ function WooCustomerMaster() {
 
     // Initial load
     useEffect(() => {
+        console.log('WooCustomerMaster component mounted');
         fetchCustomers();
         fetchStats();
     }, [refreshTrigger, searchTerm, filterPayingOnly]);
@@ -320,6 +326,16 @@ function WooCustomerMaster() {
                                 </Button>
                             </Grid>
                         </Grid>
+
+                        {error && (
+                            <Alert severity="error" sx={{ mb: 2, mt: 2 }}>
+                                <strong>Error loading customers:</strong> {error}
+                                <br />
+                                <Typography variant="caption">
+                                    Make sure the backend server is running and the woo_customer routes are loaded.
+                                </Typography>
+                            </Alert>
+                        )}
 
                         {loading ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
