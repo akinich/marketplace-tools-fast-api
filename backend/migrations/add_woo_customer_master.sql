@@ -89,38 +89,6 @@ INSERT INTO modules (
     (SELECT id FROM modules WHERE module_key = 'database_management'), 
     true, 
     20
-) ON CONFLICT (module_key) DO NOTHING;
-
--- 4. Add permissions for Admin role
-INSERT INTO role_permissions (role_id, module_id, can_view, can_create, can_edit, can_delete)
-SELECT 
-    r.id,
-    m.id,
-    true,  -- can_view
-    true,  -- can_create
-    true,  -- can_edit
-    true   -- can_delete
-FROM roles r
-CROSS JOIN modules m
-WHERE r.role_name = 'Admin' 
-  AND m.module_key = 'woo_customer_master'
-ON CONFLICT (role_id, module_id) DO UPDATE
-SET can_view = true, can_create = true, can_edit = true, can_delete = true;
-
--- 5. Add permissions for User role (view and limited edit)
-INSERT INTO role_permissions (role_id, module_id, can_view, can_create, can_edit, can_delete)
-SELECT 
-    r.id,
-    m.id,
-    true,   -- can_view
-    false,  -- can_create
-    true,   -- can_edit (notes only)
-    false   -- can_delete
-FROM roles r
-CROSS JOIN modules m
-WHERE r.role_name = 'User' 
-  AND m.module_key = 'woo_customer_master'
-ON CONFLICT (role_id, module_id) DO UPDATE
-SET can_view = true, can_create = false, can_edit = true, can_delete = false;
+) ON CONFLICT (module_key) DO UPDATE SET display_order = 20;
 
 COMMIT;
