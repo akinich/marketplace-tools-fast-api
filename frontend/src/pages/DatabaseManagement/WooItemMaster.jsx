@@ -12,6 +12,7 @@ import {
     FormControl,
     InputLabel,
     CircularProgress,
+    LinearProgress,
     Alert,
     Grid,
     Card,
@@ -39,6 +40,8 @@ function ItemMaster() {
     const [syncLimit, setSyncLimit] = useState(100);
     const [updateExisting, setUpdateExisting] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState(null);
+    const [syncResult, setSyncResult] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Get user role
@@ -80,7 +83,84 @@ function ItemMaster() {
     useEffect(() => {
         fetchProducts();
         fetchStats();
+
+        // Check if sync is already in progress
+        checkForOngoingSync();
     }, [refreshTrigger, searchTerm, filterActive, filterType]);
+
+    // Check for ongoing sync on mount
+    const checkForOngoingSync = async () => {
+        try {
+            const progress = await productAPI.getSyncProgress();
+            if (progress.in_progress) {
+                console.log('Detected ongoing sync, starting progress monitoring');
+                setSyncing(true);
+                setSyncProgress(progress);
+                startProgressPolling();
+            }
+        } catch (error) {
+            console.error('Error checking sync progress:', error);
+        }
+    };
+
+    // Start polling for sync progress
+    const startProgressPolling = () => {
+        let pollAttempts = 0;
+        const maxPollAttempts = 150; // Max 5 minutes
+
+        const checkInterval = setInterval(async () => {
+            try {
+                const progress = await productAPI.getSyncProgress();
+                pollAttempts = 0; // Reset on successful fetch
+
+                // Update progress state for display
+                if (progress.in_progress) {
+                    setSyncProgress(progress);
+                }
+
+                if (!progress.in_progress) {
+                    clearInterval(checkInterval);
+
+                    console.log('Sync completed, progress data:', progress);
+
+                    setSyncResult({
+                        total: progress.total || 0,
+                        added: progress.added || 0,
+                        updated: progress.updated || 0,
+                        skipped: progress.skipped || 0,
+                        errors: progress.errors || 0,
+                        status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
+                    });
+
+                    // Show appropriate notification based on result
+                    if (progress.errors > 0 && progress.added === 0 && progress.updated === 0) {
+                        enqueueSnackbar('Sync failed with errors!', { variant: 'error' });
+                    } else if (progress.errors > 0) {
+                        enqueueSnackbar('Sync completed with some errors', { variant: 'warning' });
+                    } else {
+                        enqueueSnackbar('Sync completed successfully!', { variant: 'success' });
+                    }
+
+                    setSyncing(false);
+                    setSyncProgress(null);
+                    setRefreshTrigger((prev) => prev + 1);
+                }
+            } catch (err) {
+                pollAttempts++;
+                console.error(`Failed to fetch sync progress (attempt ${pollAttempts}):`, err);
+
+                // Only stop polling after multiple failures or max attempts reached
+                if (pollAttempts >= 5 || pollAttempts >= maxPollAttempts) {
+                    clearInterval(checkInterval);
+                    setSyncing(false);
+                    enqueueSnackbar(
+                        'Lost connection to sync progress. Sync may still be running in background. Please refresh the page to see results.',
+                        { variant: 'warning', autoHideDuration: 8000 }
+                    );
+                }
+            }
+        }, 2000);
+    };
 
     // Handle product update
     const handleProductUpdate = async (updatedRow, originalRow) => {
@@ -110,20 +190,27 @@ function ItemMaster() {
 
     // Handle sync
     const handleSync = async () => {
-        if (syncing) {
-            enqueueSnackbar('Sync already in progress. Please wait...', { variant: 'warning' });
-            return;
-        }
-
         setSyncing(true);
+        setSyncResult(null);
+        setSyncProgress(null);
+        enqueueSnackbar('Sync started in background...', { variant: 'info' });
+
         try {
-            const response = await productAPI.syncFromWooCommerce(syncLimit, updateExisting);
-            enqueueSnackbar(response.message, { variant: 'success' });
-            setRefreshTrigger((prev) => prev + 1);
+            await productAPI.syncFromWooCommerce(syncLimit, updateExisting);
+
+            // Start polling for progress
+            startProgressPolling();
         } catch (error) {
-            enqueueSnackbar(error.response?.data?.detail || 'Sync failed', { variant: 'error' });
-        } finally {
+            setSyncResult({
+                status: 'failed',
+                errors: 1,
+                total: 0,
+                added: 0,
+                updated: 0,
+                skipped: 0
+            });
             setSyncing(false);
+            enqueueSnackbar(error.response?.data?.detail || 'Failed to start sync', { variant: 'error' });
         }
     };
 
@@ -339,6 +426,81 @@ function ItemMaster() {
                         >
                             {syncing ? 'Syncing...' : updateExisting ? '🔄 Sync & Update All' : '🚀 Sync New Products'}
                         </Button>
+
+                        {/* Sync Progress */}
+                        {syncing && (
+                            <Box sx={{ mt: 3 }}>
+                                <Alert severity="info">
+                                    <Typography variant="body2" gutterBottom>
+                                        🔄 Syncing in progress...
+                                    </Typography>
+
+                                    {syncProgress && (
+                                        <>
+                                            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                                                {syncProgress.current} / {syncProgress.total} products ({syncProgress.percentage}%)
+                                            </Typography>
+
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={syncProgress.percentage}
+                                                sx={{ height: 10, borderRadius: 5, mb: 2 }}
+                                            />
+
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ✅ Added: {syncProgress.added}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        🔄 Updated: {syncProgress.updated}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ⏭️ Skipped: {syncProgress.skipped}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ❌ Errors: {syncProgress.errors}
+                                                    </Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </>
+                                    )}
+
+                                    {!syncProgress && (
+                                        <Typography variant="body2" sx={{ mt: 1 }}>
+                                            Initializing sync...
+                                        </Typography>
+                                    )}
+                                </Alert>
+                            </Box>
+                        )}
+
+                        {/* Sync Result */}
+                        {syncResult && !syncing && (
+                            <Box sx={{ mt: 3 }}>
+                                <Alert severity={syncResult.status === 'failed' ? 'error' : (syncResult.errors > 0 ? 'warning' : 'success')}>
+                                    <Typography variant="body2">
+                                        <strong>
+                                            {syncResult.status === 'failed' ? '❌ Sync Failed!' :
+                                                syncResult.errors > 0 ? '⚠️ Sync Completed with Errors' : '✅ Sync Complete!'}
+                                        </strong>
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ mt: 1 }}>
+                                        📊 Total Products: {syncResult.total}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        ✅ Added: {syncResult.added} | 🔄 Updated: {syncResult.updated} |
+                                        ⏭️ Skipped: {syncResult.skipped} | ❌ Errors: {syncResult.errors}
+                                    </Typography>
+                                </Alert>
+                            </Box>
+                        )}
                     </Box>
                 )}
 
