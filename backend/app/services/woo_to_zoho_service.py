@@ -423,7 +423,7 @@ class WooToZohoService:
         """Fetch export history."""
         try:
             query = """
-                SELECT 
+                SELECT
                     h.*,
                     u.email as exported_by_email
                 FROM export_history h
@@ -437,11 +437,20 @@ class WooToZohoService:
             if end_date:
                 params.append(end_date)
                 query += f" AND h.date_range_end <= ${len(params)}"
-                
+
             query += " ORDER BY h.created_at DESC LIMIT 1000"
-            
+
             rows = await fetch_all(query, *params)
-            return [dict(row) for row in rows]
+
+            # Convert UUID to string for Pydantic validation
+            result = []
+            for row in rows:
+                row_dict = dict(row)
+                if row_dict.get('exported_by'):
+                    row_dict['exported_by'] = str(row_dict['exported_by'])
+                result.append(row_dict)
+
+            return result
         except Exception as e:
             logger.error(f"Error fetching history: {e}")
             return []
