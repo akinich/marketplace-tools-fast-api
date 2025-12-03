@@ -1,23 +1,26 @@
-import axios from 'axios';
+/**
+ * ================================================================================
+ * Woo to Zoho Export API Client
+ * ================================================================================
+ * Version: 1.0.1
+ * Created: 2025-12-03
+ * Updated: 2025-12-03
+ *
+ * API client for Woo to Zoho Export module
+ * ================================================================================
+ */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-// Create axios instance with auth header
-const getAuthHeader = () => {
-    const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import apiClient from './client';
 
 export const wooToZohoAPI = {
     /**
      * Get last used sequence number for a prefix
-     * @param {string} prefix 
+     * @param {string} prefix
      * @returns {Promise<{last_sequence: number|null, suggested_sequence: number}>}
      */
     getLastSequence: async (prefix) => {
-        const response = await axios.get(`${API_URL}/woo-to-zoho/last-sequence`, {
-            params: { prefix },
-            headers: getAuthHeader()
+        const response = await apiClient.get('/woo-to-zoho/last-sequence', {
+            params: { prefix }
         });
         return response.data;
     },
@@ -28,9 +31,7 @@ export const wooToZohoAPI = {
      * @returns {Promise<Object>} Preview data
      */
     previewExport: async (params) => {
-        const response = await axios.post(`${API_URL}/woo-to-zoho/preview`, params, {
-            headers: getAuthHeader()
-        });
+        const response = await apiClient.post('/woo-to-zoho/preview', params);
         return response.data;
     },
 
@@ -40,8 +41,7 @@ export const wooToZohoAPI = {
      * @returns {Promise<Blob>} ZIP file blob
      */
     exportOrders: async (params) => {
-        const response = await axios.post(`${API_URL}/woo-to-zoho/export`, params, {
-            headers: getAuthHeader(),
+        const response = await apiClient.post('/woo-to-zoho/export', params, {
             responseType: 'blob'
         });
         return response.data;
@@ -53,9 +53,8 @@ export const wooToZohoAPI = {
      * @returns {Promise<Array>} History items
      */
     getHistory: async (params) => {
-        const response = await axios.get(`${API_URL}/woo-to-zoho/history`, {
-            params,
-            headers: getAuthHeader()
+        const response = await apiClient.get('/woo-to-zoho/history', {
+            params
         });
         return response.data;
     }
