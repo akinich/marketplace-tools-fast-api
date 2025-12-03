@@ -356,6 +356,7 @@ export default function DashboardLayout() {
       dashboard: <DashboardIcon />,
       admin: <AdminIcon />,
       b2c_ops: <B2COpsIcon />,
+      b2c_management: <B2COpsIcon />,
       tickets: <TicketsIcon />,
       development: <DevelopmentIcon />,
       communication: <CommunicationIcon />,
@@ -384,6 +385,10 @@ export default function DashboardLayout() {
       order_extractor: '/b2c-ops/order-extractor',
       label_generator: '/b2c-ops/label-generator',
       mrp_label_generator: '/b2c-ops/mrp-label-generator',
+    };
+
+    // B2C Management sub-modules
+    const b2cManagementRoutes = {
       woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
       stock_price_updater: '/b2c-ops/stock-price-updater',
     };
@@ -410,6 +415,8 @@ export default function DashboardLayout() {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
     } else if (parentModuleKey === 'b2c_ops') {
       return b2cOpsRoutes[subModuleKey] || `/b2c-ops/${subModuleKey.replace('b2c_ops_', '')}`;
+    } else if (parentModuleKey === 'b2c_management') {
+      return b2cManagementRoutes[subModuleKey] || `/b2c-ops/${subModuleKey}`;
     } else if (parentModuleKey === 'communication') {
       return communicationRoutes[subModuleKey] || `/communication/${subModuleKey.replace('com_', '')}`;
     } else if (parentModuleKey === 'database_management') {
