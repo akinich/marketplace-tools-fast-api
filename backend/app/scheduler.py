@@ -46,7 +46,7 @@ from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
-from app.services import zoho_vendor_service, zoho_customer_service
+from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service
 from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
@@ -160,6 +160,31 @@ async def sync_zoho_customers_daily():
         logger.error(f"❌ Error in scheduled Zoho Customers sync: {e}", exc_info=True)
 
 
+async def sync_woo_customers_daily():
+    """
+    Sync customers from WooCommerce daily at 4:00 AM IST.
+    This is a scheduled task that runs automatically.
+    """
+    try:
+        logger.info("🔄 Starting scheduled WooCommerce Customers sync...")
+
+        # Use system user ID for scheduled syncs
+        system_user_id = "00000000-0000-0000-0000-000000000000"
+
+        result = await woo_customer_service.sync_from_woocommerce(
+            synced_by=system_user_id
+        )
+
+        logger.info(
+            f"✅ Scheduled WooCommerce Customers sync completed: "
+            f"{result['added']} added, {result['updated']} updated, "
+            f"{result['skipped']} skipped, {result['errors']} errors"
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error in scheduled WooCommerce Customers sync: {e}", exc_info=True)
+
+
 
 
 async def process_webhook_queue():
@@ -267,6 +292,16 @@ def start_scheduler():
             max_instances=1,
         )
 
+        # Task 7: Sync WooCommerce Customers daily at 4:00 AM IST
+        scheduler.add_job(
+            sync_woo_customers_daily,
+            trigger=CronTrigger(hour=4, minute=0, timezone='Asia/Kolkata'),
+            id="sync_woo_customers_daily",
+            name="Sync WooCommerce Customers from WooCommerce",
+            replace_existing=True,
+            max_instances=1,
+        )
+
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
@@ -274,6 +309,7 @@ def start_scheduler():
         logger.info("   - Sync Woo Items: Daily at 4:00 AM IST")
         logger.info("   - Sync Zoho Vendors: Daily at 4:00 AM IST")
         logger.info("   - Sync Zoho Customers: Daily at 4:00 AM IST")
+        logger.info("   - Sync WooCommerce Customers: Daily at 4:00 AM IST")
         logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
 

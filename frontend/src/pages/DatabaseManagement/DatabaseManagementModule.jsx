@@ -9,6 +9,7 @@
  *   - Zoho Item Master
  *   - Zoho Vendor Master
  *   - Zoho Customer Master
+ *   - Woo Customer Master
  */
 
 import React from 'react';
@@ -17,6 +18,7 @@ import WooItemMaster from './WooItemMaster';
 import ZohoItemMaster from './ZohoItemMaster';
 import ZohoVendorMaster from './ZohoVendorMaster';
 import ZohoCustomerMaster from './ZohoCustomerMaster';
+import WooCustomerMaster from './WooCustomerMaster';
 
 export default function DatabaseManagementModule() {
     return (
@@ -26,6 +28,7 @@ export default function DatabaseManagementModule() {
             <Route path="zoho-item-master" element={<ZohoItemMaster />} />
             <Route path="zoho-vendor-master" element={<ZohoVendorMaster />} />
             <Route path="zoho-customer-master" element={<ZohoCustomerMaster />} />
+            <Route path="woo-customer-master" element={<WooCustomerMaster />} />
         </Routes>
     );
 }
