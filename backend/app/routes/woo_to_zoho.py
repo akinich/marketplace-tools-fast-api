@@ -11,7 +11,7 @@ from app.schemas.woo_to_zoho import (
     ExportHistoryItem,
     LastSequenceResponse
 )
-from app.dependencies import get_current_active_user
+from app.auth.dependencies import get_current_user
 
 router = APIRouter(
     prefix="/woo-to-zoho",
@@ -31,7 +31,7 @@ async def get_last_sequence(
 @router.post("/preview", response_model=ExportPreviewResponse)
 async def preview_export(
     request: ExportRequestBase,
-    current_user = Depends(get_current_active_user)
+    current_user = Depends(get_current_user)
 ):
     """Preview the export data before generating files."""
     # 1. Fetch orders
@@ -70,7 +70,7 @@ async def preview_export(
 @router.post("/export")
 async def generate_export(
     request: ExportRequestBase,
-    current_user = Depends(get_current_active_user)
+    current_user = Depends(get_current_user)
 ):
     """Generate and download the export ZIP file."""
     # 1. Fetch orders
@@ -99,7 +99,7 @@ async def generate_export(
     # 5. Save History
     await WooToZohoService.save_history(
         completed_orders, request.invoice_prefix, request.start_sequence,
-        request.start_date, request.end_date, current_user['id']
+        request.start_date, request.end_date, current_user.id
     )
 
     # 6. Return File
@@ -114,7 +114,7 @@ async def generate_export(
 async def get_history(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    current_user = Depends(get_current_active_user)
+    current_user = Depends(get_current_user)
 ):
     """Get export history."""
     return await WooToZohoService.get_history(start_date, end_date)
