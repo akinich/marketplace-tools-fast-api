@@ -392,6 +392,7 @@ export default function DashboardLayout() {
       zoho_item_master: '/database-management/zoho-item-master',
       zoho_vendor_master: '/database-management/zoho-vendor-master',
       zoho_customer_master: '/database-management/zoho-customer-master',
+      woo_customer_master: '/database-management/woo-customer-master',
     };
 
     // Communication sub-modules
