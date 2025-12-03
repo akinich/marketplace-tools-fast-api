@@ -12,6 +12,7 @@ import {
     FormControl,
     InputLabel,
     CircularProgress,
+    LinearProgress,
     Alert,
     Grid,
     Card,
@@ -37,6 +38,7 @@ function ZohoCustomerMaster() {
     const [filterProductType, setFilterProductType] = useState('all');
     const [stats, setStats] = useState(null);
     const [syncing, setSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState(null);
     const [syncResult, setSyncResult] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [lastSyncTime, setLastSyncTime] = useState(null);
@@ -114,7 +116,89 @@ function ZohoCustomerMaster() {
     useEffect(() => {
         fetchCustomers();
         fetchStats();
+
+        // Check if sync is already in progress
+        checkForOngoingSync();
     }, [refreshTrigger, searchTerm, filterActive, filterProductType]);
+
+    // Check for ongoing sync on mount
+    const checkForOngoingSync = async () => {
+        try {
+            const progress = await zohoCustomerAPI.getSyncProgress();
+            if (progress.in_progress) {
+                console.log('Detected ongoing sync, starting progress monitoring');
+                setSyncing(true);
+                setSyncProgress(progress);
+                startProgressPolling();
+            }
+        } catch (error) {
+            console.error('Error checking sync progress:', error);
+        }
+    };
+
+    // Start polling for sync progress
+    const startProgressPolling = () => {
+        let pollAttempts = 0;
+        const maxPollAttempts = 150; // Max 5 minutes
+
+        const checkInterval = setInterval(async () => {
+            try {
+                const progress = await zohoCustomerAPI.getSyncProgress();
+                pollAttempts = 0; // Reset on successful fetch
+
+                // Update progress state for display
+                if (progress.in_progress) {
+                    setSyncProgress(progress);
+                }
+
+                if (!progress.in_progress) {
+                    clearInterval(checkInterval);
+
+                    console.log('Sync completed, progress data:', progress);
+
+                    // Store sync completion time
+                    const syncCompletionTime = new Date().toISOString();
+                    setLastSyncRunTime(syncCompletionTime);
+                    localStorage.setItem('zoho_customer_last_sync_run', syncCompletionTime);
+
+                    setSyncResult({
+                        total: progress.total || 0,
+                        added: progress.added || 0,
+                        updated: progress.updated || 0,
+                        skipped: progress.skipped || 0,
+                        errors: progress.errors || 0,
+                        status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
+                    });
+
+                    // Show appropriate notification based on result
+                    if (progress.errors > 0 && progress.added === 0 && progress.updated === 0) {
+                        enqueueSnackbar('Sync failed with errors!', { variant: 'error' });
+                    } else if (progress.errors > 0) {
+                        enqueueSnackbar('Sync completed with some errors', { variant: 'warning' });
+                    } else {
+                        enqueueSnackbar('Sync completed successfully!', { variant: 'success' });
+                    }
+
+                    setSyncing(false);
+                    setSyncProgress(null);
+                    setRefreshTrigger((prev) => prev + 1);
+                }
+            } catch (err) {
+                pollAttempts++;
+                console.error(`Failed to fetch sync progress (attempt ${pollAttempts}):`, err);
+
+                // Only stop polling after multiple failures or max attempts reached
+                if (pollAttempts >= 5 || pollAttempts >= maxPollAttempts) {
+                    clearInterval(checkInterval);
+                    setSyncing(false);
+                    enqueueSnackbar(
+                        'Lost connection to sync progress. Sync may still be running in background. Please refresh the page to see results.',
+                        { variant: 'warning', autoHideDuration: 8000 }
+                    );
+                }
+            }
+        }, 2000);
+    };
 
     // Handle item update
     const handleItemUpdate = async (updatedRow, originalRow) => {
@@ -146,65 +230,14 @@ function ZohoCustomerMaster() {
     const handleSync = async () => {
         setSyncing(true);
         setSyncResult(null);
+        setSyncProgress(null);
         enqueueSnackbar('Sync started in background...', { variant: 'info' });
 
         try {
             await zohoCustomerAPI.syncFromZohoBooks(false);
 
-            // Poll to check when sync completes
-            let pollAttempts = 0;
-            const maxPollAttempts = 150; // Max 5 minutes (150 * 2 seconds)
-
-            const checkInterval = setInterval(async () => {
-                try {
-                    const progress = await zohoCustomerAPI.getSyncProgress();
-                    pollAttempts = 0; // Reset on successful fetch
-
-                    if (!progress.in_progress) {
-                        clearInterval(checkInterval);
-
-                        // Store sync completion time
-                        const syncCompletionTime = new Date().toISOString();
-                        setLastSyncRunTime(syncCompletionTime);
-                        localStorage.setItem('zoho_customer_last_sync_run', syncCompletionTime);
-
-                        setSyncResult({
-                            total: progress.total,
-                            added: progress.added,
-                            updated: progress.updated,
-                            skipped: progress.skipped,
-                            errors: progress.errors,
-                            status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
-                        });
-
-                        // Show appropriate notification based on result
-                        if (progress.errors > 0 && progress.added === 0 && progress.updated === 0) {
-                            enqueueSnackbar('Sync failed with errors!', { variant: 'error' });
-                        } else if (progress.errors > 0) {
-                            enqueueSnackbar('Sync completed with some errors', { variant: 'warning' });
-                        } else {
-                            enqueueSnackbar('Sync completed successfully!', { variant: 'success' });
-                        }
-
-                        setSyncing(false);
-                        setRefreshTrigger((prev) => prev + 1);
-                    }
-                } catch (err) {
-                    pollAttempts++;
-                    console.error(`Failed to fetch sync progress (attempt ${pollAttempts}):`, err);
-
-                    // Only stop polling after multiple failures or max attempts reached
-                    if (pollAttempts >= 5 || pollAttempts >= maxPollAttempts) {
-                        clearInterval(checkInterval);
-                        setSyncing(false);
-                        enqueueSnackbar(
-                            'Lost connection to sync progress. Sync may still be running in background. Please refresh the page to see results.',
-                            { variant: 'warning', autoHideDuration: 8000 }
-                        );
-                    }
-                    // Otherwise, keep polling (transient network error)
-                }
-            }, 2000);
+            // Start polling for progress
+            startProgressPolling();
         } catch (error) {
             setSyncResult({
                 status: 'failed',
@@ -417,13 +450,56 @@ function ZohoCustomerMaster() {
                             {syncing ? 'Syncing...' : '🔄 Sync Now'}
                         </Button>
 
-                        {/* Sync Status */}
+                        {/* Sync Progress */}
                         {syncing && (
                             <Box sx={{ mt: 3 }}>
                                 <Alert severity="info">
-                                    <Typography variant="body2">
-                                        🔄 Syncing in progress... Please wait.
+                                    <Typography variant="body2" gutterBottom>
+                                        🔄 Syncing in progress...
                                     </Typography>
+
+                                    {syncProgress && (
+                                        <>
+                                            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                                                {syncProgress.current} / {syncProgress.total} customers ({syncProgress.percentage}%)
+                                            </Typography>
+
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={syncProgress.percentage}
+                                                sx={{ height: 10, borderRadius: 5, mb: 2 }}
+                                            />
+
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ✅ Added: {syncProgress.added}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        🔄 Updated: {syncProgress.updated}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ⏭️ Skipped: {syncProgress.skipped}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ❌ Errors: {syncProgress.errors}
+                                                    </Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </>
+                                    )}
+
+                                    {!syncProgress && (
+                                        <Typography variant="body2" sx={{ mt: 1 }}>
+                                            Initializing sync...
+                                        </Typography>
+                                    )}
                                 </Alert>
                             </Box>
                         )}
