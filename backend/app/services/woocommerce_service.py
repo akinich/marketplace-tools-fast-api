@@ -364,3 +364,193 @@ class WooCommerceService:
         except Exception as e:
             logger.error(f"WooCommerce customer fetch error: {str(e)}", exc_info=True)
             raise Exception("Unable to fetch customers from WooCommerce. Please try again or contact support.")
+    
+    @staticmethod
+    async def fetch_all_products() -> List[Dict[str, Any]]:
+        """
+        Fetch all products (including variations) from WooCommerce
+        
+        Returns:
+            List of product dictionaries with flattened variations
+            
+        Raises:
+            ValueError: If API credentials not configured
+            Exception: If API request fails
+        """
+        api_url, consumer_key, consumer_secret = await WooCommerceService.get_api_credentials()
+        
+        all_products = []
+        
+        try:
+            transport = httpx.HTTPTransport(retries=3)
+            client = httpx.Client(
+                auth=(consumer_key, consumer_secret),
+                transport=transport,
+                timeout=30.0
+            )
+            
+            # Fetch products with pagination
+            page = 1
+            per_page = 100
+            
+            while True:
+                params = {
+                    'per_page': per_page,
+                    'page': page
+                }
+                
+                response = client.get(f"{api_url}/products", params=params)
+                
+                if response.status_code == 200:
+                    products = response.json()
+                    
+                    if not products:
+                        break
+                    
+                    # Flatten products and variations
+                    for product in products:
+                        # Add simple product or parent variable product
+                        if product['type'] == 'variable':
+                            # Fetch variations for this product
+                            variation_page = 1
+                            while True:
+                                var_params = {
+                                    'per_page': 100,
+                                    'page': variation_page
+                                }
+                                var_response = client.get(
+                                    f"{api_url}/products/{product['id']}/variations",
+                                    params=var_params
+                                )
+                                
+                                if var_response.status_code == 200:
+                                    variations = var_response.json()
+                                    
+                                    if not variations:
+                                        break
+                                    
+                                    for variation in variations:
+                                        all_products.append({
+                                            'id': product['id'],
+                                            'variation_id': variation['id'],
+                                            'name': ' - '.join([attr['option'] for attr in variation.get('attributes', [])]),
+                                            'parent_name': product['name'],
+                                            'sku': variation.get('sku', ''),
+                                            'stock_quantity': variation.get('stock_quantity', 0),
+                                            'regular_price': variation.get('regular_price', '0'),
+                                            'sale_price': variation.get('sale_price', '0')
+                                        })
+                                    
+                                    variation_page += 1
+                                else:
+                                    break
+                        else:
+                            # Simple product
+                            all_products.append({
+                                'id': product['id'],
+                                'variation_id': None,
+                                'name': product['name'],
+                                'parent_name': None,
+                                'sku': product.get('sku', ''),
+                                'stock_quantity': product.get('stock_quantity', 0),
+                                'regular_price': product.get('regular_price', '0'),
+                                'sale_price': product.get('sale_price', '0')
+                            })
+                    
+                    page += 1
+                else:
+                    logger.error(f"WooCommerce API error: Status {response.status_code}")
+                    break
+            
+            client.close()
+            logger.info(f"Successfully fetched {len(all_products)} products from WooCommerce")
+            return all_products
+            
+        except Exception as e:
+            logger.error(f"WooCommerce product fetch error: {str(e)}", exc_info=True)
+            raise Exception("Unable to fetch products from WooCommerce")
+    
+    @staticmethod
+    async def update_product(product_id: int, updates: Dict[str, Any]) -> bool:
+        """
+        Update a WooCommerce product
+        
+        Args:
+            product_id: WooCommerce product ID
+            updates: Dictionary of fields to update
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        api_url, consumer_key, consumer_secret = await WooCommerceService.get_api_credentials()
+        
+        try:
+            transport = httpx.HTTPTransport(retries=3)
+            client = httpx.Client(
+                auth=(consumer_key, consumer_secret),
+                transport=transport,
+                timeout=30.0
+            )
+            
+            response = client.put(
+                f"{api_url}/products/{product_id}",
+                json=updates
+            )
+            
+            client.close()
+            
+            if response.status_code == 200:
+                logger.info(f"Successfully updated product {product_id}")
+                return True
+            else:
+                logger.error(f"Failed to update product {product_id}: Status {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating product {product_id}: {str(e)}")
+            return False
+    
+    @staticmethod
+    async def update_product_variation(
+        product_id: int,
+        variation_id: int,
+        updates: Dict[str, Any]
+    ) -> bool:
+        """
+        Update a WooCommerce product variation
+        
+        Args:
+            product_id: WooCommerce product ID
+            variation_id: Variation ID
+            updates: Dictionary of fields to update
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        api_url, consumer_key, consumer_secret = await WooCommerceService.get_api_credentials()
+        
+        try:
+            transport = httpx.HTTPTransport(retries=3)
+            client = httpx.Client(
+                auth=(consumer_key, consumer_secret),
+                transport=transport,
+                timeout=30.0
+            )
+            
+            response = client.put(
+                f"{api_url}/products/{product_id}/variations/{variation_id}",
+                json=updates
+            )
+            
+            client.close()
+            
+            if response.status_code == 200:
+                logger.info(f"Successfully updated variation {variation_id} of product {product_id}")
+                return True
+            else:
+                logger.error(f"Failed to update variation {variation_id}: Status {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating variation {variation_id}: {str(e)}")
+            return False
