@@ -159,17 +159,19 @@ function WooCustomerMaster() {
                     if (!progress.in_progress) {
                         clearInterval(checkInterval);
 
+                        console.log('Sync completed, progress data:', progress);
+
                         // Store sync completion time
                         const syncCompletionTime = new Date().toISOString();
                         setLastSyncRunTime(syncCompletionTime);
                         localStorage.setItem('woo_customer_last_sync_run', syncCompletionTime);
 
                         setSyncResult({
-                            total: progress.total,
-                            added: progress.added,
-                            updated: progress.updated,
-                            skipped: progress.skipped,
-                            errors: progress.errors,
+                            total: progress.total || 0,
+                            added: progress.added || 0,
+                            updated: progress.updated || 0,
+                            skipped: progress.skipped || 0,
+                            errors: progress.errors || 0,
                             status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
                         });
 

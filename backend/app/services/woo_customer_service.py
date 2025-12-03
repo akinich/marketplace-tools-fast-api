@@ -318,6 +318,7 @@ async def sync_from_woocommerce(synced_by: str) -> Dict:
             detail=f"Sync failed: {str(e)}"
         )
     finally:
+        # Keep the progress data but mark as not in progress
         _sync_progress["in_progress"] = False
 
 
