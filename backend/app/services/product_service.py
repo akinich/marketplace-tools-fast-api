@@ -22,6 +22,17 @@ from app.services import settings_service
 
 logger = logging.getLogger(__name__)
 
+# Global progress tracking for sync operations
+_sync_progress = {
+    "in_progress": False,
+    "current": 0,
+    "total": 0,
+    "added": 0,
+    "updated": 0,
+    "skipped": 0,
+    "errors": 0,
+    "start_time": None
+}
 
 # ============================================================================
 # PRODUCT CRUD OPERATIONS
@@ -286,7 +297,7 @@ async def bulk_update_products(updates: List[Tuple[int, Dict]], updated_by: str,
 
 async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
     """
-    Sync products from WooCommerce API
+    Sync products from WooCommerce API with progress tracking
 
     Args:
         sync_request: WooCommerceSyncRequest with limit and update_existing flags
@@ -295,6 +306,27 @@ async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
     Returns:
         Dict with added, updated, skipped, errors counts
     """
+    global _sync_progress
+    
+    # Check if sync already in progress
+    if _sync_progress["in_progress"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sync already in progress"
+        )
+    
+    # Initialize progress
+    _sync_progress = {
+        "in_progress": True,
+        "current": 0,
+        "total": 0,
+        "added": 0,
+        "updated": 0,
+        "skipped": 0,
+        "errors": 0,
+        "start_time": datetime.utcnow()
+    }
+    
     limit = sync_request.limit
     try:
         # Get database connection pool
@@ -348,13 +380,14 @@ async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
                     variation['parent_name'] = product['name']
                     all_products.append(variation)
         
-        # Sync to database
-        added = 0
-        updated = 0
-        skipped = 0
-        errors = 0
+        # Set total for progress tracking
+        _sync_progress["total"] = len(all_products)
+        logger.info(f"Fetched {len(all_products)} products (including variations) from WooCommerce")
 
-        for product in all_products:
+        # Sync to database with progress tracking
+        for idx, product in enumerate(all_products):
+            _sync_progress["current"] = idx + 1
+            
             try:
                 # Check if product already exists
                 existing = await fetch_one(
@@ -383,9 +416,9 @@ async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
                             updated_by=synced_by,
                             is_admin=True
                         )
-                        updated += 1
+                        _sync_progress["updated"] += 1
                     else:
-                        skipped += 1
+                        _sync_progress["skipped"] += 1
                     continue
 
                 # Insert new product
@@ -405,11 +438,11 @@ async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
                 )
 
                 await create_product(product_create, synced_by)
-                added += 1
+                _sync_progress["added"] += 1
 
             except Exception as e:
                 logger.error(f"Error syncing product {product.get('id')}: {e}")
-                errors += 1
+                _sync_progress["errors"] += 1
         
         # Update last_sync_at for synced products
         await execute_query(
@@ -417,19 +450,37 @@ async def sync_from_woocommerce(sync_request, synced_by: str) -> Dict[str, int]:
             [p.get('id') for p in all_products]
         )
         
-        logger.info(f"WooCommerce sync completed: {added} added, {updated} updated, {skipped} skipped, {errors} errors")
-
-        return {
-            "added": added,
-            "updated": updated,
-            "skipped": skipped,
-            "errors": errors
+        # Log final counts before marking as complete
+        logger.info(
+            f"WooCommerce product sync completed: "
+            f"{_sync_progress['total']} total, "
+            f"{_sync_progress['added']} added, "
+            f"{_sync_progress['updated']} updated, "
+            f"{_sync_progress['skipped']} skipped, "
+            f"{_sync_progress['errors']} errors"
+        )
+        
+        # Store final result for return
+        final_result = {
+            "total": _sync_progress["total"],
+            "added": _sync_progress["added"],
+            "updated": _sync_progress["updated"],
+            "skipped": _sync_progress["skipped"],
+            "errors": _sync_progress["errors"]
         }
         
+        # Mark sync as complete (but preserve the counts in _sync_progress)
+        _sync_progress["in_progress"] = False
+        
+        return final_result
+        
     except HTTPException:
+        _sync_progress["in_progress"] = False
         raise
     except Exception as e:
         logger.error(f"WooCommerce sync failed: {e}")
+        _sync_progress["errors"] += 1
+        _sync_progress["in_progress"] = False
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Sync failed: {str(e)}"
@@ -587,3 +638,21 @@ async def get_product_stats() -> Dict[str, int]:
             "simple": 0,
             "variations": 0
         }
+
+
+async def get_sync_progress() -> Dict:
+    """
+    Get current sync progress
+    
+    Returns:
+        Dict with progress information including percentage
+    """
+    progress = _sync_progress.copy()
+    
+    # Calculate percentage
+    if progress["total"] > 0:
+        progress["percentage"] = int((progress["current"] / progress["total"]) * 100)
+    else:
+        progress["percentage"] = 0
+    
+    return progress

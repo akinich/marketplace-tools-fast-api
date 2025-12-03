@@ -9,7 +9,7 @@ API endpoints for Woo Item Master module
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from typing import List, Optional
 
 from app.auth.dependencies import get_current_user
@@ -72,15 +72,17 @@ async def list_products(
 # WOOCOMMERCE SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/products/sync", response_model=WooCommerceSyncResponse)
+@router.post("/products/sync")
 async def sync_products(
     sync_request: WooCommerceSyncRequest,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
-    Sync products from WooCommerce API
+    Start WooCommerce product sync in background
 
     Requires: Admin role
+    Returns immediately, use /sync-progress to track progress
     """
     # Check if user is admin
     if current_user.role != "Admin":
@@ -89,22 +91,39 @@ async def sync_products(
             detail="Only admins can sync products"
         )
 
-    result = await product_service.sync_from_woocommerce(
+    # Check if sync is already in progress
+    current_progress = await product_service.get_sync_progress()
+    if current_progress["in_progress"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sync already in progress. Please wait for it to complete."
+        )
+
+    # Start sync in background
+    background_tasks.add_task(
+        product_service.sync_from_woocommerce,
         sync_request=sync_request,
         synced_by=current_user.id
     )
 
-    message = f"Sync completed: {result['added']} added"
-    if result['updated'] > 0:
-        message += f", {result['updated']} updated"
-    message += f", {result['skipped']} skipped"
-    if result['errors'] > 0:
-        message += f", {result['errors']} errors"
-
     return {
-        **result,
-        "message": message
+        "message": "Sync started in background. Use /sync-progress to track progress.",
+        "in_progress": True
     }
+
+
+@router.get("/products/sync-progress")
+async def get_sync_progress(
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Get current sync progress
+
+    Requires: Any authenticated user
+    Returns progress percentage, ETA, and counts
+    """
+    progress = await product_service.get_sync_progress()
+    return progress
 
 
 # ============================================================================
