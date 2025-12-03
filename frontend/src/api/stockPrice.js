@@ -1,56 +1,45 @@
-import axios from 'axios';
+/**
+ * ================================================================================
+ * Stock & Price Updater API Client
+ * ================================================================================
+ * Version: 1.0.1
+ * Created: 2025-12-01
+ * Updated: 2025-12-03
+ *
+ * API client for Stock & Price Updater module
+ * ================================================================================
+ */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-// Get auth token from localStorage
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import apiClient from './client';
 
 const stockPriceAPI = {
     // Get categorized products
     getProducts: async () => {
-        const response = await axios.get(`${API_URL}/api/v1/stock-price/products`, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.get('/stock-price/products');
         return response.data;
     },
 
     // Preview changes
     previewChanges: async (changes) => {
-        const response = await axios.post(
-            `${API_URL}/api/v1/stock-price/preview`,
-            { changes },
-            { headers: getAuthHeaders() }
-        );
+        const response = await apiClient.post('/stock-price/preview', { changes });
         return response.data;
     },
 
     // Apply updates
     applyUpdates: async (changes) => {
-        const response = await axios.post(
-            `${API_URL}/api/v1/stock-price/update`,
-            { changes },
-            { headers: getAuthHeaders() }
-        );
+        const response = await apiClient.post('/stock-price/update', { changes });
         return response.data;
     },
 
     // Sync from WooCommerce
     syncFromWooCommerce: async () => {
-        const response = await axios.post(
-            `${API_URL}/api/v1/stock-price/sync`,
-            {},
-            { headers: getAuthHeaders() }
-        );
+        const response = await apiClient.post('/stock-price/sync', {});
         return response.data;
     },
 
     // Download Excel template
     downloadExcelTemplate: async () => {
-        const response = await axios.get(`${API_URL}/api/v1/stock-price/excel-template`, {
-            headers: getAuthHeaders(),
+        const response = await apiClient.get('/stock-price/excel-template', {
             responseType: 'blob',
         });
         return response.data;
@@ -61,42 +50,29 @@ const stockPriceAPI = {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await axios.post(
-            `${API_URL}/api/v1/stock-price/excel-upload`,
-            formData,
-            {
-                headers: {
-                    ...getAuthHeaders(),
-                    'Content-Type': 'multipart/form-data',
-                },
-            }
-        );
+        const response = await apiClient.post('/stock-price/excel-upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
         return response.data;
     },
 
     // Update product setting (lock/unlock)
     updateProductSetting: async (productId, variationId, isUpdatable, notes = null) => {
-        const response = await axios.put(
-            `${API_URL}/api/v1/stock-price/settings`,
-            {
-                product_id: productId,
-                variation_id: variationId,
-                is_updatable: isUpdatable,
-                notes,
-            },
-            { headers: getAuthHeaders() }
-        );
+        const response = await apiClient.put('/stock-price/settings', {
+            product_id: productId,
+            variation_id: variationId,
+            is_updatable: isUpdatable,
+            notes,
+        });
         return response.data;
     },
 
     // Restore deleted product
     restoreProduct: async (productId, variationId = null) => {
         const params = variationId ? `?variation_id=${variationId}` : '';
-        const response = await axios.post(
-            `${API_URL}/api/v1/stock-price/restore/${productId}${params}`,
-            {},
-            { headers: getAuthHeaders() }
-        );
+        const response = await apiClient.post(`/stock-price/restore/${productId}${params}`, {});
         return response.data;
     },
 
@@ -105,18 +81,13 @@ const stockPriceAPI = {
         const params = new URLSearchParams({ limit, offset });
         if (productId) params.append('product_id', productId);
 
-        const response = await axios.get(
-            `${API_URL}/api/v1/stock-price/history?${params.toString()}`,
-            { headers: getAuthHeaders() }
-        );
+        const response = await apiClient.get(`/stock-price/history?${params.toString()}`);
         return response.data;
     },
 
     // Get statistics
     getStatistics: async () => {
-        const response = await axios.get(`${API_URL}/api/v1/stock-price/statistics`, {
-            headers: getAuthHeaders(),
-        });
+        const response = await apiClient.get('/stock-price/statistics');
         return response.data;
     },
 };
