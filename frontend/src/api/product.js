@@ -56,6 +56,14 @@ export const productAPI = {
   },
 
   /**
+   * Get sync progress
+   */
+  getSyncProgress: async () => {
+    const response = await apiClient.get('/products/sync-progress');
+    return response.data;
+  },
+
+  /**
    * Get product statistics
    */
   getStats: async () => {
