@@ -72,6 +72,13 @@ function StockPriceUpdater() {
         checkUserRole();
     }, []);
 
+    // Load statistics when tab changes to Statistics
+    useEffect(() => {
+        if (currentTab === 2 && isAdmin) {
+            loadStatistics();
+        }
+    }, [currentTab, isAdmin]);
+
     const checkUserRole = () => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         setIsAdmin(user.role?.toLowerCase() === 'admin');
@@ -85,7 +92,8 @@ function StockPriceUpdater() {
             setNonUpdatableProducts(data.non_updatable || []);
             setDeletedProducts(data.deleted || []);
         } catch (error) {
-            enqueueSnackbar('Failed to load products', { variant: 'error' });
+            console.error('Load products error:', error);
+            enqueueSnackbar(error.response?.data?.detail || 'Failed to load products', { variant: 'error' });
         } finally {
             setLoading(false);
         }
@@ -96,7 +104,8 @@ function StockPriceUpdater() {
             const stats = await stockPriceAPI.getStatistics();
             setStatistics(stats);
         } catch (error) {
-            enqueueSnackbar('Failed to load statistics', { variant: 'error' });
+            console.error('Load statistics error:', error);
+            enqueueSnackbar(error.response?.data?.detail || 'Failed to load statistics', { variant: 'error' });
         }
     };
 
@@ -538,12 +547,6 @@ function StockPriceUpdater() {
         if (!isAdmin) {
             return <Alert severity="warning">Admin access required</Alert>;
         }
-
-        useEffect(() => {
-            if (currentTab === 2) {
-                loadStatistics();
-            }
-        }, [currentTab]);
 
         return (
             <Box>
