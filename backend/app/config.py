@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     # ========================================================================
     # CORS SETTINGS
     # ========================================================================
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    ALLOWED_ORIGINS: str = "*"
 
     @validator("ALLOWED_ORIGINS")
     def parse_cors_origins(cls, v):
