@@ -384,6 +384,7 @@ export default function DashboardLayout() {
       order_extractor: '/b2c-ops/order-extractor',
       label_generator: '/b2c-ops/label-generator',
       mrp_label_generator: '/b2c-ops/mrp-label-generator',
+      woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
     };
 
     // Database Management sub-modules
