@@ -238,3 +238,129 @@ class WooCommerceService:
         except Exception as e:
             logger.error(f"WooCommerce fetch error: {str(e)}", exc_info=True)
             raise Exception("Unable to fetch orders from WooCommerce. Please try again or contact support.")
+    
+    @staticmethod
+    async def fetch_customers(
+        per_page: int = 100,
+        max_customers: int = 10000
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch customers from WooCommerce with concurrent pagination
+        
+        Args:
+            per_page: Customers per page (max 100)
+            max_customers: Maximum total customers to fetch
+            
+        Returns:
+            List of customer dictionaries
+            
+        Raises:
+            ValueError: If API credentials not configured
+            Exception: If API request fails
+        """
+        # Get API credentials
+        api_url, consumer_key, consumer_secret = await WooCommerceService.get_api_credentials()
+        
+        all_customers = []
+        
+        try:
+            # Create HTTP client with auth and retry logic
+            transport = httpx.HTTPTransport(retries=3)
+            client = httpx.Client(
+                auth=(consumer_key, consumer_secret),
+                transport=transport,
+                timeout=30.0
+            )
+            
+            # Build query parameters
+            params = {
+                'per_page': min(per_page, 100),  # WooCommerce max is 100
+                'page': 1,
+                'order': 'asc',
+                'orderby': 'id'
+            }
+            
+            # Fetch first page to get total pages
+            try:
+                response = client.get(
+                    f"{api_url}/customers",
+                    params=params,
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    first_page_customers = response.json()
+                    all_customers.extend(first_page_customers)
+                    
+                    total_pages = int(response.headers.get('X-WP-TotalPages', 1))
+                    total_items = int(response.headers.get('X-WP-Total', 0))
+                    
+                    logger.info(f"WooCommerce customers: {total_items} total, {total_pages} pages")
+                    
+                    # Calculate how many pages we need based on max_customers
+                    max_pages = min(total_pages, (max_customers + per_page - 1) // per_page)
+                    
+                    # If multiple pages, fetch concurrently
+                    if max_pages > 1:
+                        import asyncio
+                        from concurrent.futures import ThreadPoolExecutor
+                        
+                        def fetch_customer_page(page_num):
+                            params_copy = params.copy()
+                            params_copy['page'] = page_num
+                            try:
+                                resp = client.get(
+                                    f"{api_url}/customers",
+                                    params=params_copy,
+                                    timeout=30.0
+                                )
+                                if resp.status_code == 200:
+                                    return resp.json()
+                                else:
+                                    logger.warning(f"API error on page {page_num}: Status {resp.status_code}")
+                                    return []
+                            except Exception as e:
+                                logger.error(f"Error fetching customer page {page_num}: {str(e)}")
+                                return []
+                        
+                        # Fetch remaining pages concurrently
+                        with ThreadPoolExecutor(max_workers=5) as executor:
+                            loop = asyncio.get_event_loop()
+                            tasks = [
+                                loop.run_in_executor(
+                                    executor,
+                                    fetch_customer_page,
+                                    page
+                                )
+                                for page in range(2, max_pages + 1)
+                            ]
+                            
+                            # Wait for all pages to complete
+                            results = await asyncio.gather(*tasks)
+                            
+                            # Collect customers from all pages
+                            for customers in results:
+                                all_customers.extend(customers)
+                                # Stop if we've reached max_customers
+                                if len(all_customers) >= max_customers:
+                                    break
+                    
+                else:
+                    logger.error(f"WooCommerce API error: Status {response.status_code}")
+                    raise Exception(f"WooCommerce API returned status {response.status_code}")
+                    
+            except httpx.HTTPError as e:
+                logger.error(f"HTTP error fetching customers: {str(e)}")
+                raise Exception("Unable to connect to WooCommerce API")
+            
+            client.close()
+            
+            # Limit to max_customers
+            all_customers = all_customers[:max_customers]
+            
+            logger.info(f"Successfully fetched {len(all_customers)} customers from WooCommerce")
+            return all_customers
+            
+        except Exception as e:
+            logger.error(f"WooCommerce customer fetch error: {str(e)}", exc_info=True)
+            raise Exception("Unable to fetch customers from WooCommerce. Please try again or contact support.")
