@@ -135,21 +135,15 @@ INSERT INTO modules (
 -- ============================================================================
 
 -- Grant access to admin role for stock_price_updater module
-INSERT INTO user_module_permissions (user_id, module_id, can_access, can_edit, can_delete)
+INSERT INTO user_module_permissions (user_id, module_id)
 SELECT 
     up.id,
-    m.id,
-    true,
-    true,
-    true
+    m.id
 FROM user_profiles up
 CROSS JOIN modules m
 WHERE up.role_id = (SELECT id FROM roles WHERE role_name = 'Admin')
   AND m.module_key = 'stock_price_updater'
-ON CONFLICT (user_id, module_id) DO UPDATE SET
-    can_access = true,
-    can_edit = true,
-    can_delete = true;
+ON CONFLICT (user_id, module_id) DO NOTHING;
 
 -- ============================================================================
 -- NOTES
