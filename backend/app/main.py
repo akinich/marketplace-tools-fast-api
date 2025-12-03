@@ -285,7 +285,27 @@ async def ping():
 # ============================================================================
 
 # Import routers
-from app.routes import auth, admin, dashboard, tickets, development, docs, telegram, security, webhooks, email, api_keys, websocket, b2c_ops, product, zoho_item, zoho_vendor, zoho_customer, woo_customer
+from app.routes import (
+    auth,
+    admin,
+    dashboard,
+    tickets,
+    development,
+    docs,
+    telegram,
+    security,
+    webhooks,
+    email,
+    api_keys,
+    websocket,
+    b2c_ops,
+    product,
+    zoho_item,
+    zoho_vendor,
+    zoho_customer,
+    woo_customer,
+    woo_to_zoho # New import
+)
 from app.routes import settings as settings_router
 
 # Mount routers
@@ -310,6 +330,7 @@ app.include_router(zoho_item.router, prefix=f"{settings.API_PREFIX}", tags=["Zoh
 app.include_router(zoho_vendor.router, prefix=f"{settings.API_PREFIX}", tags=["Zoho Vendor Master"])
 app.include_router(zoho_customer.router, prefix=f"{settings.API_PREFIX}", tags=["Zoho Customer Master"])
 app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}", tags=["WooCommerce Customer Master"])
+app.include_router(woo_to_zoho.router, prefix=f"{settings.API_PREFIX}", tags=["Woo to Zoho Export"])
 
 
 # ============================================================================
