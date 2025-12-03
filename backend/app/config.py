@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     # ========================================================================
     # CORS SETTINGS
     # ========================================================================
-    ALLOWED_ORIGINS: str = "*"
+    ALLOWED_ORIGINS: str = "https://marketplace-erp-frontend.onrender.com,http://localhost:5173,https://marketplaceerp.sustenance.co.in"
 
     @validator("ALLOWED_ORIGINS")
     def parse_cors_origins(cls, v):
