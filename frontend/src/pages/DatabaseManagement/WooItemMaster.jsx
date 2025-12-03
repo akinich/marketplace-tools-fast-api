@@ -110,6 +110,11 @@ function ItemMaster() {
 
     // Handle sync
     const handleSync = async () => {
+        if (syncing) {
+            enqueueSnackbar('Sync already in progress. Please wait...', { variant: 'warning' });
+            return;
+        }
+
         setSyncing(true);
         try {
             const response = await productAPI.syncFromWooCommerce(syncLimit, updateExisting);
