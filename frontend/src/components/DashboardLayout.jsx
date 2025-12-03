@@ -388,11 +388,11 @@ export default function DashboardLayout() {
 
     // Database Management sub-modules
     const databaseManagementRoutes = {
+      woo_customer_master: '/database-management/woo-customer-master',
       woo_item_master: '/database-management/woo-item-master',
+      zoho_customer_master: '/database-management/zoho-customer-master',
       zoho_item_master: '/database-management/zoho-item-master',
       zoho_vendor_master: '/database-management/zoho-vendor-master',
-      zoho_customer_master: '/database-management/zoho-customer-master',
-      woo_customer_master: '/database-management/woo-customer-master',
     };
 
     // Communication sub-modules
