@@ -12,6 +12,7 @@ import {
     FormControl,
     InputLabel,
     CircularProgress,
+    LinearProgress,
     Alert,
     Grid,
     Card,
@@ -36,6 +37,7 @@ function WooCustomerMaster() {
     const [stats, setStats] = useState(null);
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState(null);
+    const [syncProgress, setSyncProgress] = useState(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [error, setError] = useState(null);
     const [lastSyncRunTime, setLastSyncRunTime] = useState(() => {
@@ -134,6 +136,7 @@ function WooCustomerMaster() {
     const handleSync = async () => {
         setSyncing(true);
         setSyncResult(null);
+        setSyncProgress(null);
         enqueueSnackbar('Sync started in background...', { variant: 'info' });
 
         try {
@@ -147,6 +150,11 @@ function WooCustomerMaster() {
                 try {
                     const progress = await wooCustomerAPI.getSyncProgress();
                     pollAttempts = 0; // Reset on successful fetch
+
+                    // Update progress state for display
+                    if (progress.in_progress) {
+                        setSyncProgress(progress);
+                    }
 
                     if (!progress.in_progress) {
                         clearInterval(checkInterval);
@@ -175,6 +183,7 @@ function WooCustomerMaster() {
                         }
 
                         setSyncing(false);
+                        setSyncProgress(null);
                         setRefreshTrigger((prev) => prev + 1);
                     }
                 } catch (err) {
@@ -406,9 +415,52 @@ function WooCustomerMaster() {
                         {syncing && (
                             <Box sx={{ mt: 3 }}>
                                 <Alert severity="info">
-                                    <Typography variant="body2">
-                                        🔄 Syncing in progress... Please wait.
+                                    <Typography variant="body2" gutterBottom>
+                                        🔄 Syncing in progress...
                                     </Typography>
+
+                                    {syncProgress && (
+                                        <>
+                                            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                                                {syncProgress.current} / {syncProgress.total} customers ({syncProgress.percentage}%)
+                                            </Typography>
+
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={syncProgress.percentage}
+                                                sx={{ height: 10, borderRadius: 5, mb: 2 }}
+                                            />
+
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ✅ Added: {syncProgress.added}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        🔄 Updated: {syncProgress.updated}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ⏭️ Skipped: {syncProgress.skipped}
+                                                    </Typography>
+                                                </Grid>
+                                                <Grid item xs={3}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        ❌ Errors: {syncProgress.errors}
+                                                    </Typography>
+                                                </Grid>
+                                            </Grid>
+                                        </>
+                                    )}
+
+                                    {!syncProgress && (
+                                        <Typography variant="body2" sx={{ mt: 1 }}>
+                                            Initializing sync...
+                                        </Typography>
+                                    )}
                                 </Alert>
                             </Box>
                         )}
