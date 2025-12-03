@@ -104,7 +104,89 @@ function WooCustomerMaster() {
         console.log('WooCustomerMaster component mounted');
         fetchCustomers();
         fetchStats();
+
+        // Check if sync is already in progress
+        checkForOngoingSync();
     }, [refreshTrigger, searchTerm, filterPayingOnly]);
+
+    // Check for ongoing sync on mount
+    const checkForOngoingSync = async () => {
+        try {
+            const progress = await wooCustomerAPI.getSyncProgress();
+            if (progress.in_progress) {
+                console.log('Detected ongoing sync, starting progress monitoring');
+                setSyncing(true);
+                setSyncProgress(progress);
+                startProgressPolling();
+            }
+        } catch (error) {
+            console.error('Error checking sync progress:', error);
+        }
+    };
+
+    // Start polling for sync progress
+    const startProgressPolling = () => {
+        let pollAttempts = 0;
+        const maxPollAttempts = 150; // Max 5 minutes
+
+        const checkInterval = setInterval(async () => {
+            try {
+                const progress = await wooCustomerAPI.getSyncProgress();
+                pollAttempts = 0; // Reset on successful fetch
+
+                // Update progress state for display
+                if (progress.in_progress) {
+                    setSyncProgress(progress);
+                }
+
+                if (!progress.in_progress) {
+                    clearInterval(checkInterval);
+
+                    console.log('Sync completed, progress data:', progress);
+
+                    // Store sync completion time
+                    const syncCompletionTime = new Date().toISOString();
+                    setLastSyncRunTime(syncCompletionTime);
+                    localStorage.setItem('woo_customer_last_sync_run', syncCompletionTime);
+
+                    setSyncResult({
+                        total: progress.total || 0,
+                        added: progress.added || 0,
+                        updated: progress.updated || 0,
+                        skipped: progress.skipped || 0,
+                        errors: progress.errors || 0,
+                        status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
+                    });
+
+                    // Show appropriate notification based on result
+                    if (progress.errors > 0 && progress.added === 0 && progress.updated === 0) {
+                        enqueueSnackbar('Sync failed with errors!', { variant: 'error' });
+                    } else if (progress.errors > 0) {
+                        enqueueSnackbar('Sync completed with some errors', { variant: 'warning' });
+                    } else {
+                        enqueueSnackbar('Sync completed successfully!', { variant: 'success' });
+                    }
+
+                    setSyncing(false);
+                    setSyncProgress(null);
+                    setRefreshTrigger((prev) => prev + 1);
+                }
+            } catch (err) {
+                pollAttempts++;
+                console.error(`Failed to fetch sync progress (attempt ${pollAttempts}):`, err);
+
+                // Only stop polling after multiple failures or max attempts reached
+                if (pollAttempts >= 5 || pollAttempts >= maxPollAttempts) {
+                    clearInterval(checkInterval);
+                    setSyncing(false);
+                    enqueueSnackbar(
+                        'Lost connection to sync progress. Sync may still be running in background. Please refresh the page to see results.',
+                        { variant: 'warning', autoHideDuration: 8000 }
+                    );
+                }
+            }
+        }, 2000);
+    };
 
     // Handle customer update
     const handleCustomerUpdate = async (updatedRow, originalRow) => {
@@ -142,68 +224,8 @@ function WooCustomerMaster() {
         try {
             await wooCustomerAPI.syncFromWooCommerce();
 
-            // Poll to check when sync completes
-            let pollAttempts = 0;
-            const maxPollAttempts = 150; // Max 5 minutes (150 * 2 seconds)
-
-            const checkInterval = setInterval(async () => {
-                try {
-                    const progress = await wooCustomerAPI.getSyncProgress();
-                    pollAttempts = 0; // Reset on successful fetch
-
-                    // Update progress state for display
-                    if (progress.in_progress) {
-                        setSyncProgress(progress);
-                    }
-
-                    if (!progress.in_progress) {
-                        clearInterval(checkInterval);
-
-                        console.log('Sync completed, progress data:', progress);
-
-                        // Store sync completion time
-                        const syncCompletionTime = new Date().toISOString();
-                        setLastSyncRunTime(syncCompletionTime);
-                        localStorage.setItem('woo_customer_last_sync_run', syncCompletionTime);
-
-                        setSyncResult({
-                            total: progress.total || 0,
-                            added: progress.added || 0,
-                            updated: progress.updated || 0,
-                            skipped: progress.skipped || 0,
-                            errors: progress.errors || 0,
-                            status: progress.errors > 0 && progress.added === 0 && progress.updated === 0 ? 'failed' : 'completed'
-                        });
-
-                        // Show appropriate notification based on result
-                        if (progress.errors > 0 && progress.added === 0 && progress.updated === 0) {
-                            enqueueSnackbar('Sync failed with errors!', { variant: 'error' });
-                        } else if (progress.errors > 0) {
-                            enqueueSnackbar('Sync completed with some errors', { variant: 'warning' });
-                        } else {
-                            enqueueSnackbar('Sync completed successfully!', { variant: 'success' });
-                        }
-
-                        setSyncing(false);
-                        setSyncProgress(null);
-                        setRefreshTrigger((prev) => prev + 1);
-                    }
-                } catch (err) {
-                    pollAttempts++;
-                    console.error(`Failed to fetch sync progress (attempt ${pollAttempts}):`, err);
-
-                    // Only stop polling after multiple failures or max attempts reached
-                    if (pollAttempts >= 5 || pollAttempts >= maxPollAttempts) {
-                        clearInterval(checkInterval);
-                        setSyncing(false);
-                        enqueueSnackbar(
-                            'Lost connection to sync progress. Sync may still be running in background. Please refresh the page to see results.',
-                            { variant: 'warning', autoHideDuration: 8000 }
-                        );
-                    }
-                    // Otherwise, keep polling (transient network error)
-                }
-            }, 2000);
+            // Start polling for progress
+            startProgressPolling();
         } catch (error) {
             setSyncResult({
                 status: 'failed',
