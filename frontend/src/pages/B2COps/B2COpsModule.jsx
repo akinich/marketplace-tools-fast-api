@@ -16,6 +16,7 @@ import LabelGenerator from './LabelGenerator';
 import MrpLabelGenerator from './MrpLabelGenerator';
 import WooToZohoExport from './WooToZohoExport';
 import StockPriceUpdater from './StockPriceUpdater';
+import OrderPlaceTest from './OrderPlaceTest';
 
 export default function B2COpsModule() {
     return (
@@ -26,6 +27,7 @@ export default function B2COpsModule() {
             <Route path="mrp-label-generator" element={<MrpLabelGenerator />} />
             <Route path="woo-to-zoho-export" element={<WooToZohoExport />} />
             <Route path="stock-price-updater" element={<StockPriceUpdater />} />
+            <Route path="order-place-test" element={<OrderPlaceTest />} />
         </Routes>
     );
 }

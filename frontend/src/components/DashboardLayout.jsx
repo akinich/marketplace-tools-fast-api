@@ -391,6 +391,7 @@ export default function DashboardLayout() {
     const b2cManagementRoutes = {
       woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
       stock_price_updater: '/b2c-ops/stock-price-updater',
+      order_place_test: '/b2c-ops/order-place-test',
     };
 
     // Database Management sub-modules
