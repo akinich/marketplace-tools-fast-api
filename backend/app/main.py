@@ -305,7 +305,8 @@ from app.routes import (
     zoho_customer,
     woo_customer,
     woo_to_zoho,
-    stock_price
+    stock_price,
+    woo_checkout
 )
 from app.routes import settings as settings_router
 
@@ -333,6 +334,7 @@ app.include_router(zoho_customer.router, prefix=f"{settings.API_PREFIX}", tags=[
 app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}", tags=["WooCommerce Customer Master"])
 app.include_router(woo_to_zoho.router, prefix=f"{settings.API_PREFIX}", tags=["Woo to Zoho Export"])
 app.include_router(stock_price.router, prefix=f"{settings.API_PREFIX}", tags=["Stock & Price Updater"])
+app.include_router(woo_checkout.router, prefix=f"{settings.API_PREFIX}", tags=["WooCommerce Checkout"])
 
 
 # ============================================================================
