@@ -31,6 +31,7 @@ import { productAPI } from './product';
 import { docsAPI } from './docs';
 import { settingsAPI } from './settings';
 import stockPriceAPI from './stockPrice';
+import { batchTrackingAPI } from './batchTracking';
 
 // ============================================================================
 // DASHBOARD API
@@ -454,7 +455,7 @@ export const b2cOpsAPI = {
 };
 
 // Export all APIs
-export { authAPI, docsAPI, settingsAPI, productAPI, stockPriceAPI, apiClient };
+export { authAPI, docsAPI, settingsAPI, productAPI, stockPriceAPI, batchTrackingAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
@@ -467,4 +468,5 @@ export default {
   b2cOps: b2cOpsAPI,
   product: productAPI,
   stockPrice: stockPriceAPI,
+  batchTracking: batchTrackingAPI,
 };
