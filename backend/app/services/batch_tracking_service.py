@@ -391,18 +391,12 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
         # Date range
         if filters.date_from:
             conditions.append(f"b.created_at >= ${param_count}")
-            # Convert string to date object for asyncpg
-            from datetime import datetime
-            date_obj = datetime.strptime(filters.date_from, "%Y-%m-%d").date()
-            params.append(date_obj)
+            params.append(filters.date_from)
             param_count += 1
 
         if filters.date_to:
             conditions.append(f"b.created_at <= ${param_count}")
-            # Convert string to date object for asyncpg
-            from datetime import datetime
-            date_obj = datetime.strptime(filters.date_to, "%Y-%m-%d").date()
-            params.append(date_obj)
+            params.append(filters.date_to)
             param_count += 1
 
         # Archived filter
@@ -870,13 +864,9 @@ async def get_batch_configuration() -> Dict[str, Any]:
             FROM batch_sequence
             WHERE id = 1
         """
-        logger.info("🔍 Fetching batch configuration from database...")
         config = await fetch_one(query)
 
-        logger.info(f"📊 Query result: {config}")
-
         if not config:
-            logger.error("❌ Batch configuration not found in database - batch_sequence table may be empty")
             raise Exception("Batch configuration not found")
 
         return {
