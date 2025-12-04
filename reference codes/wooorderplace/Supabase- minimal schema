@@ -1,0 +1,18 @@
+-- users table (if you don’t already have one)
+create table if not exists public.users (
+  id uuid primary key,
+  email text not null unique,
+  wc_customer_id integer,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Example orders table (optional, for mirroring WC order IDs)
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  supabase_user_id uuid references public.users (id),
+  wc_order_id integer not null,
+  status text,
+  total numeric(10,2),
+  raw_payload jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
