@@ -181,9 +181,15 @@ class WooCheckoutService:
             if item.get("variation_id"):
                 line_item["variation_id"] = item["variation_id"]
 
-            # Add custom price if provided
+            # Add custom price if provided (WooCommerce uses subtotal and total)
             if item.get("price") is not None:
-                line_item["price"] = str(item["price"])
+                custom_price = float(item["price"])
+                quantity = int(item["quantity"])
+                line_total = custom_price * quantity
+
+                # Set subtotal and total to the custom price
+                line_item["subtotal"] = str(line_total)
+                line_item["total"] = str(line_total)
 
             wc_line_items.append(line_item)
 
@@ -250,6 +256,14 @@ class WooCheckoutService:
             },
             {
                 "key": "_wc_order_attribution_source_type",
+                "value": "mkterp"
+            },
+            {
+                "key": "_wc_order_attribution_origin",
+                "value": "mkterp"
+            },
+            {
+                "key": "_wc_order_attribution_source",
                 "value": "mkterp"
             },
             {
