@@ -23,13 +23,15 @@ class LineItemSchema(BaseModel):
     product_id: conint(gt=0) = Field(..., description="WooCommerce product ID")
     quantity: conint(gt=0) = Field(..., description="Quantity to order")
     variation_id: Optional[int] = Field(None, description="Product variation ID (if applicable)")
+    price: Optional[float] = Field(None, description="Custom price per unit (optional)")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "product_id": 123,
                 "quantity": 2,
-                "variation_id": 456
+                "variation_id": 456,
+                "price": 99.99
             }
         }
 
@@ -38,15 +40,19 @@ class CheckoutRequestSchema(BaseModel):
     """Request schema for placing WooCommerce order"""
     line_items: List[LineItemSchema] = Field(..., min_length=1, description="List of items to order")
     wc_customer_id: Optional[int] = Field(None, description="WooCommerce customer ID (optional override)")
+    shipping_total: Optional[float] = Field(0, description="Shipping charges")
+    customer_note: Optional[str] = Field(None, description="Customer notes for the order")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "line_items": [
-                    {"product_id": 123, "quantity": 2},
-                    {"product_id": 456, "quantity": 1, "variation_id": 789}
+                    {"product_id": 123, "quantity": 2, "price": 99.99},
+                    {"product_id": 456, "quantity": 1, "variation_id": 789, "price": 149.99}
                 ],
-                "wc_customer_id": 42
+                "wc_customer_id": 42,
+                "shipping_total": 50.00,
+                "customer_note": "Please deliver after 5 PM"
             }
         }
 

@@ -1,16 +1,17 @@
 /**
  * Order Place Test Module
- * Version: 1.0.0
- * Created: 2025-12-04
- * 
+ * Version: 2.0.0
+ * Updated: 2025-12-04
+ *
  * Description:
  *   WooCommerce order placement testing interface
- *   - Add products with IDs and quantities
- *   - Place test orders
- *   - View order confirmation
+ *   - Add products with prices and stock
+ *   - Editable prices per line item
+ *   - Shipping charges and customer notes
+ *   - Place test orders with full details
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Paper,
@@ -30,13 +31,16 @@ import {
     Card,
     CardContent,
     Grid,
-    Autocomplete
+    Autocomplete,
+    InputAdornment,
+    Divider
 } from '@mui/material';
 import {
     Add as AddIcon,
     Delete as DeleteIcon,
     ShoppingCart as CartIcon,
-    CheckCircle as SuccessIcon
+    CheckCircle as SuccessIcon,
+    LocalShipping as ShippingIcon
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
@@ -46,7 +50,12 @@ export default function OrderPlaceTest() {
     const { enqueueSnackbar } = useSnackbar();
 
     // State
-    const [lineItems, setLineItems] = useState([{ product: null, quantity: 1, variation_id: '' }]);
+    const [lineItems, setLineItems] = useState([{
+        product: null,
+        quantity: 1,
+        price: 0,
+        stockAvailable: 0
+    }]);
     const [loading, setLoading] = useState(false);
     const [order, setOrder] = useState(null);
     const [error, setError] = useState(null);
@@ -54,8 +63,33 @@ export default function OrderPlaceTest() {
     const [checkingStatus, setCheckingStatus] = useState(true);
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
-    const [loadingCustomers, setLoadingCustomers] = useState(false);
     const [products, setProducts] = useState([]);
+    const [shippingCharges, setShippingCharges] = useState(0);
+    const [customerNotes, setCustomerNotes] = useState('');
+
+    // Filter products: exclude parent products that have variations, keep simple products
+    const filteredProducts = useMemo(() => {
+        if (!products || products.length === 0) return [];
+
+        // Get all parent product IDs that have variations
+        const parentProductsWithVariations = new Set(
+            products
+                .filter(p => p.variation_id !== null && p.parent_product)
+                .map(p => p.parent_product)
+        );
+
+        // Filter: keep variations and simple products (products without variations)
+        return products.filter(product => {
+            // If it's a variation, keep it
+            if (product.variation_id !== null) return true;
+
+            // If it's a simple product (product_name not in parentProductsWithVariations), keep it
+            if (!parentProductsWithVariations.has(product.product_name)) return true;
+
+            // Otherwise it's a parent product with variations, exclude it
+            return false;
+        });
+    }, [products]);
 
     // Check customer status and load data on mount
     useEffect(() => {
@@ -71,30 +105,76 @@ export default function OrderPlaceTest() {
                 setProducts(productList);
             } catch (err) {
                 console.error('Failed to load data:', err);
+                enqueueSnackbar('Failed to load data', { variant: 'error' });
             } finally {
                 setCheckingStatus(false);
             }
         };
 
         fetchData();
-    }, []);
+    }, [enqueueSnackbar]);
+
+    // Calculate order total
+    const orderTotal = useMemo(() => {
+        const itemsTotal = lineItems.reduce((sum, item) => {
+            if (item.product && item.quantity > 0 && item.price > 0) {
+                return sum + (parseFloat(item.price) * parseInt(item.quantity));
+            }
+            return sum;
+        }, 0);
+        return itemsTotal + parseFloat(shippingCharges || 0);
+    }, [lineItems, shippingCharges]);
 
     // Add new line item
     const handleAddItem = () => {
-        setLineItems([...lineItems, { product: null, quantity: 1, variation_id: '' }]);
+        setLineItems([...lineItems, {
+            product: null,
+            quantity: 1,
+            price: 0,
+            stockAvailable: 0
+        }]);
     };
 
     // Remove line item
     const handleRemoveItem = (index) => {
         const newItems = lineItems.filter((_, i) => i !== index);
-        setLineItems(newItems.length > 0 ? newItems : [{ product: null, quantity: 1, variation_id: '' }]);
+        setLineItems(newItems.length > 0 ? newItems : [{
+            product: null,
+            quantity: 1,
+            price: 0,
+            stockAvailable: 0
+        }]);
     };
 
     // Update line item field
     const handleItemChange = (index, field, value) => {
         const newItems = [...lineItems];
-        newItems[index][field] = value;
+
+        if (field === 'product' && value) {
+            // When product is selected, auto-populate price and stock
+            newItems[index].product = value;
+            newItems[index].price = value.sale_price || value.regular_price || 0;
+            newItems[index].stockAvailable = value.stock_quantity || 0;
+        } else {
+            newItems[index][field] = value;
+        }
+
         setLineItems(newItems);
+    };
+
+    // Format price display for dropdown
+    const formatProductLabel = (option) => {
+        const priceStr = option.sale_price
+            ? `₹${option.sale_price} (Reg: ₹${option.regular_price})`
+            : `₹${option.regular_price || 0}`;
+
+        const stockStr = `Stock: ${option.stock_quantity || 0}`;
+
+        if (option.variation_id) {
+            return `${option.parent_product || 'Product'} - ${option.product_name} | ${priceStr} | ${stockStr}`;
+        } else {
+            return `${option.product_name} | ${priceStr} | ${stockStr}`;
+        }
     };
 
     // Place order
@@ -113,11 +193,23 @@ export default function OrderPlaceTest() {
             return;
         }
 
+        // Check stock availability
+        for (const item of validItems) {
+            if (item.quantity > item.stockAvailable) {
+                enqueueSnackbar(
+                    `Insufficient stock for ${item.product.product_name}. Available: ${item.stockAvailable}`,
+                    { variant: 'error' }
+                );
+                return;
+            }
+        }
+
         // Convert to API format
         const apiItems = validItems.map(item => ({
             product_id: item.product.product_id,
             quantity: parseInt(item.quantity),
-            variation_id: item.product.variation_id || null
+            variation_id: item.product.variation_id || null,
+            price: parseFloat(item.price)
         }));
 
         setLoading(true);
@@ -125,12 +217,19 @@ export default function OrderPlaceTest() {
         setOrder(null);
 
         try {
-            const orderData = await placeWooOrder(apiItems, selectedCustomer?.customer_id || null);
+            const orderData = await placeWooOrder(
+                apiItems,
+                selectedCustomer?.customer_id || null,
+                parseFloat(shippingCharges || 0),
+                customerNotes
+            );
             setOrder(orderData);
             enqueueSnackbar(`Order #${orderData.id} created successfully!`, { variant: 'success' });
 
             // Reset form
-            setLineItems([{ product: null, quantity: 1, variation_id: '' }]);
+            setLineItems([{ product: null, quantity: 1, price: 0, stockAvailable: 0 }]);
+            setShippingCharges(0);
+            setCustomerNotes('');
         } catch (err) {
             const errorMsg = err.response?.data?.detail || err.message || 'Failed to place order';
             setError(errorMsg);
@@ -146,7 +245,7 @@ export default function OrderPlaceTest() {
                 <CartIcon /> Order Place Test
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-                Test WooCommerce order placement functionality
+                Test WooCommerce order placement with pricing, stock, and custom fields
             </Typography>
 
             {/* Customer Status */}
@@ -196,13 +295,15 @@ export default function OrderPlaceTest() {
                 </Typography>
 
                 <TableContainer>
-                    <Table>
+                    <Table size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell width="40%">Product</TableCell>
-                                <TableCell width="20%">Quantity</TableCell>
-                                <TableCell width="30%">Variation (if any)</TableCell>
-                                <TableCell width="10%">Actions</TableCell>
+                                <TableCell width="35%">Product</TableCell>
+                                <TableCell width="10%" align="center">Stock</TableCell>
+                                <TableCell width="10%" align="center">Quantity</TableCell>
+                                <TableCell width="15%" align="right">Price (₹)</TableCell>
+                                <TableCell width="15%" align="right">Subtotal (₹)</TableCell>
+                                <TableCell width="10%" align="center">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -210,12 +311,8 @@ export default function OrderPlaceTest() {
                                 <TableRow key={index}>
                                     <TableCell>
                                         <Autocomplete
-                                            options={products}
-                                            getOptionLabel={(option) =>
-                                                option.variation_id
-                                                    ? `${option.parent_product || 'Product'} - ${option.product_name} (Variation ID: ${option.variation_id})`
-                                                    : `${option.product_name} (ID: ${option.product_id})`
-                                            }
+                                            options={filteredProducts}
+                                            getOptionLabel={formatProductLabel}
                                             value={item.product}
                                             onChange={(event, newValue) => handleItemChange(index, 'product', newValue)}
                                             renderInput={(params) => (
@@ -229,23 +326,43 @@ export default function OrderPlaceTest() {
                                             size="small"
                                         />
                                     </TableCell>
+                                    <TableCell align="center">
+                                        <Chip
+                                            label={item.stockAvailable || 0}
+                                            size="small"
+                                            color={item.stockAvailable > 10 ? "success" : item.stockAvailable > 0 ? "warning" : "error"}
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <TextField
                                             type="number"
                                             value={item.quantity}
                                             onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                                            inputProps={{ min: 1 }}
+                                            inputProps={{ min: 1, max: item.stockAvailable }}
                                             size="small"
                                             fullWidth
                                             disabled={loading}
+                                            error={item.quantity > item.stockAvailable}
+                                            helperText={item.quantity > item.stockAvailable ? 'Exceeds stock' : ''}
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {item.product?.variation_id ? `Variation ID: ${item.product.variation_id}` : 'Simple Product'}
+                                        <TextField
+                                            type="number"
+                                            value={item.price}
+                                            onChange={(e) => handleItemChange(index, 'price', e.target.value)}
+                                            inputProps={{ min: 0, step: 0.01 }}
+                                            size="small"
+                                            fullWidth
+                                            disabled={loading || !item.product}
+                                        />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Typography variant="body2" fontWeight="bold">
+                                            ₹{(parseFloat(item.price || 0) * parseInt(item.quantity || 0)).toFixed(2)}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell align="center">
                                         <IconButton
                                             onClick={() => handleRemoveItem(index)}
                                             color="error"
@@ -261,7 +378,7 @@ export default function OrderPlaceTest() {
                     </Table>
                 </TableContainer>
 
-                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                <Box sx={{ mt: 2 }}>
                     <Button
                         startIcon={<AddIcon />}
                         onClick={handleAddItem}
@@ -270,14 +387,62 @@ export default function OrderPlaceTest() {
                     >
                         Add Product
                     </Button>
+                </Box>
 
+                <Divider sx={{ my: 3 }} />
+
+                {/* Shipping and Notes */}
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            label="Shipping Charges"
+                            type="number"
+                            value={shippingCharges}
+                            onChange={(e) => setShippingCharges(e.target.value)}
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start"><ShippingIcon /></InputAdornment>,
+                                endAdornment: <InputAdornment position="end">₹</InputAdornment>
+                            }}
+                            inputProps={{ min: 0, step: 0.01 }}
+                            fullWidth
+                            disabled={loading}
+                            helperText="Optional shipping charges to add to the order"
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Order Total
+                            </Typography>
+                            <Typography variant="h4" color="primary">
+                                ₹{orderTotal.toFixed(2)}
+                            </Typography>
+                        </Box>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Customer Notes"
+                            multiline
+                            rows={3}
+                            value={customerNotes}
+                            onChange={(e) => setCustomerNotes(e.target.value)}
+                            fullWidth
+                            disabled={loading}
+                            placeholder="Add any special instructions or notes for this order..."
+                            helperText="These notes will be visible in the WooCommerce order"
+                        />
+                    </Grid>
+                </Grid>
+
+                <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                     <Button
                         startIcon={loading ? <CircularProgress size={20} /> : <CartIcon />}
                         onClick={handlePlaceOrder}
                         variant="contained"
+                        size="large"
                         disabled={loading || !selectedCustomer}
                     >
-                        {loading ? 'Placing Order...' : 'Place Order'}
+                        {loading ? 'Placing Order...' : `Place Order (₹${orderTotal.toFixed(2)})`}
                     </Button>
                 </Box>
             </Paper>
