@@ -870,9 +870,13 @@ async def get_batch_configuration() -> Dict[str, Any]:
             FROM batch_sequence
             WHERE id = 1
         """
+        logger.info("🔍 Fetching batch configuration from database...")
         config = await fetch_one(query)
 
+        logger.info(f"📊 Query result: {config}")
+
         if not config:
+            logger.error("❌ Batch configuration not found in database - batch_sequence table may be empty")
             raise Exception("Batch configuration not found")
 
         return {
