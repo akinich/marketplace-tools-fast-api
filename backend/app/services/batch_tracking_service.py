@@ -391,12 +391,18 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
         # Date range
         if filters.date_from:
             conditions.append(f"b.created_at >= ${param_count}")
-            params.append(filters.date_from)
+            # Convert string to date object for asyncpg
+            from datetime import datetime
+            date_obj = datetime.strptime(filters.date_from, "%Y-%m-%d").date()
+            params.append(date_obj)
             param_count += 1
 
         if filters.date_to:
             conditions.append(f"b.created_at <= ${param_count}")
-            params.append(filters.date_to)
+            # Convert string to date object for asyncpg
+            from datetime import datetime
+            date_obj = datetime.strptime(filters.date_to, "%Y-%m-%d").date()
+            params.append(date_obj)
             param_count += 1
 
         # Archived filter
