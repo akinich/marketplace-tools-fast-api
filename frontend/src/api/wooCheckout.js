@@ -42,7 +42,7 @@ export async function checkCustomerStatus() {
  * @returns {Promise<Array>} List of customers
  */
 export async function fetchWooCustomers(search = '') {
-    const params = { limit: 100 };
+    const params = { limit: 10000 };
     if (search) {
         params.search = search;
     }
