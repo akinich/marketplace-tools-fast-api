@@ -13,14 +13,22 @@ import apiClient from './client';
 
 /**
  * Place a WooCommerce order
- * @param {Array} lineItems - Array of {product_id, quantity, variation_id?}
+ * @param {Array} lineItems - Array of {product_id, quantity, variation_id?, price?}
  * @param {Number} wcCustomerId - Optional WooCommerce customer ID
+ * @param {Number} shippingTotal - Optional shipping charges
+ * @param {String} customerNote - Optional customer notes
  * @returns {Promise<Object>} WooCommerce order response
  */
-export async function placeWooOrder(lineItems, wcCustomerId = null) {
+export async function placeWooOrder(lineItems, wcCustomerId = null, shippingTotal = 0, customerNote = '') {
     const payload = { line_items: lineItems };
     if (wcCustomerId) {
         payload.wc_customer_id = wcCustomerId;
+    }
+    if (shippingTotal > 0) {
+        payload.shipping_total = shippingTotal;
+    }
+    if (customerNote) {
+        payload.customer_note = customerNote;
     }
 
     const response = await apiClient.post('/woo-checkout/place-order', payload);
