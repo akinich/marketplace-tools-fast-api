@@ -37,6 +37,7 @@ class LineItemSchema(BaseModel):
 class CheckoutRequestSchema(BaseModel):
     """Request schema for placing WooCommerce order"""
     line_items: List[LineItemSchema] = Field(..., min_length=1, description="List of items to order")
+    wc_customer_id: Optional[int] = Field(None, description="WooCommerce customer ID (optional override)")
 
     class Config:
         json_schema_extra = {
@@ -44,7 +45,8 @@ class CheckoutRequestSchema(BaseModel):
                 "line_items": [
                     {"product_id": 123, "quantity": 2},
                     {"product_id": 456, "quantity": 1, "variation_id": 789}
-                ]
+                ],
+                "wc_customer_id": 42
             }
         }
 

@@ -52,7 +52,8 @@ class WooCheckoutService:
     @staticmethod
     async def create_order(
         user_id: int,
-        line_items: List[Dict[str, Any]]
+        line_items: List[Dict[str, Any]],
+        wc_customer_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Create a WooCommerce order for a user
@@ -60,21 +61,23 @@ class WooCheckoutService:
         Args:
             user_id: Internal user ID
             line_items: List of line items with product_id, quantity, variation_id
+            wc_customer_id: Optional WooCommerce customer ID override
             
         Returns:
             WooCommerce order response dictionary
             
         Raises:
-            ValueError: If user has no WooCommerce customer mapping
+            ValueError: If user has no WooCommerce customer mapping and no override provided
             Exception: If order creation fails
         """
-        # 1. Get WooCommerce customer ID
-        wc_customer_id = await WooCheckoutService.get_wc_customer_id(user_id)
+        # 1. Get WooCommerce customer ID (use override if provided)
+        if wc_customer_id is None:
+            wc_customer_id = await WooCheckoutService.get_wc_customer_id(user_id)
         
         if not wc_customer_id:
             raise ValueError(
-                "No WooCommerce customer mapping found for this user. "
-                "Please contact support to link your account."
+                "No WooCommerce customer ID provided. "
+                "Please select a customer or contact support to link your account."
             )
         
         # 2. Get WooCommerce API credentials

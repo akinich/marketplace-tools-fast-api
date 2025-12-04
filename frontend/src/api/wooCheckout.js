@@ -14,12 +14,16 @@ import apiClient from './client';
 /**
  * Place a WooCommerce order
  * @param {Array} lineItems - Array of {product_id, quantity, variation_id?}
+ * @param {Number} wcCustomerId - Optional WooCommerce customer ID
  * @returns {Promise<Object>} WooCommerce order response
  */
-export async function placeWooOrder(lineItems) {
-    const response = await apiClient.post('/woo-checkout/place-order', {
-        line_items: lineItems
-    });
+export async function placeWooOrder(lineItems, wcCustomerId = null) {
+    const payload = { line_items: lineItems };
+    if (wcCustomerId) {
+        payload.wc_customer_id = wcCustomerId;
+    }
+
+    const response = await apiClient.post('/woo-checkout/place-order', payload);
     return response.data;
 }
 
@@ -30,4 +34,19 @@ export async function placeWooOrder(lineItems) {
 export async function checkCustomerStatus() {
     const response = await apiClient.get('/woo-checkout/customer-status');
     return response.data;
+}
+
+/**
+ * Fetch WooCommerce customers for dropdown
+ * @param {String} search - Optional search query
+ * @returns {Promise<Array>} List of customers
+ */
+export async function fetchWooCustomers(search = '') {
+    const params = { limit: 100 };
+    if (search) {
+        params.search = search;
+    }
+
+    const response = await apiClient.get('/woo-customers', { params });
+    return response.data.customers || [];
 }

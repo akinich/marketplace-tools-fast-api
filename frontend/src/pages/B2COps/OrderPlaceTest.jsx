@@ -29,7 +29,8 @@ import {
     Chip,
     Card,
     CardContent,
-    Grid
+    Grid,
+    Autocomplete
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -39,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
-import { placeWooOrder, checkCustomerStatus } from '../../api/wooCheckout';
+import { placeWooOrder, checkCustomerStatus, fetchWooCustomers } from '../../api/wooCheckout';
 
 export default function OrderPlaceTest() {
     const { enqueueSnackbar } = useSnackbar();
@@ -51,21 +52,28 @@ export default function OrderPlaceTest() {
     const [error, setError] = useState(null);
     const [customerStatus, setCustomerStatus] = useState(null);
     const [checkingStatus, setCheckingStatus] = useState(true);
+    const [customers, setCustomers] = useState([]);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [loadingCustomers, setLoadingCustomers] = useState(false);
 
-    // Check customer status on mount
+    // Check customer status and load customers on mount
     useEffect(() => {
-        const fetchStatus = async () => {
+        const fetchData = async () => {
             try {
-                const status = await checkCustomerStatus();
+                const [status, customerList] = await Promise.all([
+                    checkCustomerStatus(),
+                    fetchWooCustomers()
+                ]);
                 setCustomerStatus(status);
+                setCustomers(customerList);
             } catch (err) {
-                console.error('Failed to check customer status:', err);
+                console.error('Failed to load data:', err);
             } finally {
                 setCheckingStatus(false);
             }
         };
 
-        fetchStatus();
+        fetchData();
     }, []);
 
     // Add new line item
@@ -88,7 +96,13 @@ export default function OrderPlaceTest() {
 
     // Place order
     const handlePlaceOrder = async () => {
-        // Validate
+        // Validate customer selection
+        if (!selectedCustomer) {
+            enqueueSnackbar('Please select a customer first', { variant: 'warning' });
+            return;
+        }
+
+        // Validate line items
         const validItems = lineItems.filter(item => item.product_id && item.quantity > 0);
 
         if (validItems.length === 0) {
@@ -108,7 +122,7 @@ export default function OrderPlaceTest() {
         setOrder(null);
 
         try {
-            const orderData = await placeWooOrder(apiItems);
+            const orderData = await placeWooOrder(apiItems, selectedCustomer?.wc_customer_id || null);
             setOrder(orderData);
             enqueueSnackbar(`Order #${orderData.id} created successfully!`, { variant: 'success' });
 
@@ -150,6 +164,30 @@ export default function OrderPlaceTest() {
 
             {/* Order Form */}
             <Paper sx={{ p: 3, mt: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    Select Customer
+                </Typography>
+
+                <Autocomplete
+                    options={customers}
+                    getOptionLabel={(option) =>
+                        `${option.first_name || ''} ${option.last_name || ''} (ID: ${option.wc_customer_id}) - ${option.email || ''}`.trim()
+                    }
+                    value={selectedCustomer}
+                    onChange={(event, newValue) => setSelectedCustomer(newValue)}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="WooCommerce Customer"
+                            placeholder="Search by name, email, or ID..."
+                            helperText={selectedCustomer ? `Selected: ${selectedCustomer.first_name} ${selectedCustomer.last_name}` : 'Select a customer to place order for'}
+                        />
+                    )}
+                    loading={checkingStatus}
+                    disabled={loading}
+                    sx={{ mb: 3 }}
+                />
+
                 <Typography variant="h6" gutterBottom>
                     Add Products
                 </Typography>
@@ -230,7 +268,7 @@ export default function OrderPlaceTest() {
                         startIcon={loading ? <CircularProgress size={20} /> : <CartIcon />}
                         onClick={handlePlaceOrder}
                         variant="contained"
-                        disabled={loading || !customerStatus?.has_wc_customer_id}
+                        disabled={loading || !selectedCustomer}
                     >
                         {loading ? 'Placing Order...' : 'Place Order'}
                     </Button>

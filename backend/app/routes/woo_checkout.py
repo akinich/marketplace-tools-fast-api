@@ -71,7 +71,8 @@ async def place_order(
         # Create order via service
         order_data = await WooCheckoutService.create_order(
             user_id=current_user.id,
-            line_items=line_items
+            line_items=line_items,
+            wc_customer_id=request.wc_customer_id
         )
         
         # Log activity
