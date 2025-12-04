@@ -125,7 +125,7 @@ export default function OrderPlaceTest() {
         setOrder(null);
 
         try {
-            const orderData = await placeWooOrder(apiItems, selectedCustomer?.wc_customer_id || null);
+            const orderData = await placeWooOrder(apiItems, selectedCustomer?.customer_id || null);
             setOrder(orderData);
             enqueueSnackbar(`Order #${orderData.id} created successfully!`, { variant: 'success' });
 
@@ -174,7 +174,7 @@ export default function OrderPlaceTest() {
                 <Autocomplete
                     options={customers}
                     getOptionLabel={(option) =>
-                        `${option.first_name || ''} ${option.last_name || ''} (ID: ${option.wc_customer_id}) - ${option.email || ''}`.trim()
+                        `${option.first_name || ''} ${option.last_name || ''} (ID: ${option.customer_id}) - ${option.email || ''}`.trim()
                     }
                     value={selectedCustomer}
                     onChange={(event, newValue) => setSelectedCustomer(newValue)}
