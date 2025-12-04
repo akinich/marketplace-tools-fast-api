@@ -27,6 +27,7 @@ import logging
 from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
 import asyncpg
+from fastapi import HTTPException, status
 
 from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
 from app.schemas.batch_tracking import (
@@ -858,16 +859,23 @@ async def get_batch_configuration() -> Dict[str, Any]:
         Current prefix, sequence number, FY info
     """
     try:
-        query = """
+        # Try to get any row first to test connection
+        test_query = """
             SELECT prefix, current_number, financial_year,
                    fy_start_date, fy_end_date, updated_at
-            FROM batch_sequence
-            WHERE id = 1
+            FROM public.batch_sequence
+            ORDER BY id ASC
+            LIMIT 1
         """
-        config = await fetch_one(query)
+        config = await fetch_one(test_query)
 
         if not config:
-            raise Exception("Batch configuration not found")
+            # Log for debugging
+            logger.error("❌ No rows found in batch_sequence table")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Batch config not found"
+            )
 
         return {
             "prefix": config['prefix'],
