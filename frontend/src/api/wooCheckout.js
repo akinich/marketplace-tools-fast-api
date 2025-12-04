@@ -50,3 +50,18 @@ export async function fetchWooCustomers(search = '') {
     const response = await apiClient.get('/woo-customers', { params });
     return response.data.customers || [];
 }
+
+/**
+ * Fetch WooCommerce products for dropdown
+ * @param {String} search - Optional search query
+ * @returns {Promise<Array>} List of products
+ */
+export async function fetchWooProducts(search = '') {
+    const params = { limit: 500, active_only: true };
+    if (search) {
+        params.search = search;
+    }
+
+    const response = await apiClient.get('/products', { params });
+    return response.data.products || [];
+}

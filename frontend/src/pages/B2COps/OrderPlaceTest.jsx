@@ -40,13 +40,13 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 
-import { placeWooOrder, checkCustomerStatus, fetchWooCustomers } from '../../api/wooCheckout';
+import { placeWooOrder, checkCustomerStatus, fetchWooCustomers, fetchWooProducts } from '../../api/wooCheckout';
 
 export default function OrderPlaceTest() {
     const { enqueueSnackbar } = useSnackbar();
 
     // State
-    const [lineItems, setLineItems] = useState([{ product_id: '', quantity: 1, variation_id: '' }]);
+    const [lineItems, setLineItems] = useState([{ product: null, quantity: 1, variation_id: '' }]);
     const [loading, setLoading] = useState(false);
     const [order, setOrder] = useState(null);
     const [error, setError] = useState(null);
@@ -55,17 +55,20 @@ export default function OrderPlaceTest() {
     const [customers, setCustomers] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [loadingCustomers, setLoadingCustomers] = useState(false);
+    const [products, setProducts] = useState([]);
 
-    // Check customer status and load customers on mount
+    // Check customer status and load data on mount
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [status, customerList] = await Promise.all([
+                const [status, customerList, productList] = await Promise.all([
                     checkCustomerStatus(),
-                    fetchWooCustomers()
+                    fetchWooCustomers(),
+                    fetchWooProducts()
                 ]);
                 setCustomerStatus(status);
                 setCustomers(customerList);
+                setProducts(productList);
             } catch (err) {
                 console.error('Failed to load data:', err);
             } finally {
@@ -78,13 +81,13 @@ export default function OrderPlaceTest() {
 
     // Add new line item
     const handleAddItem = () => {
-        setLineItems([...lineItems, { product_id: '', quantity: 1, variation_id: '' }]);
+        setLineItems([...lineItems, { product: null, quantity: 1, variation_id: '' }]);
     };
 
     // Remove line item
     const handleRemoveItem = (index) => {
         const newItems = lineItems.filter((_, i) => i !== index);
-        setLineItems(newItems.length > 0 ? newItems : [{ product_id: '', quantity: 1, variation_id: '' }]);
+        setLineItems(newItems.length > 0 ? newItems : [{ product: null, quantity: 1, variation_id: '' }]);
     };
 
     // Update line item field
@@ -103,18 +106,18 @@ export default function OrderPlaceTest() {
         }
 
         // Validate line items
-        const validItems = lineItems.filter(item => item.product_id && item.quantity > 0);
+        const validItems = lineItems.filter(item => item.product && item.quantity > 0);
 
         if (validItems.length === 0) {
-            enqueueSnackbar('Please add at least one product with valid ID and quantity', { variant: 'warning' });
+            enqueueSnackbar('Please add at least one product with valid quantity', { variant: 'warning' });
             return;
         }
 
         // Convert to API format
         const apiItems = validItems.map(item => ({
-            product_id: parseInt(item.product_id),
+            product_id: item.product.woo_product_id,
             quantity: parseInt(item.quantity),
-            variation_id: item.variation_id ? parseInt(item.variation_id) : null
+            variation_id: item.product.woo_variation_id || null
         }));
 
         setLoading(true);
@@ -127,7 +130,7 @@ export default function OrderPlaceTest() {
             enqueueSnackbar(`Order #${orderData.id} created successfully!`, { variant: 'success' });
 
             // Reset form
-            setLineItems([{ product_id: '', quantity: 1, variation_id: '' }]);
+            setLineItems([{ product: null, quantity: 1, variation_id: '' }]);
         } catch (err) {
             const errorMsg = err.response?.data?.detail || err.message || 'Failed to place order';
             setError(errorMsg);
@@ -196,24 +199,34 @@ export default function OrderPlaceTest() {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>Product ID</TableCell>
-                                <TableCell>Quantity</TableCell>
-                                <TableCell>Variation ID (Optional)</TableCell>
-                                <TableCell width={80}>Actions</TableCell>
+                                <TableCell width="40%">Product</TableCell>
+                                <TableCell width="20%">Quantity</TableCell>
+                                <TableCell width="30%">Variation (if any)</TableCell>
+                                <TableCell width="10%">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {lineItems.map((item, index) => (
                                 <TableRow key={index}>
                                     <TableCell>
-                                        <TextField
-                                            type="number"
-                                            value={item.product_id}
-                                            onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
-                                            placeholder="e.g., 123"
-                                            size="small"
-                                            fullWidth
+                                        <Autocomplete
+                                            options={products}
+                                            getOptionLabel={(option) =>
+                                                option.woo_variation_id
+                                                    ? `${option.product_name} - ${option.variation_name || 'Variation'} (ID: ${option.woo_product_id})`
+                                                    : `${option.product_name} (ID: ${option.woo_product_id})`
+                                            }
+                                            value={item.product}
+                                            onChange={(event, newValue) => handleItemChange(index, 'product', newValue)}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    placeholder="Search products..."
+                                                    size="small"
+                                                />
+                                            )}
                                             disabled={loading}
+                                            size="small"
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -228,15 +241,9 @@ export default function OrderPlaceTest() {
                                         />
                                     </TableCell>
                                     <TableCell>
-                                        <TextField
-                                            type="number"
-                                            value={item.variation_id}
-                                            onChange={(e) => handleItemChange(index, 'variation_id', e.target.value)}
-                                            placeholder="Optional"
-                                            size="small"
-                                            fullWidth
-                                            disabled={loading}
-                                        />
+                                        <Typography variant="body2" color="text.secondary">
+                                            {item.product?.woo_variation_id ? `Variation ID: ${item.product.woo_variation_id}` : 'Simple Product'}
+                                        </Typography>
                                     </TableCell>
                                     <TableCell>
                                         <IconButton
