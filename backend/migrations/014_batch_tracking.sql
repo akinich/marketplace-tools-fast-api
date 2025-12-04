@@ -112,20 +112,28 @@ COMMENT ON TABLE batch_documents IS 'Links batches to all related documents for 
 -- ============================================================================
 -- TABLE: batch_sequence
 -- Description: Sequence counter for generating batch numbers (thread-safe)
+-- Format: {prefix}/{fy_short}/{sequence} → B/2526/0001
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS batch_sequence (
     id SERIAL PRIMARY KEY,
     current_number INTEGER NOT NULL DEFAULT 0,
     prefix VARCHAR(10) DEFAULT 'B',
+    financial_year VARCHAR(10) NOT NULL DEFAULT '2526', -- FY short format: 2526 for Apr 2025 - Mar 2026
+    fy_start_date DATE NOT NULL DEFAULT '2025-04-01', -- Start of current FY
+    fy_end_date DATE NOT NULL DEFAULT '2026-03-31', -- End of current FY
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Insert initial record
-INSERT INTO batch_sequence (current_number, prefix) VALUES (0, 'B')
+INSERT INTO batch_sequence (current_number, prefix, financial_year, fy_start_date, fy_end_date)
+VALUES (0, 'B', '2526', '2025-04-01', '2026-03-31')
 ON CONFLICT DO NOTHING;
 
-COMMENT ON TABLE batch_sequence IS 'Sequence generator for batch numbers (atomic increments)';
+COMMENT ON TABLE batch_sequence IS 'Sequence generator for batch numbers with FY rollover (atomic increments)';
+COMMENT ON COLUMN batch_sequence.financial_year IS 'Short FY format: 2526 for FY 2025-26';
+COMMENT ON COLUMN batch_sequence.fy_start_date IS 'Start date of current financial year';
+COMMENT ON COLUMN batch_sequence.fy_end_date IS 'End date of current financial year';
 
 -- ============================================================================
 -- VERIFICATION QUERIES

@@ -280,7 +280,7 @@ class RepackBatchResponse(BaseModel):
 
 def validate_batch_number_format(batch_number: str) -> bool:
     """
-    Validate batch number format (B### or B###R).
+    Validate batch number format (B/2526/0001 or B/2526/0001R).
 
     Args:
         batch_number: Batch number to validate
@@ -289,9 +289,9 @@ def validate_batch_number_format(batch_number: str) -> bool:
         True if valid format
     """
     import re
-    # Regular batch: B001, B002, etc.
-    # Repacked batch: B001R, B002R, etc.
-    pattern = r'^B\d{3,}R?$'
+    # Regular batch: B/2526/0001, B/2526/0002, etc.
+    # Repacked batch: B/2526/0001R, B/2526/0002R, etc.
+    pattern = r'^[A-Z]+/\d{4}/\d{4,}R?$'
     return bool(re.match(pattern, batch_number))
 
 
@@ -300,22 +300,23 @@ def parse_batch_number(batch_number: str) -> Dict[str, Any]:
     Parse batch number to extract components.
 
     Args:
-        batch_number: Batch number (e.g., B001, B001R)
+        batch_number: Batch number (e.g., B/2526/0001, B/2526/0001R)
 
     Returns:
-        Dict with: prefix, number, is_repacked, parent_number
+        Dict with: prefix, fy, number, is_repacked, parent_number
     """
     import re
-    match = re.match(r'^(B)(\d{3,})(R?)$', batch_number)
+    match = re.match(r'^([A-Z]+)/(\d{4})/(\d{4,})(R?)$', batch_number)
     if not match:
         raise ValueError(f"Invalid batch number format: {batch_number}")
 
-    prefix, number, repack_suffix = match.groups()
+    prefix, fy, number, repack_suffix = match.groups()
     is_repacked = bool(repack_suffix)
-    parent_number = f"{prefix}{number}" if is_repacked else None
+    parent_number = f"{prefix}/{fy}/{number}" if is_repacked else None
 
     return {
         "prefix": prefix,
+        "financial_year": fy,
         "number": int(number),
         "is_repacked": is_repacked,
         "parent_number": parent_number

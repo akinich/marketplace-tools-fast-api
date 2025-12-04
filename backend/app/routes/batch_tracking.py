@@ -436,3 +436,80 @@ async def get_batch_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get batch stats: {str(e)}"
         )
+
+
+# ============================================================================
+# BATCH CONFIGURATION
+# ============================================================================
+
+@router.get("/config")
+async def get_batch_config(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get current batch sequence configuration.
+
+    Returns:
+    - prefix: Batch prefix (e.g., 'B')
+    - current_number: Current sequence number
+    - financial_year: FY short format (e.g., '2526')
+    - fy_start_date: FY start date
+    - fy_end_date: FY end date
+    - next_batch_number: Preview of next batch number
+    """
+    try:
+        config = await batch_tracking_service.get_batch_configuration()
+        return config
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get batch configuration: {str(e)}"
+        )
+
+
+@router.put("/config", dependencies=[Depends(require_admin)])
+async def update_batch_config(
+    prefix: Optional[str] = Query(None, description="Batch prefix (e.g., 'B')"),
+    starting_number: Optional[int] = Query(None, ge=0, description="Reset sequence to this number"),
+    financial_year: Optional[str] = Query(None, min_length=4, max_length=4, description="FY short format (e.g., '2526')"),
+    fy_start_date: Optional[str] = Query(None, description="FY start date (YYYY-MM-DD)"),
+    fy_end_date: Optional[str] = Query(None, description="FY end date (YYYY-MM-DD)"),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """
+    Update batch sequence configuration (admin only).
+
+    **WARNING:** Use with caution!
+    - Changing prefix/FY affects batch number format
+    - Resetting starting_number can cause conflicts if not done at FY start
+    - Typically used only at financial year start
+
+    **Query Parameters:**
+    - prefix: New batch prefix
+    - starting_number: Reset sequence (usually to 0 at FY start)
+    - financial_year: Override FY short format
+    - fy_start_date: Override FY start date
+    - fy_end_date: Override FY end date
+
+    **Permissions:**
+    Admin only
+    """
+    try:
+        config = await batch_tracking_service.update_batch_configuration(
+            prefix=prefix,
+            starting_number=starting_number,
+            financial_year=financial_year,
+            fy_start_date=fy_start_date,
+            fy_end_date=fy_end_date
+        )
+        return config
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update batch configuration: {str(e)}"
+        )

@@ -45,6 +45,58 @@ logger = logging.getLogger(__name__)
 # BATCH NUMBER GENERATION
 # ============================================================================
 
+async def _check_and_rollover_fy(conn: asyncpg.Connection):
+    """
+    Check if financial year rollover is needed and perform it.
+    Called within a transaction before generating batch number.
+
+    Indian FY: April 1 to March 31
+    Example: FY 2025-26 = April 1, 2025 to March 31, 2026
+    """
+    from datetime import date
+
+    # Get current batch sequence
+    query = """
+        SELECT fy_end_date, financial_year, prefix
+        FROM batch_sequence
+        WHERE id = 1
+    """
+    seq = await conn.fetchrow(query)
+
+    if not seq:
+        return
+
+    today = date.today()
+    fy_end_date = seq['fy_end_date']
+
+    # Check if we've passed the FY end date
+    if today > fy_end_date:
+        # Calculate new FY
+        # If today is after March 31, new FY starts April 1 of current year
+        if today.month >= 4:  # Apr-Dec
+            new_fy_start = date(today.year, 4, 1)
+            new_fy_end = date(today.year + 1, 3, 31)
+            new_fy_short = f"{str(today.year)[-2:]}{str(today.year + 1)[-2:]}"  # 2526
+        else:  # Jan-Mar (already in next FY)
+            new_fy_start = date(today.year - 1, 4, 1)
+            new_fy_end = date(today.year, 3, 31)
+            new_fy_short = f"{str(today.year - 1)[-2:]}{str(today.year)[-2:]}"  # 2425
+
+        # Rollover: reset sequence, update FY
+        update_query = """
+            UPDATE batch_sequence
+            SET current_number = 0,
+                financial_year = $1,
+                fy_start_date = $2,
+                fy_end_date = $3,
+                updated_at = NOW()
+            WHERE id = 1
+        """
+        await conn.execute(update_query, new_fy_short, new_fy_start, new_fy_end)
+
+        logger.info(f"✅ FY Rollover: Reset batch sequence. New FY: {new_fy_short} ({new_fy_start} to {new_fy_end})")
+
+
 async def generate_batch_number(
     po_id: Optional[int] = None,
     grn_id: Optional[int] = None,
@@ -52,6 +104,7 @@ async def generate_batch_number(
 ) -> Dict[str, Any]:
     """
     Generate new sequential batch number (thread-safe).
+    Format: B/2526/0001 (prefix/fy_short/sequence)
 
     Args:
         po_id: Purchase Order ID (optional)
@@ -66,13 +119,16 @@ async def generate_batch_number(
     """
     try:
         async with DatabaseTransaction() as conn:
-            # 1. Lock and increment batch_sequence (atomic)
+            # 1. Check if FY rollover needed
+            await _check_and_rollover_fy(conn)
+
+            # 2. Lock and increment batch_sequence (atomic)
             sequence_query = """
                 UPDATE batch_sequence
                 SET current_number = current_number + 1,
                     updated_at = NOW()
                 WHERE id = 1
-                RETURNING current_number, prefix
+                RETURNING current_number, prefix, financial_year
             """
             sequence_row = await conn.fetchrow(sequence_query)
 
@@ -81,9 +137,10 @@ async def generate_batch_number(
 
             current_number = sequence_row['current_number']
             prefix = sequence_row['prefix']
+            financial_year = sequence_row['financial_year']
 
-            # 2. Format batch number (B001, B002, etc.) - pad to 3 digits minimum
-            batch_number = f"{prefix}{current_number:03d}"
+            # 3. Format batch number: B/2526/0001 - pad to 4 digits
+            batch_number = f"{prefix}/{financial_year}/{current_number:04d}"
 
             # 3. Create batch record
             insert_query = """
@@ -448,7 +505,8 @@ async def create_repacked_batch(
         if repack_data.repacked_quantity > repack_data.damaged_quantity:
             raise ValueError("Repacked quantity cannot exceed damaged quantity")
 
-        # 3. Generate repacked batch number (B###R)
+        # 3. Generate repacked batch number (B/2526/0001R)
+        # Format: parent_batch + 'R' suffix
         new_batch_number = f"{parent_batch_number}R"
 
         # 4. Create repacked batch
@@ -686,14 +744,14 @@ async def _link_document_internal(
 
 async def archive_old_batches() -> Dict[str, Any]:
     """
-    Archive batches that are 3+ days past delivery (scheduled job).
+    Archive batches that are 5+ days past delivery (scheduled job).
 
     Returns:
         Count of archived batches
     """
     try:
-        # Find batches delivered 3+ days ago
-        cutoff_date = datetime.now() - timedelta(days=3)
+        # Find batches delivered 5+ days ago
+        cutoff_date = datetime.now() - timedelta(days=5)
 
         query = """
             UPDATE batches
@@ -785,4 +843,135 @@ async def get_active_batches(
 
     except Exception as e:
         logger.error(f"❌ Failed to get active batches: {e}")
+        raise
+
+
+# ============================================================================
+# BATCH CONFIGURATION
+# ============================================================================
+
+async def get_batch_configuration() -> Dict[str, Any]:
+    """
+    Get current batch sequence configuration.
+
+    Returns:
+        Current prefix, sequence number, FY info
+    """
+    try:
+        query = """
+            SELECT prefix, current_number, financial_year,
+                   fy_start_date, fy_end_date, updated_at
+            FROM batch_sequence
+            WHERE id = 1
+        """
+        config = await fetch_one(query)
+
+        if not config:
+            raise Exception("Batch configuration not found")
+
+        return {
+            "prefix": config['prefix'],
+            "current_number": config['current_number'],
+            "financial_year": config['financial_year'],
+            "fy_start_date": config['fy_start_date'].isoformat(),
+            "fy_end_date": config['fy_end_date'].isoformat(),
+            "next_batch_number": f"{config['prefix']}/{config['financial_year']}/{config['current_number'] + 1:04d}",
+            "updated_at": config['updated_at']
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Failed to get batch configuration: {e}")
+        raise
+
+
+async def update_batch_configuration(
+    prefix: Optional[str] = None,
+    starting_number: Optional[int] = None,
+    financial_year: Optional[str] = None,
+    fy_start_date: Optional[str] = None,
+    fy_end_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update batch sequence configuration (admin only).
+
+    Args:
+        prefix: New prefix (e.g., 'B', 'BATCH')
+        starting_number: Reset sequence to this number
+        financial_year: Override FY short format (e.g., '2526')
+        fy_start_date: Override FY start date (YYYY-MM-DD)
+        fy_end_date: Override FY end date (YYYY-MM-DD)
+
+    Returns:
+        Updated configuration
+
+    Raises:
+        ValueError: If invalid parameters
+        Exception: If update fails
+    """
+    try:
+        # Build update query dynamically
+        updates = []
+        params = []
+        param_count = 1
+
+        if prefix is not None:
+            updates.append(f"prefix = ${param_count}")
+            params.append(prefix)
+            param_count += 1
+
+        if starting_number is not None:
+            if starting_number < 0:
+                raise ValueError("Starting number must be >= 0")
+            updates.append(f"current_number = ${param_count}")
+            params.append(starting_number)
+            param_count += 1
+
+        if financial_year is not None:
+            if len(financial_year) != 4:
+                raise ValueError("Financial year must be 4 digits (e.g., '2526')")
+            updates.append(f"financial_year = ${param_count}")
+            params.append(financial_year)
+            param_count += 1
+
+        if fy_start_date is not None:
+            updates.append(f"fy_start_date = ${param_count}")
+            params.append(fy_start_date)
+            param_count += 1
+
+        if fy_end_date is not None:
+            updates.append(f"fy_end_date = ${param_count}")
+            params.append(fy_end_date)
+            param_count += 1
+
+        if not updates:
+            raise ValueError("No updates provided")
+
+        # Add updated_at
+        updates.append("updated_at = NOW()")
+
+        query = f"""
+            UPDATE batch_sequence
+            SET {', '.join(updates)}
+            WHERE id = 1
+            RETURNING prefix, current_number, financial_year, fy_start_date, fy_end_date
+        """
+
+        result = await execute_query(query, *params)
+
+        logger.info(f"✅ Updated batch configuration: {result}")
+
+        return {
+            "prefix": result['prefix'],
+            "current_number": result['current_number'],
+            "financial_year": result['financial_year'],
+            "fy_start_date": result['fy_start_date'].isoformat() if result['fy_start_date'] else None,
+            "fy_end_date": result['fy_end_date'].isoformat() if result['fy_end_date'] else None,
+            "next_batch_number": f"{result['prefix']}/{result['financial_year']}/{result['current_number'] + 1:04d}"
+        }
+
+    except ValueError as ve:
+        logger.warning(f"⚠️ Validation error: {ve}")
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to update batch configuration: {e}")
         raise
