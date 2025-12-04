@@ -115,9 +115,9 @@ export default function OrderPlaceTest() {
 
         // Convert to API format
         const apiItems = validItems.map(item => ({
-            product_id: item.product.woo_product_id,
+            product_id: item.product.product_id,
             quantity: parseInt(item.quantity),
-            variation_id: item.product.woo_variation_id || null
+            variation_id: item.product.variation_id || null
         }));
 
         setLoading(true);
@@ -212,9 +212,9 @@ export default function OrderPlaceTest() {
                                         <Autocomplete
                                             options={products}
                                             getOptionLabel={(option) =>
-                                                option.woo_variation_id
-                                                    ? `${option.product_name} - ${option.variation_name || 'Variation'} (ID: ${option.woo_product_id})`
-                                                    : `${option.product_name} (ID: ${option.woo_product_id})`
+                                                option.variation_id
+                                                    ? `${option.parent_product || 'Product'} - ${option.product_name} (Variation ID: ${option.variation_id})`
+                                                    : `${option.product_name} (ID: ${option.product_id})`
                                             }
                                             value={item.product}
                                             onChange={(event, newValue) => handleItemChange(index, 'product', newValue)}
@@ -242,7 +242,7 @@ export default function OrderPlaceTest() {
                                     </TableCell>
                                     <TableCell>
                                         <Typography variant="body2" color="text.secondary">
-                                            {item.product?.woo_variation_id ? `Variation ID: ${item.product.woo_variation_id}` : 'Simple Product'}
+                                            {item.product?.variation_id ? `Variation ID: ${item.product.variation_id}` : 'Simple Product'}
                                         </Typography>
                                     </TableCell>
                                     <TableCell>
