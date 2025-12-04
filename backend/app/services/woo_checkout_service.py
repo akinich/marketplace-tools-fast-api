@@ -247,6 +247,14 @@ class WooCheckoutService:
             {
                 "key": "_created_via",
                 "value": "mkterp"
+            },
+            {
+                "key": "_wc_order_attribution_source_type",
+                "value": "mkterp"
+            },
+            {
+                "key": "origin",
+                "value": "mkterp"
             }
         ]
 
