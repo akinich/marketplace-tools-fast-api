@@ -102,6 +102,7 @@ import {
   Campaign as CommunicationIcon,
   VpnKey as VpnKeyIcon,
   Storage as DatabaseIcon,
+  Inventory2 as InventoryIcon,
   AccountCircle,
   Logout,
   Lock,
@@ -361,6 +362,7 @@ export default function DashboardLayout() {
       development: <DevelopmentIcon />,
       communication: <CommunicationIcon />,
       database_management: <DatabaseIcon />,
+      inventory: <InventoryIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
@@ -412,6 +414,11 @@ export default function DashboardLayout() {
       com_websockets: '/communication/websockets',
     };
 
+    // Inventory sub-modules
+    const inventoryRoutes = {
+      batch_tracking: '/inventory/batch-tracking',
+    };
+
     if (parentModuleKey === 'admin') {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
     } else if (parentModuleKey === 'b2c_ops') {
@@ -422,6 +429,8 @@ export default function DashboardLayout() {
       return communicationRoutes[subModuleKey] || `/communication/${subModuleKey.replace('com_', '')}`;
     } else if (parentModuleKey === 'database_management') {
       return databaseManagementRoutes[subModuleKey] || `/database-management/${subModuleKey}`;
+    } else if (parentModuleKey === 'inventory') {
+      return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey}`;
     }
 
     // Default: construct route from keys
