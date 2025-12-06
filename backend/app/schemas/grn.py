@@ -9,8 +9,8 @@ class GRNItemUpdate(BaseModel):
     gross_received: Decimal = Field(..., ge=0, decimal_places=3)
     damage: Decimal = Field(default=0, ge=0, decimal_places=3)
     reject: Decimal = Field(default=0, ge=0, decimal_places=3)
-    damage_cost_allocation: Optional[str] = Field(None, regex='^(farm|us)$')
-    reject_cost_allocation: Optional[str] = Field(None, regex='^(farm|us)$')
+    damage_cost_allocation: Optional[str] = Field(None, pattern='^(farm|us)$')
+    reject_cost_allocation: Optional[str] = Field(None, pattern='^(farm|us)$')
     notes: Optional[str] = None
     
     @validator('damage_cost_allocation')
