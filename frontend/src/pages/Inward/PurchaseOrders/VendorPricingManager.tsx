@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Warning as WarningIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { purchaseOrdersAPI, VendorPricingRequest, PriceHistoryResponse } from '../../../api/purchaseOrders';
+import { purchaseOrdersAPI, VendorPricingRequest, PriceHistoryResponse, VendorPricingSummary } from '../../../api/purchaseOrders';
 import { zohoVendorAPI } from '../../../api/zohoVendor';
 import { zohoItemAPI } from '../../../api/zohoItem';
 import { formatDateForDisplay, getDaysUntil, getTodayISO } from '../../../utils/dateUtils';
@@ -50,7 +50,9 @@ const VendorPricingManager: React.FC = () => {
     const [vendors, setVendors] = useState<VendorOption[]>([]);
     const [items, setItems] = useState<ItemOption[]>([]);
     const [priceHistory, setPriceHistory] = useState<PriceHistoryResponse[]>([]);
+    const [vendorSummary, setVendorSummary] = useState<VendorPricingSummary[]>([]);
     const [loading, setLoading] = useState(false);
+    const [summaryLoading, setSummaryLoading] = useState(false);
 
     // Form state
     const [selectedVendor, setSelectedVendor] = useState<VendorOption | null>(null);
@@ -86,6 +88,24 @@ const VendorPricingManager: React.FC = () => {
 
         loadData();
     }, [enqueueSnackbar]);
+
+    // Load vendor pricing summary
+    useEffect(() => {
+        const loadSummary = async () => {
+            setSummaryLoading(true);
+            try {
+                const summary = await purchaseOrdersAPI.getVendorsWithPricing();
+                setVendorSummary(summary);
+            } catch (error: any) {
+                console.error('Failed to load vendor summary:', error);
+                // Don't show error toast, just fail silently
+            } finally {
+                setSummaryLoading(false);
+            }
+        };
+
+        loadSummary();
+    }, []);
 
     // Load price history when filter changes
     useEffect(() => {
@@ -180,6 +200,55 @@ const VendorPricingManager: React.FC = () => {
             <Typography variant="h4" component="h1" gutterBottom>
                 Vendor Pricing Management
             </Typography>
+
+            {/* Vendor Summary Table */}
+            <Card sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                    Vendors with Pricing Configured
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                {summaryLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : vendorSummary.length === 0 ? (
+                    <Alert severity="info">
+                        No vendors with pricing configured yet. Add prices below to get started.
+                    </Alert>
+                ) : (
+                    <Box sx={{ overflowX: 'auto' }}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Vendor Name</TableCell>
+                                    <TableCell>Company</TableCell>
+                                    <TableCell align="right">Items with Pricing</TableCell>
+                                    <TableCell>Last Price Update</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {vendorSummary.map((vendor) => (
+                                    <TableRow key={vendor.id}>
+                                        <TableCell>{vendor.contact_name}</TableCell>
+                                        <TableCell>{vendor.company_name || '-'}</TableCell>
+                                        <TableCell align="right">
+                                            <Chip
+                                                label={vendor.items_count}
+                                                size="small"
+                                                color="primary"
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            {new Date(vendor.last_price_update).toLocaleDateString()}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Box>
+                )}
+            </Card>
 
             <Grid container spacing={3}>
                 {/* Add New Pricing */}

@@ -134,6 +134,13 @@ const POCreateForm: React.FC = () => {
         loadActivePrices();
     }, [vendorId, dispatchDate]);
 
+    // Filter items based on vendor pricing
+    const filteredItems = vendorId && activePrices.length > 0
+        ? availableItems.filter(item =>
+            activePrices.some(price => price.item_id === item.id)
+        )
+        : availableItems;
+
     // Price source color mapping
     const getPriceSourceColor = (source: string): 'success' | 'info' | 'warning' => {
         const colors: Record<string, 'success' | 'info' | 'warning'> = {
@@ -360,6 +367,19 @@ const POCreateForm: React.FC = () => {
                 <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
                     Items
                 </Typography>
+
+                {/* Item Filtering Info */}
+                {vendorId && activePrices.length > 0 && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Only showing items with configured pricing for this vendor ({filteredItems.length} items available).
+                    </Alert>
+                )}
+                {vendorId && activePrices.length === 0 && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        No pricing configured for this vendor. Please configure pricing in Vendor Pricing Management before creating PO.
+                    </Alert>
+                )}
+
                 <Box sx={{ overflowX: 'auto' }}>
                     <Table>
                         <TableHead>
@@ -380,11 +400,12 @@ const POCreateForm: React.FC = () => {
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell>
                                         <Autocomplete
-                                            options={availableItems}
+                                            options={filteredItems}
                                             getOptionLabel={(option) => option.name}
                                             onChange={(_, value) => handleItemSelect(index, value)}
                                             renderInput={(params) => <TextField {...params} size="small" placeholder="Select Item" />}
                                             sx={{ minWidth: 200 }}
+                                            disabled={!vendorId}
                                         />
                                     </TableCell>
                                     <TableCell>

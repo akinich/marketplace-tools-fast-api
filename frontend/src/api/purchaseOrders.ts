@@ -142,6 +142,15 @@ export interface ActivePriceResponse {
     effective_from?: string;
 }
 
+export interface VendorPricingSummary {
+    id: number;
+    contact_id: number;
+    contact_name: string;
+    company_name?: string;
+    items_count: number;
+    last_price_update: string;
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
@@ -224,6 +233,14 @@ export const purchaseOrdersAPI = {
      */
     addVendorPrice: async (data: VendorPricingRequest): Promise<PriceHistoryResponse> => {
         const response = await apiClient.post('/po/vendor-pricing/manage', data);
+        return response.data;
+    },
+
+    /**
+     * Get vendors with pricing configured (admin only)
+     */
+    getVendorsWithPricing: async (): Promise<VendorPricingSummary[]> => {
+        const response = await apiClient.get('/vendor-pricing/vendors-summary');
         return response.data;
     },
 

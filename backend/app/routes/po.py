@@ -361,6 +361,29 @@ async def manage_vendor_pricing(
         )
 
 
+@router.get("/vendor-pricing/vendors-summary", dependencies=[Depends(require_admin)])
+async def get_vendors_with_pricing(
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """
+    Get list of vendors with pricing summary (admin only).
+
+    **Returns:**
+    - List of vendors with:
+      - Vendor details
+      - Count of items with pricing
+      - Latest price update timestamp
+    """
+    try:
+        results = await po_service.get_vendors_with_pricing()
+        return results
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get vendors summary: {str(e)}"
+        )
+
+
 @router.get("/vendor-pricing/history", dependencies=[Depends(require_admin)])
 async def get_price_history(
     vendor_id: int = Query(..., description="Vendor ID"),
