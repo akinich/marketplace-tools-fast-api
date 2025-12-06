@@ -223,7 +223,7 @@ export const purchaseOrdersAPI = {
      * Add or update vendor-item pricing (admin only)
      */
     addVendorPrice: async (data: VendorPricingRequest): Promise<PriceHistoryResponse> => {
-        const response = await apiClient.post('/vendor-pricing/manage', data);
+        const response = await apiClient.post('/po/vendor-pricing/manage', data);
         return response.data;
     },
 
@@ -231,7 +231,7 @@ export const purchaseOrdersAPI = {
      * Get price history for vendor-item combinations (admin only)
      */
     getPriceHistory: async (vendorId: number, itemId?: number): Promise<PriceHistoryResponse[]> => {
-        const response = await apiClient.get('/vendor-pricing/history', {
+        const response = await apiClient.get('/po/vendor-pricing/history', {
             params: { vendor_id: vendorId, item_id: itemId }
         });
         return response.data;
@@ -241,7 +241,7 @@ export const purchaseOrdersAPI = {
      * Get all active vendor-item prices for a specific date
      */
     getActivePrices: async (vendorId: number, date?: string): Promise<ActivePriceResponse[]> => {
-        const response = await apiClient.get('/vendor-pricing/active', {
+        const response = await apiClient.get('/po/vendor-pricing/active', {
             params: { vendor_id: vendorId, price_date: date }
         });
         return response.data;
