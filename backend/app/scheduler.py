@@ -46,7 +46,7 @@ from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
-from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service, wastage_tracking_service
+from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service
 from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
@@ -229,6 +229,9 @@ async def check_wastage_thresholds():
     Runs every hour at the top of the hour.
     """
     try:
+        # Import here to avoid circular import at module level
+        from app.services import wastage_tracking_service
+        
         logger.debug("Checking wastage thresholds...")
 
         result = await wastage_tracking_service.check_threshold_alerts()
