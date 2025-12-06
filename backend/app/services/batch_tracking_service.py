@@ -404,6 +404,12 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
         if not filters.is_archived:
             conditions.append("b.archived_at IS NULL")
 
+        # Repacked filter
+        if filters.is_repacked is not None:
+            conditions.append(f"b.is_repacked = ${param_count}")
+            params.append(filters.is_repacked)
+            param_count += 1
+
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
         # Count total
@@ -420,8 +426,17 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
         search_query = f"""
             SELECT
                 b.id, b.batch_number, b.status, b.is_repacked,
-                b.created_at
+                b.created_at,
+                po.farm_name,
+                (
+                    SELECT location
+                    FROM batch_history bh
+                    WHERE bh.batch_id = b.id AND bh.location IS NOT NULL
+                    ORDER BY bh.created_at DESC
+                    LIMIT 1
+                ) as current_location
             FROM batches b
+            LEFT JOIN purchase_orders po ON b.po_id = po.id
             {where_clause}
             ORDER BY b.created_at DESC
             LIMIT ${param_count} OFFSET ${param_count + 1}
@@ -438,8 +453,8 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
                 "status": b['status'],
                 "is_repacked": b['is_repacked'],
                 "created_at": b['created_at'],
-                "farm": None,  # TODO: Get from linked PO when implemented
-                "current_location": None  # TODO: Get from latest history
+                "farm": b.get('farm_name'),
+                "current_location": b.get('current_location')
             }
             for b in batches
         ]
@@ -957,7 +972,7 @@ async def update_batch_configuration(
             RETURNING prefix, current_number, financial_year, fy_start_date, fy_end_date
         """
 
-        result = await execute_query(query, *params)
+        result = await fetch_one(query, *params)
 
         logger.info(f"✅ Updated batch configuration: {result}")
 

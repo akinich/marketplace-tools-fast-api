@@ -50,7 +50,7 @@ export default function BatchSearch({ onSearch, loading = false }: BatchSearchPr
         if (status) filters.status = status as BatchStatus;
         if (dateFrom) filters.date_from = dateFrom;
         if (dateTo) filters.date_to = dateTo;
-        if (isRepacked) filters.is_archived = false; // Only show active repacked batches
+        if (isRepacked) filters.is_repacked = true;
 
         onSearch(filters);
     };

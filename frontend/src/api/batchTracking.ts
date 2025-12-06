@@ -120,6 +120,7 @@ export interface SearchBatchesRequest {
   date_from?: string;
   date_to?: string;
   is_archived?: boolean;
+  is_repacked?: boolean;
   page?: number;
   limit?: number;
 }

@@ -74,6 +74,7 @@ export default function BatchDetailPage() {
 
     useEffect(() => {
         fetchBatchDetails();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [batchNumber]);
 
     // Handle archive
