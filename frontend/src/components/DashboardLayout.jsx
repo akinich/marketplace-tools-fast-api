@@ -103,6 +103,7 @@ import {
   VpnKey as VpnKeyIcon,
   Storage as DatabaseIcon,
   Inventory2 as InventoryIcon,
+  LocalShipping as InwardIcon,
   AccountCircle,
   Logout,
   Lock,
@@ -363,6 +364,7 @@ export default function DashboardLayout() {
       communication: <CommunicationIcon />,
       database_management: <DatabaseIcon />,
       inventory: <InventoryIcon />,
+      inward: <InwardIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
@@ -420,6 +422,12 @@ export default function DashboardLayout() {
       wastage_tracking: '/inventory/wastage-tracking',
     };
 
+    // Inward Operations sub-modules
+    const inwardRoutes = {
+      purchase_orders: '/inward/purchase-orders',
+      vendor_pricing: '/inward/vendor-pricing',
+    };
+
     if (parentModuleKey === 'admin') {
       return adminRoutes[subModuleKey] || `/admin/${subModuleKey.replace('admin_', '')}`;
     } else if (parentModuleKey === 'b2c_ops') {
@@ -432,6 +440,8 @@ export default function DashboardLayout() {
       return databaseManagementRoutes[subModuleKey] || `/database-management/${subModuleKey}`;
     } else if (parentModuleKey === 'inventory') {
       return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey}`;
+    } else if (parentModuleKey === 'inward') {
+      return inwardRoutes[subModuleKey] || `/inward/${subModuleKey}`;
     }
 
     // Default: construct route from keys
