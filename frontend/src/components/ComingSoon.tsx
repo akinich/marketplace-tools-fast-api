@@ -12,13 +12,20 @@ import React from 'react';
 import { Box, Container, Typography, Paper, Chip } from '@mui/material';
 import { Construction as ConstructionIcon } from '@mui/icons-material';
 
+interface ComingSoonProps {
+    moduleName?: string;
+    description?: string;
+    estimatedPhase?: string;
+    priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
 export default function ComingSoon({
     moduleName = "Module",
     description = "This module is currently under development.",
     estimatedPhase = "Coming Soon",
     priority = "MEDIUM"
-}) {
-    const getPriorityColor = (priority) => {
+}: ComingSoonProps) {
+    const getPriorityColor = (priority: string): "error" | "warning" | "info" | "default" => {
         switch (priority.toUpperCase()) {
             case 'CRITICAL':
                 return 'error';
