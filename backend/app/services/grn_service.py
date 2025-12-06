@@ -23,7 +23,7 @@ from app.schemas.grn import (
 )
 from app.schemas.batch_tracking import BatchStage, BatchEventType, AddBatchHistoryRequest, BatchStatus
 from app.services import po_service, batch_tracking_service, wastage_tracking_service
-from app.utils.supabase_client import supabase
+from app.utils.supabase_client import get_supabase_client_async
 
 # Try importing ReportLab, fallback if not available
 try:
@@ -579,6 +579,8 @@ async def upload_grn_photos(
         
     photo_urls = []
     
+    supabase = await get_supabase_client_async()
+    
     for file in files:
         ext = file.filename.split('.')[-1].lower()
         if ext not in ['jpg', 'jpeg', 'png']:
@@ -624,6 +626,7 @@ async def delete_grn_photo(photo_id: int, user_id: str) -> bool:
             raise ValueError("GRN locked")
             
         # Delete from storage
+        supabase = await get_supabase_client_async()
         supabase.storage.from_('grn-photos').remove([photo['photo_path']])
         
         # Delete from DB
