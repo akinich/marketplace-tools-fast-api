@@ -45,6 +45,24 @@ router = APIRouter()
 # PO MANAGEMENT ROUTES
 # ============================================================================
 
+@router.get("/next-number")
+async def get_next_po_number(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get next sequential PO number.
+    Format: PO/YY[YY+1]/XXXX
+    """
+    try:
+        result = await po_service.generate_po_number()
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate PO number: {str(e)}"
+        )
+
+
 @router.post("/create", response_model=PODetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_po(
     request: POCreateRequest,

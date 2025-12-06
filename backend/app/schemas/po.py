@@ -65,6 +65,8 @@ class POItemCreate(BaseModel):
 class POCreateRequest(BaseModel):
     """Request to create new purchase order"""
     vendor_id: int = Field(..., gt=0, description="Zoho vendor ID")
+    po_number: Optional[str] = Field(None, max_length=50, description="Custom PO number (generated if None)")
+
     dispatch_date: date = Field(..., description="Expected dispatch/billing date (drives pricing)")
     delivery_date: date = Field(..., description="Expected delivery date")
     items: List[POItemCreate] = Field(..., min_items=1, description="PO items")
