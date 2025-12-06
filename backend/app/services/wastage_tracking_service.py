@@ -29,7 +29,7 @@ import uuid
 
 from fastapi import UploadFile, HTTPException, status
 
-from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction, fetch_one_tx, execute_query_tx
+from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
 from app.schemas.wastage_tracking import (
     LogWastageRequest, RepackRequest, PhotoUploadData,
     WastageEventResponse, WastageByBatchResponse, WastageEventDetail,
