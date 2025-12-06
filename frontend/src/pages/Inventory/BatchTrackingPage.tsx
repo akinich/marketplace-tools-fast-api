@@ -228,7 +228,7 @@ export default function BatchTrackingPage() {
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[25, 50, 100]}
                         disableRowSelectionOnClick
-                        onRowClick={(params) => navigate(`/inventory/batch-tracking/${params.row.batch_number}`)}
+                        onRowClick={(params) => navigate(`/inventory/batch-tracking/${encodeURIComponent(params.row.batch_number)}`)}
                         sx={{
                             '& .MuiDataGrid-row': {
                                 cursor: 'pointer',
