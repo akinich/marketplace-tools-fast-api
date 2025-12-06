@@ -12,7 +12,7 @@
  *   - Repack and Archive actions
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -35,8 +35,10 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { batchTrackingAPI, BatchDetailResponse, BatchTimelineResponse } from '../../api/batchTracking';
+import { wastageTrackingAPI, WastageByBatchResponse } from '../../api/wastageTracking';
 import BatchTimeline from './BatchTimeline';
 import RepackingModal from './RepackingModal';
+import WastageLogModal from './WastageTracking/components/WastageLogModal';
 import useAuthStore from '../../store/authStore';
 
 export default function BatchDetailPage() {
@@ -50,8 +52,10 @@ export default function BatchDetailPage() {
 
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [timeline, setTimeline] = useState<BatchTimelineResponse | null>(null);
+    const [wastageData, setWastageData] = useState<WastageByBatchResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [repackModalOpen, setRepackModalOpen] = useState(false);
+    const [wastageModalOpen, setWastageModalOpen] = useState(false);
     const [archiving, setArchiving] = useState(false);
 
     // Fetch batch details
@@ -67,6 +71,15 @@ export default function BatchDetailPage() {
 
             setBatch(batchData);
             setTimeline(timelineData);
+
+            // Load wastage data
+            try {
+                const wastage = await wastageTrackingAPI.getWastageByBatch(batchNumber);
+                setWastageData(wastage);
+            } catch (error) {
+                // Wastage data is optional, don't fail if not found
+                console.log('No wastage data for this batch');
+            }
         } catch (error: any) {
             enqueueSnackbar(error.response?.data?.detail || 'Failed to fetch batch details', { variant: 'error' });
             navigate('/inventory/batch-tracking');
@@ -284,6 +297,106 @@ export default function BatchDetailPage() {
                     </Paper>
                 </Grid>
 
+                {/* Wastage Events */}
+                {wastageData && wastageData.total_wastage_events > 0 && (
+                    <Grid item xs={12}>
+                        <Paper sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6">
+                                    Wastage Events ({wastageData.total_wastage_events})
+                                </Typography>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => setWastageModalOpen(true)}
+                                >
+                                    Log Wastage
+                                </Button>
+                            </Box>
+                            <Divider sx={{ mb: 2 }} />
+
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={4}>
+                                    <Card variant="outlined">
+                                        <CardContent>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Total Wastage
+                                            </Typography>
+                                            <Typography variant="h6">
+                                                {wastageData.total_quantity_wasted.toFixed(2)} kg
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <Card variant="outlined">
+                                        <CardContent>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Total Cost
+                                            </Typography>
+                                            <Typography variant="h6">
+                                                ₹{wastageData.total_estimated_cost.toFixed(2)}
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <Card variant="outlined">
+                                        <CardContent>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Cost Breakdown
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                Farm: ₹{wastageData.cost_breakdown.farm.toFixed(2)}
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                Us: ₹{wastageData.cost_breakdown.us.toFixed(2)}
+                                            </Typography>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            </Grid>
+
+                            <Box sx={{ mt: 2 }}>
+                                {wastageData.events.map((event, index) => (
+                                    <Card key={index} variant="outlined" sx={{ mb: 1 }}>
+                                        <CardContent>
+                                            <Grid container spacing={2}>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="body2" color="text.secondary">Stage</Typography>
+                                                    <Typography variant="body1">{event.stage}</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="body2" color="text.secondary">Type</Typography>
+                                                    <Typography variant="body1">{event.wastage_type}</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="body2" color="text.secondary">Quantity</Typography>
+                                                    <Typography variant="body1">{event.quantity} {event.unit}</Typography>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6}>
+                                                    <Typography variant="body2" color="text.secondary">Cost Allocation</Typography>
+                                                    <Chip
+                                                        label={event.cost_allocation.toUpperCase()}
+                                                        color={event.cost_allocation === 'farm' ? 'error' : 'primary'}
+                                                        size="small"
+                                                    />
+                                                </Grid>
+                                                {event.reason && (
+                                                    <Grid item xs={12}>
+                                                        <Typography variant="body2" color="text.secondary">Reason</Typography>
+                                                        <Typography variant="body2">{event.reason}</Typography>
+                                                    </Grid>
+                                                )}
+                                            </Grid>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </Box>
+                        </Paper>
+                    </Grid>
+                )}
+
                 {/* Timeline */}
                 <Grid item xs={12}>
                     <BatchTimeline timeline={timeline} />
@@ -296,6 +409,17 @@ export default function BatchDetailPage() {
                 onClose={() => setRepackModalOpen(false)}
                 batchNumber={batch.batch_number}
                 onSuccess={fetchBatchDetails}
+            />
+
+            {/* Wastage Log Modal */}
+            <WastageLogModal
+                open={wastageModalOpen}
+                onClose={() => setWastageModalOpen(false)}
+                onSuccess={() => {
+                    fetchBatchDetails();
+                    setWastageModalOpen(false);
+                }}
+                batchNumber={batch.batch_number}
             />
         </Box>
     );
