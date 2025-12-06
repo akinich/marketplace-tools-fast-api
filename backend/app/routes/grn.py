@@ -11,7 +11,7 @@ from app.services import grn_service
 from app.schemas.grn import (
     GRNResponse, GRNDetailResponse, GRNUpdateRequest, GRNListResponse
 )
-from app.database import get_db_connection
+
 
 router = APIRouter(prefix="/api/v1/grn", tags=["GRN Management"])
 

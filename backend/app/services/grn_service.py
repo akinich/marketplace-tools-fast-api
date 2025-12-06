@@ -17,7 +17,7 @@ from io import BytesIO
 
 from fastapi import UploadFile
 
-from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction, get_db_connection
+from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction, get_db
 from app.schemas.grn import (
     GRNUpdateRequest, GRNResponse, GRNDetailResponse, GRNItemResponse, GRNPhotoResponse
 )
@@ -270,7 +270,7 @@ async def list_grns(
         
         count_query = f"SELECT COUNT(*) FROM grns g JOIN batches b ON g.batch_id = b.id WHERE {where_stmt}"
         
-        async with get_db_connection() as conn:
+        async with get_db().acquire() as conn:
             total = await conn.fetchval(count_query, *params)
             
             # Pagination
