@@ -21,6 +21,7 @@ from app.database import fetch_one, fetch_all, execute_query, DatabaseTransactio
 from app.schemas.grn import (
     GRNUpdateRequest, GRNResponse, GRNDetailResponse, GRNItemResponse, GRNPhotoResponse
 )
+from app.schemas.batch_tracking import BatchStage, BatchEventType, AddBatchHistoryRequest, BatchStatus
 from app.services import po_service, batch_tracking_service, wastage_tracking_service
 from app.utils.supabase_client import supabase
 
@@ -75,22 +76,20 @@ async def generate_grn_from_po(
                 raise ValueError(f"GRN already exists for PO {po_id}")
 
             # Generate numbers
+            # Generate numbers
             grn_number = await generate_grn_number(conn)
 
-            batch_number = await batch_tracking_service.generate_batch_number(po_id=po_id, created_by=str(user_id))
-            
-            batch = await conn.fetchrow("""
-                INSERT INTO batches (batch_number, status, po_id, created_at)
-                VALUES ($1, 'ordered', $2, NOW())
-                RETURNING *
-            """, batch_number, po_id)
+            # Generate batch (this creates the batch record and returns dict)
+            batch_result = await batch_tracking_service.generate_batch_number(po_id=po_id, created_by=str(user_id))
+            batch_id = batch_result['batch_id']
+            batch_number = batch_result['batch_number']
             
             # Create GRN
             grn = await conn.fetchrow("""
                 INSERT INTO grns (grn_number, po_id, batch_id, created_by, status)
                 VALUES ($1, $2, $3, $4, 'draft')
                 RETURNING *
-            """, grn_number, po_id, batch['id'], user_id)
+            """, grn_number, po_id, batch_id, user_id)
             
             # Pre-populate items from PO
             po_items = await conn.fetch("""
@@ -163,6 +162,9 @@ async def _get_grn_details_internal(conn: asyncpg.Connection, grn_id: int) -> Op
             gi.*, 
             i.name as item_name
         FROM grn_items gi
+        JOIN grns g ON gi.grn_id = g.id  -- Join GRN to get po_id if needed, but not needed for item_name
+        JOIN purchase_orders po ON g.po_id = po.id 
+        JOIN purchase_order_items poi ON poi.po_id = po.id AND poi.item_id = gi.item_id -- Map to PO Item to get SKU/Name
         JOIN zoho_items i ON gi.item_id = i.id
         WHERE gi.grn_id = $1
     """, grn_id)
@@ -464,41 +466,67 @@ async def finalize_grn(grn_id: int, user_id: str) -> Dict[str, Any]:
             for item in items:
                 if item['damage'] > 0:
                     photos = await conn.fetch("""
-                        SELECT photo_url FROM grn_photos WHERE grn_id = $1 AND item_id = $2 AND photo_type = 'damage'
+                        SELECT photo_url, photo_path, file_size FROM grn_photos WHERE grn_id = $1 AND item_id = $2 AND photo_type = 'damage'
                     """, grn_id, item['item_id'])
                     
-                    await wastage_tracking_service.log_wastage_event(
-                        batch_number=batch['batch_number'],
-                        stage='receiving',
-                        wastage_type='damage',
-                        item_id=item['item_id'],
-                        quantity=float(item['damage']),
-                        cost_allocation=item['damage_cost_allocation'],
-                        photos=[p['photo_url'] for p in photos],
-                        grn_id=grn_id,
-                        po_id=po_id,
-                        user_id=str(user_id),
-                        notes=item.get('notes')
-                    )
+                    # Log wastage directly (service expects UploadFile)
+                    wastage_event = await conn.fetchrow("""
+                        INSERT INTO wastage_events (
+                            batch_id, stage, wastage_type, item_name, quantity, unit,
+                            cost_allocation, reason, notes,
+                            po_id, grn_id, created_by
+                        ) VALUES (
+                            $1, $2, 'damage', $3, $4, 'units',
+                            $5, 'Damaged during receiving', $6,
+                            $7, $8, $9
+                        )
+                        RETURNING id, event_id
+                    """, grn['batch_id'], 'receiving', item['item_name'], 
+                         float(item['damage']), item['damage_cost_allocation'],
+                         item.get('notes'), po_id, grn_id, user_id)
+
+                    # Link photos
+                    for p in photos:
+                         # We copy GRN photo to wastage photo table
+                         # Note: Optimally we might move file or just ref the URL. 
+                         # Wastage module expects files in its own bucket structure usually, 
+                         # but here we just link the URL.
+                         await conn.execute("""
+                            INSERT INTO wastage_photos (
+                                wastage_event_id, photo_url, photo_path, file_name,
+                                file_size_kb, uploaded_by
+                            ) VALUES ($1, $2, $3, $4, $5, $6)
+                         """, wastage_event['id'], p['photo_url'], p['photo_path'], 
+                             p['photo_path'].split('/')[-1], p['file_size'] or 0, user_id)
                 
                 if item['reject'] > 0:
                     photos = await conn.fetch("""
-                        SELECT photo_url FROM grn_photos WHERE grn_id = $1 AND item_id = $2 AND photo_type = 'reject'
+                        SELECT photo_url, photo_path, file_size FROM grn_photos WHERE grn_id = $1 AND item_id = $2 AND photo_type = 'reject'
                     """, grn_id, item['item_id'])
                      
-                    await wastage_tracking_service.log_wastage_event(
-                        batch_number=batch['batch_number'],
-                        stage='receiving',
-                        wastage_type='reject',
-                        item_id=item['item_id'],
-                        quantity=float(item['reject']),
-                        cost_allocation=item['reject_cost_allocation'],
-                        photos=[p['photo_url'] for p in photos],
-                        grn_id=grn_id,
-                        po_id=po_id,
-                        user_id=str(user_id),
-                        notes=item.get('notes')
-                    )
+                    wastage_event = await conn.fetchrow("""
+                        INSERT INTO wastage_events (
+                            batch_id, stage, wastage_type, item_name, quantity, unit,
+                            cost_allocation, reason, notes,
+                            po_id, grn_id, created_by
+                        ) VALUES (
+                            $1, $2, 'reject', $3, $4, 'units',
+                            $5, 'Rejected during receiving', $6,
+                            $7, $8, $9
+                        )
+                        RETURNING id, event_id
+                    """, grn['batch_id'], 'receiving', item['item_name'], 
+                         float(item['reject']), item['reject_cost_allocation'],
+                         item.get('notes'), po_id, grn_id, user_id)
+                    
+                    for p in photos:
+                         await conn.execute("""
+                            INSERT INTO wastage_photos (
+                                wastage_event_id, photo_url, photo_path, file_name,
+                                file_size_kb, uploaded_by
+                            ) VALUES ($1, $2, $3, $4, $5, $6)
+                         """, wastage_event['id'], p['photo_url'], p['photo_path'], 
+                             p['photo_path'].split('/')[-1], p['file_size'] or 0, user_id)
 
             # Update Statuses
             await conn.execute("UPDATE grns SET status = 'completed', completed_at = NOW() WHERE id = $1", grn_id)
@@ -510,10 +538,11 @@ async def finalize_grn(grn_id: int, user_id: str) -> Dict[str, Any]:
             # Batch History
             await batch_tracking_service.add_batch_history(
                 batch_number=batch['batch_number'],
-                event=batch_tracking_service.AddBatchHistoryRequest( # Assuming structure
-                     stage='receiving',
-                     event_type='status_change', # Check enum
-                     details={'grn_number': grn['grn_number'], 'status': 'received'}
+                event=AddBatchHistoryRequest( 
+                     stage=BatchStage.GRN,
+                     event_type=BatchEventType.RECEIVED,
+                     new_status=BatchStatus.RECEIVED,
+                     event_details={'grn_number': grn['grn_number'], 'status': 'received'}
                 ),
                 created_by=str(user_id)
             )
