@@ -515,6 +515,11 @@ async def get_wastage_analytics_by_stage(
         if not date_to:
             date_to = datetime.now().strftime("%Y-%m-%d")
         
+        # Convert string dates to date objects for asyncpg
+        from datetime import date as date_type
+        date_from_obj = date_type.fromisoformat(date_from) if isinstance(date_from, str) else date_from
+        date_to_obj = date_type.fromisoformat(date_to) if isinstance(date_to, str) else date_to
+        
         # Get wastage by stage
         query = """
             SELECT 
@@ -524,12 +529,12 @@ async def get_wastage_analytics_by_stage(
                 SUM(estimated_cost) as total_cost,
                 AVG(quantity) as avg_wastage_per_event
             FROM wastage_events
-            WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')
+            WHERE created_at >= $1 AND created_at < ($2 + interval '1 day')
             GROUP BY stage
             ORDER BY total_wastage_kg DESC
         """
         
-        results = await fetch_all(query, date_from, date_to)
+        results = await fetch_all(query, date_from_obj, date_to_obj)
         
         # Calculate total for percentages
         total_wastage = sum(float(r['total_wastage_kg'] or 0) for r in results)
@@ -542,14 +547,14 @@ async def get_wastage_analytics_by_stage(
                 SELECT reason, COUNT(*) as count
                 FROM wastage_events
                 WHERE stage = $1 
-                  AND created_at >= $2::date 
-                  AND created_at < ($3::date + interval '1 day')
+                  AND created_at >= $2 
+                  AND created_at < ($3 + interval '1 day')
                   AND reason IS NOT NULL
                 GROUP BY reason
                 ORDER BY count DESC
                 LIMIT 5
             """
-            top_reasons_data = await fetch_all(reasons_query, result['stage'], date_from, date_to)
+            top_reasons_data = await fetch_all(reasons_query, result['stage'], date_from_obj, date_to_obj)
             top_reasons = [{"reason": r['reason'], "count": r['count']} for r in top_reasons_data]
             
             stage_analytics = WastageStageAnalytics(
@@ -600,6 +605,11 @@ async def get_wastage_analytics_by_product(
         if not date_to:
             date_to = datetime.now().strftime("%Y-%m-%d")
         
+        # Convert string dates to date objects for asyncpg
+        from datetime import date as date_type
+        date_from_obj = date_type.fromisoformat(date_from) if isinstance(date_from, str) else date_from
+        date_to_obj = date_type.fromisoformat(date_to) if isinstance(date_to, str) else date_to
+        
         # Build query with optional item filter
         query = """
             SELECT 
@@ -607,9 +617,9 @@ async def get_wastage_analytics_by_product(
                 SUM(quantity) as total_wastage_kg,
                 SUM(estimated_cost) as total_cost
             FROM wastage_events
-            WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')
+            WHERE created_at >= $1 AND created_at < ($2 + interval '1 day')
         """
-        params = [date_from, date_to]
+        params = [date_from_obj, date_to_obj]
         
         if item_name:
             query += " AND item_name ILIKE $3"
@@ -626,13 +636,13 @@ async def get_wastage_analytics_by_product(
                 SELECT stage, SUM(quantity) as wastage_kg
                 FROM wastage_events
                 WHERE item_name = $1 
-                  AND created_at >= $2::date 
-                  AND created_at < ($3::date + interval '1 day')
+                  AND created_at >= $2 
+                  AND created_at < ($3 + interval '1 day')
                 GROUP BY stage
                 ORDER BY wastage_kg DESC
                 LIMIT 3
             """
-            stages_data = await fetch_all(stages_query, result['item_name'], date_from, date_to)
+            stages_data = await fetch_all(stages_query, result['item_name'], date_from_obj, date_to_obj)
             problematic_stages = [{"stage": s['stage'], "wastage_kg": float(s['wastage_kg'])} for s in stages_data]
             
             product_analytics = WastageProductAnalytics(
@@ -680,6 +690,11 @@ async def get_wastage_trends(
         if not date_to:
             date_to = datetime.now().strftime("%Y-%m-%d")
         
+        # Convert string dates to date objects for asyncpg
+        from datetime import date as date_type
+        date_from_obj = date_type.fromisoformat(date_from) if isinstance(date_from, str) else date_from
+        date_to_obj = date_type.fromisoformat(date_to) if isinstance(date_to, str) else date_to
+        
         # Determine date truncation based on granularity
         if granularity == "weekly":
             date_trunc = "week"
@@ -695,12 +710,12 @@ async def get_wastage_trends(
                 SUM(estimated_cost) as total_cost,
                 COUNT(*) as event_count
             FROM wastage_events
-            WHERE created_at >= $1::date AND created_at < ($2::date + interval '1 day')
+            WHERE created_at >= $1 AND created_at < ($2 + interval '1 day')
             GROUP BY DATE_TRUNC('{date_trunc}', created_at)
             ORDER BY date
         """
         
-        results = await fetch_all(query, date_from, date_to)
+        results = await fetch_all(query, date_from_obj, date_to_obj)
         
         data_points = [
             WastageTrendDataPoint(
