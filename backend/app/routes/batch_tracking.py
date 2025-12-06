@@ -113,7 +113,7 @@ async def get_active_batches(
         )
 
 
-@router.get("/{batch_number}", response_model=BatchDetailResponse)
+@router.get("/{batch_number:path}", response_model=BatchDetailResponse)
 async def get_batch_details(
     batch_number: str,
     current_user: CurrentUser = Depends(get_current_user),
@@ -146,7 +146,7 @@ async def get_batch_details(
         )
 
 
-@router.get("/{batch_number}/timeline", response_model=BatchTimelineResponse)
+@router.get("/{batch_number:path}/timeline", response_model=BatchTimelineResponse)
 async def get_batch_timeline(
     batch_number: str,
     current_user: CurrentUser = Depends(get_current_user),
