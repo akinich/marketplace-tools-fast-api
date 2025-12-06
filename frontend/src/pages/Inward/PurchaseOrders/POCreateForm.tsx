@@ -92,17 +92,17 @@ const POCreateForm: React.FC = () => {
                     enqueueSnackbar('No vendors found. Please check Zoho sync.', { variant: 'warning' });
                 }
 
-                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.contact_id, name: v.contact_name })) || []);
+                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.id, name: v.contact_name })) || []);
 
                 // Map items and store HSN codes
                 const validItems = itemsData.items || [];
-                setAvailableItems(validItems.map((i: any) => ({ id: i.item_id, name: i.name, rate: i.rate })) || []);
+                setAvailableItems(validItems.map((i: any) => ({ id: i.id, name: i.name, rate: i.rate })) || []);
 
                 // Create HSN map for quick lookup
                 const hsnMapping: Record<number, string> = {};
                 validItems.forEach((i: any) => {
                     if (i.hsn_or_sac) {
-                        hsnMapping[i.item_id] = i.hsn_or_sac;
+                        hsnMapping[i.id] = i.hsn_or_sac;
                     }
                 });
                 setHsnMap(hsnMapping);
