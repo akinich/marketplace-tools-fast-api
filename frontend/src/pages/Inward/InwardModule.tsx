@@ -12,6 +12,7 @@
  */
 
 import { Routes, Route, Navigate } from 'react-router-dom';
+import InwardDashboard from './InwardDashboard';
 import POListPage from './PurchaseOrders/POListPage';
 import POCreateForm from './PurchaseOrders/POCreateForm';
 import PODetailPage from './PurchaseOrders/PODetailPage';
@@ -19,11 +20,14 @@ import VendorPricingManager from './PurchaseOrders/VendorPricingManager';
 import GRNListPage from './GRN/GRNListPage';
 import GRNDetailPage from './GRN/GRNDetailPage';
 import GRNDataEntryForm from './GRN/GRNDataEntryForm';
+import GradingSorting from './GradingSorting';
+import PackingLabeling from './PackingLabeling';
 
 export default function InwardModule() {
     return (
         <Routes>
-            <Route index element={<Navigate to="purchase-orders" replace />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<InwardDashboard />} />
             <Route path="purchase-orders" element={<POListPage />} />
             <Route path="purchase-orders/create" element={<POCreateForm />} />
             <Route path="purchase-orders/:poId" element={<PODetailPage />} />
@@ -33,6 +37,10 @@ export default function InwardModule() {
             <Route path="grn" element={<GRNListPage />} />
             <Route path="grn/:grnId" element={<GRNDetailPage />} />
             <Route path="grn/:grnId/edit" element={<GRNDataEntryForm />} />
+
+            {/* Coming Soon */}
+            <Route path="grading" element={<GradingSorting />} />
+            <Route path="packing" element={<PackingLabeling />} />
         </Routes>
     );
 }

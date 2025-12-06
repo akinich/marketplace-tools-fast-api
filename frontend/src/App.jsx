@@ -53,6 +53,8 @@ import B2COpsModule from './pages/B2COps/B2COpsModule';
 import DatabaseManagementModule from './pages/DatabaseManagement/DatabaseManagementModule';
 import InventoryModule from './pages/Inventory/InventoryModule';
 import InwardModule from './pages/Inward/InwardModule';
+import OutwardModule from './pages/Outward/OutwardModule';
+import ReportingModule from './pages/Reporting/ReportingModule';
 import TicketsModule from './pages/TicketsModule';
 import DevelopmentModule from './pages/DevelopmentModule';
 import DocsModule from './pages/DocsModule';
@@ -141,6 +143,8 @@ function App() {
         <Route path="database-management/*" element={<DatabaseManagementModule />} />
         <Route path="inventory/*" element={<InventoryModule />} />
         <Route path="inward/*" element={<InwardModule />} />
+        <Route path="outward/*" element={<OutwardModule />} />
+        <Route path="reporting/*" element={<ReportingModule />} />
         <Route path="tickets/*" element={<TicketsModule />} />
         <Route path="development/*" element={<DevelopmentModule />} />
         <Route path="docs/*" element={<DocsModule />} />

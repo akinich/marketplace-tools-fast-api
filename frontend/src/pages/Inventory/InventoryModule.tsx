@@ -13,6 +13,8 @@
 
 
 import { Routes, Route, Navigate } from 'react-router-dom';
+import InventoryDashboard from './InventoryDashboard';
+import StockManagement from './StockManagement';
 import BatchTrackingPage from './BatchTrackingPage';
 import BatchDetailPage from './BatchDetailPage';
 import WastageTrackingPage from './WastageTracking/WastageTrackingPage';
@@ -23,7 +25,9 @@ import WastageAlertsPage from './WastageTracking/WastageAlertsPage';
 export default function InventoryModule() {
     return (
         <Routes>
-            <Route index element={<Navigate to="batch-tracking" replace />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<InventoryDashboard />} />
+            <Route path="stock" element={<StockManagement />} />
             <Route path="batch-tracking" element={<BatchTrackingPage />} />
             <Route path="batch-tracking/:batchNumber" element={<BatchDetailPage />} />
             <Route path="wastage-tracking" element={<WastageTrackingPage />} />
