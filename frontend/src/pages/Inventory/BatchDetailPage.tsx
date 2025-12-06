@@ -40,10 +40,13 @@ import RepackingModal from './RepackingModal';
 import useAuthStore from '../../store/authStore';
 
 export default function BatchDetailPage() {
-    const { batchNumber } = useParams<{ batchNumber: string }>();
+    const { batchNumber: encodedBatchNumber } = useParams<{ batchNumber: string }>();
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
     const { user } = useAuthStore();
+
+    // Decode the batch number from URL (it comes encoded from the route)
+    const batchNumber = encodedBatchNumber ? decodeURIComponent(encodedBatchNumber) : undefined;
 
     const [batch, setBatch] = useState<BatchDetailResponse | null>(null);
     const [timeline, setTimeline] = useState<BatchTimelineResponse | null>(null);
