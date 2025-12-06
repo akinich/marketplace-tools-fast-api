@@ -417,6 +417,7 @@ export default function DashboardLayout() {
     // Inventory sub-modules
     const inventoryRoutes = {
       batch_tracking: '/inventory/batch-tracking',
+      wastage_tracking: '/inventory/wastage-tracking',
     };
 
     if (parentModuleKey === 'admin') {

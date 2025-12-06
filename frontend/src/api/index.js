@@ -32,6 +32,7 @@ import { docsAPI } from './docs';
 import { settingsAPI } from './settings';
 import stockPriceAPI from './stockPrice';
 import { batchTrackingAPI } from './batchTracking';
+import { wastageTrackingAPI } from './wastageTracking';
 
 // ============================================================================
 // DASHBOARD API
@@ -455,7 +456,7 @@ export const b2cOpsAPI = {
 };
 
 // Export all APIs
-export { authAPI, docsAPI, settingsAPI, productAPI, stockPriceAPI, batchTrackingAPI, apiClient };
+export { authAPI, docsAPI, settingsAPI, productAPI, stockPriceAPI, batchTrackingAPI, wastageTrackingAPI, apiClient };
 export default {
   auth: authAPI,
   dashboard: dashboardAPI,
@@ -469,4 +470,5 @@ export default {
   product: productAPI,
   stockPrice: stockPriceAPI,
   batchTracking: batchTrackingAPI,
+  wastageTracking: wastageTrackingAPI,
 };
