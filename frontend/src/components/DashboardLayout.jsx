@@ -441,7 +441,7 @@ export default function DashboardLayout() {
     <Box>
       <Toolbar sx={{ backgroundColor: 'primary.main', color: 'white' }}>
         <Typography variant="h6" noWrap component="div">
-          Farm ERP
+          Marketplace ERP
         </Typography>
       </Toolbar>
       <Divider />
@@ -530,7 +530,7 @@ export default function DashboardLayout() {
           </IconButton>
 
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {user?.full_name || 'User'}
+            Welcome, {user?.full_name || 'User'}
           </Typography>
 
           <IconButton color="inherit" onClick={handleMenuOpen}>
