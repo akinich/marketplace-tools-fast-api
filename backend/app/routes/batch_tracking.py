@@ -36,7 +36,7 @@ from app.schemas.batch_tracking import (
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
 from app.services import batch_tracking_service
-from app.database import get_db
+from app.database import get_db, fetch_one, fetch_all
 
 router = APIRouter()
 
@@ -79,6 +79,39 @@ async def generate_batch(
 # ============================================================================
 # BATCH RETRIEVAL
 # ============================================================================
+
+# NOTE: /active endpoint MUST come before /{batch_number} to avoid route conflict
+@router.get("/active", response_model=BatchSearchResponse)
+async def get_active_batches(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(50, ge=1, le=100, description="Items per page"),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    List all active (non-archived) batches.
+
+    **Query Parameters:**
+    - status: Optional status filter
+    - page: Page number (default: 1)
+    - limit: Items per page (default: 50, max: 100)
+
+    **Returns:**
+    Paginated list of active batches.
+    """
+    try:
+        results = await batch_tracking_service.get_active_batches(
+            status=status,
+            page=page,
+            limit=limit
+        )
+        return results
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get active batches: {str(e)}"
+        )
+
 
 @router.get("/{batch_number}", response_model=BatchDetailResponse)
 async def get_batch_details(
@@ -276,42 +309,6 @@ async def add_batch_history(
 
 
 # ============================================================================
-# ACTIVE BATCHES
-# ============================================================================
-
-@router.get("/active", response_model=BatchSearchResponse)
-async def get_active_batches(
-    status: Optional[str] = Query(None, description="Filter by status"),
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(50, ge=1, le=100, description="Items per page"),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """
-    List all active (non-archived) batches.
-
-    **Query Parameters:**
-    - status: Optional status filter
-    - page: Page number (default: 1)
-    - limit: Items per page (default: 50, max: 100)
-
-    **Returns:**
-    Paginated list of active batches.
-    """
-    try:
-        results = await batch_tracking_service.get_active_batches(
-            status=status,
-            page=page,
-            limit=limit
-        )
-        return results
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get active batches: {str(e)}"
-        )
-
-
-# ============================================================================
 # BATCH ARCHIVING
 # ============================================================================
 
@@ -342,14 +339,13 @@ async def archive_batch(
             )
 
         # Update status to archived
-        from app.database import execute_query
         query = """
             UPDATE batches
             SET status = $1, archived_at = NOW()
             WHERE batch_number = $2
             RETURNING archived_at
         """
-        result = await execute_query(
+        result = await fetch_one(
             query,
             BatchStatus.ARCHIVED.value,
             batch_number
@@ -357,7 +353,7 @@ async def archive_batch(
 
         return {
             "batch_number": batch_number,
-            "archived_at": datetime.now(),
+            "archived_at": result['archived_at'] if result else datetime.now(),
             "status": "archived"
         }
 

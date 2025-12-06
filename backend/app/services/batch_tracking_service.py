@@ -133,7 +133,12 @@ async def generate_batch_number(
             sequence_row = await conn.fetchrow(sequence_query)
 
             if not sequence_row:
-                raise Exception("Batch sequence not initialized")
+                raise Exception(
+                    "Batch sequence not initialized. Please run migration 014_batch_tracking_clean.sql "
+                    "or manually insert a record into batch_sequence table with: "
+                    "INSERT INTO batch_sequence (current_number, prefix, financial_year, fy_start_date, fy_end_date) "
+                    "VALUES (0, 'B', '2526', '2025-04-01', '2026-03-31');"
+                )
 
             current_number = sequence_row['current_number']
             prefix = sequence_row['prefix']
@@ -148,7 +153,7 @@ async def generate_batch_number(
                     batch_number, status, po_id, grn_id, created_by
                 )
                 VALUES ($1, $2, $3, $4, $5)
-                RETURNING id, batch_number, status, created_at
+                RETURNING id, batch_number, status, is_repacked, created_at
             """
             batch_row = await conn.fetchrow(
                 insert_query,
@@ -191,6 +196,7 @@ async def generate_batch_number(
                 "batch_id": batch_row['id'],
                 "batch_number": batch_row['batch_number'],
                 "status": batch_row['status'],
+                "is_repacked": batch_row['is_repacked'],
                 "created_at": batch_row['created_at']
             }
 
@@ -956,7 +962,7 @@ async def update_batch_configuration(
             RETURNING prefix, current_number, financial_year, fy_start_date, fy_end_date
         """
 
-        result = await execute_query(query, *params)
+        result = await fetch_one(query, *params)
 
         logger.info(f"✅ Updated batch configuration: {result}")
 
