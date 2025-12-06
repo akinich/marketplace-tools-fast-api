@@ -24,7 +24,6 @@ import {
     Divider,
     List,
     ListItem,
-    ListItemText,
 } from '@mui/material';
 import {
     ArrowBack,
@@ -65,7 +64,7 @@ const PODetailPage: React.FC = () => {
         };
 
         loadPO();
-    }, [poId]);
+    }, [poId, enqueueSnackbar]);
 
     // Status color mapping
     const getStatusColor = (status: string): 'default' | 'info' | 'warning' | 'success' | 'secondary' => {

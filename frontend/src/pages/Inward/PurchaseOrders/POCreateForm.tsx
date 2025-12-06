@@ -25,12 +25,12 @@ import {
     CircularProgress,
 } from '@mui/material';
 import { Add, Delete, ArrowBack } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { purchaseOrdersAPI, POCreateRequest, ActivePriceResponse } from '../../../api/purchaseOrders';
 import { zohoVendorAPI } from '../../../api/zohoVendor';
 import { zohoItemAPI } from '../../../api/zohoItem';
-import { formatDateForAPI, validateDeliveryDate, checkDateGap, getTodayISO } from '../../../utils/dateUtils';
+import { validateDeliveryDate, checkDateGap, getTodayISO } from '../../../utils/dateUtils';
 
 interface POItemRow {
     item_id: number | null;
@@ -55,7 +55,6 @@ interface ItemOption {
 const POCreateForm: React.FC = () => {
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
-    const { poId } = useParams<{ poId: string }>();
 
     const [loading, setLoading] = useState(false);
     const [vendorId, setVendorId] = useState<number | null>(null);
@@ -85,7 +84,7 @@ const POCreateForm: React.FC = () => {
         };
 
         loadData();
-    }, []);
+    }, [enqueueSnackbar]);
 
     // Load active prices when vendor or dispatch date changes
     useEffect(() => {
@@ -271,7 +270,7 @@ const POCreateForm: React.FC = () => {
                     options={vendors}
                     getOptionLabel={(option) => option.name}
                     value={vendors.find((v) => v.id === vendorId) || null}
-                    onChange={(e, value) => setVendorId(value?.id || null)}
+                    onChange={(_, value) => setVendorId(value?.id || null)}
                     renderInput={(params) => <TextField {...params} label="Vendor / Farm *" required />}
                     sx={{ mb: 2 }}
                 />
@@ -330,7 +329,7 @@ const POCreateForm: React.FC = () => {
                                         <Autocomplete
                                             options={availableItems}
                                             getOptionLabel={(option) => option.name}
-                                            onChange={(e, value) => handleItemSelect(index, value)}
+                                            onChange={(_, value) => handleItemSelect(index, value)}
                                             renderInput={(params) => <TextField {...params} size="small" />}
                                             sx={{ minWidth: 200 }}
                                         />
