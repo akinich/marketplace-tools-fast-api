@@ -160,7 +160,7 @@ class ModuleItem(BaseModel):
     module_key: str
     module_name: str
     description: Optional[str]
-    icon: str
+    icon: Optional[str] = None
     display_order: int
     is_active: bool
     parent_module_id: Optional[int] = Field(None, description="Parent module ID (NULL for top-level modules)")
@@ -268,7 +268,7 @@ class UserModuleItem(BaseModel):
     module_id: int
     module_key: str
     module_name: str
-    icon: str
+    icon: Optional[str] = None
     display_order: int
 
 

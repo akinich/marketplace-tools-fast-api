@@ -64,7 +64,7 @@ class ModuleAccess(BaseModel):
     module_id: int
     module_key: str
     module_name: str
-    icon: str
+    icon: Optional[str] = None
     display_order: int
     parent_module_id: Optional[int] = Field(None, description="Parent module ID (NULL for top-level modules)")
 
