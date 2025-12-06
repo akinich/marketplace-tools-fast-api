@@ -164,7 +164,7 @@ class UpdateThresholdRequest(BaseModel):
             "example": {
                 "threshold_percentage": 7.00,
                 "alert_level": "warning",
-                "is_active": true
+                "is_active": True
             }
         }
 
