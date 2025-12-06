@@ -13,7 +13,7 @@ from app.schemas.grn import (
 )
 
 
-router = APIRouter(prefix="/api/v1/grn", tags=["GRN Management"])
+router = APIRouter()
 
 @router.post("/generate", response_model=GRNDetailResponse)
 async def generate_grn(

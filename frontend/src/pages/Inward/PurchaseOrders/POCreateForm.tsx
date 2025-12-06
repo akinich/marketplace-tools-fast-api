@@ -92,7 +92,7 @@ const POCreateForm: React.FC = () => {
                     enqueueSnackbar('No vendors found. Please check Zoho sync.', { variant: 'warning' });
                 }
 
-                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.vendor_id, name: v.vendor_name })) || []);
+                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.contact_id, name: v.contact_name })) || []);
 
                 // Map items and store HSN codes
                 const validItems = itemsData.items || [];

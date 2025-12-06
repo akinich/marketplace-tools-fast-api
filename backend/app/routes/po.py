@@ -63,6 +63,52 @@ async def get_next_po_number(
         )
 
 
+@router.get("/list", response_model=POListResponse)
+async def list_pos(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    vendor_id: Optional[int] = Query(None, description="Filter by vendor ID"),
+    from_date: Optional[date] = Query(None, description="Filter by dispatch date from"),
+    to_date: Optional[date] = Query(None, description="Filter by dispatch date to"),
+    item_id: Optional[int] = Query(None, description="Filter by item ID"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    List purchase orders with filtering and pagination.
+
+    **Filters:**
+    - status: Filter by PO status
+    - vendor_id: Filter by vendor
+    - from_date/to_date: Filter by dispatch date range
+    - item_id: Filter by item (in PO items)
+
+    **Pagination:**
+    - page: Page number (1-indexed)
+    - limit: Items per page (max 100)
+
+    **Returns:**
+    - Paginated list of POs
+    - Total count for pagination
+    """
+    try:
+        result = await po_service.list_pos(
+            status=status,
+            vendor_id=vendor_id,
+            from_date=from_date,
+            to_date=to_date,
+            item_id=item_id,
+            page=page,
+            limit=limit
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list POs: {str(e)}"
+        )
+
+
 @router.post("/create", response_model=PODetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_po(
     request: POCreateRequest,
@@ -189,52 +235,6 @@ async def send_po_to_farm(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to send PO: {str(e)}"
-        )
-
-
-@router.get("/list", response_model=POListResponse)
-async def list_pos(
-    status: Optional[str] = Query(None, description="Filter by status"),
-    vendor_id: Optional[int] = Query(None, description="Filter by vendor ID"),
-    from_date: Optional[date] = Query(None, description="Filter by dispatch date from"),
-    to_date: Optional[date] = Query(None, description="Filter by dispatch date to"),
-    item_id: Optional[int] = Query(None, description="Filter by item ID"),
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """
-    List purchase orders with filtering and pagination.
-
-    **Filters:**
-    - status: Filter by PO status
-    - vendor_id: Filter by vendor
-    - from_date/to_date: Filter by dispatch date range
-    - item_id: Filter by item (in PO items)
-
-    **Pagination:**
-    - page: Page number (1-indexed)
-    - limit: Items per page (max 100)
-
-    **Returns:**
-    - Paginated list of POs
-    - Total count for pagination
-    """
-    try:
-        result = await po_service.list_pos(
-            status=status,
-            vendor_id=vendor_id,
-            from_date=from_date,
-            to_date=to_date,
-            item_id=item_id,
-            page=page,
-            limit=limit
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list POs: {str(e)}"
         )
 
 
