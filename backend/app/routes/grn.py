@@ -5,7 +5,8 @@ from typing import List, Optional
 from datetime import date
 from io import BytesIO
 
-from app.services.auth_service import get_current_user
+from app.auth.dependencies import get_current_user
+from app.schemas.auth import CurrentUser
 from app.services import grn_service
 from app.schemas.grn import (
     GRNResponse, GRNDetailResponse, GRNUpdateRequest, GRNListResponse
@@ -17,14 +18,14 @@ router = APIRouter(prefix="/api/v1/grn", tags=["GRN Management"])
 @router.post("/generate", response_model=GRNDetailResponse)
 async def generate_grn(
     po_id: int = Query(..., description="Purchase Order ID"),
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """
     Generate new GRN from PO
     """
     try:
         # User ID from token usually string (UUID), passed to service which expects int/str as handled
-        user_id = current_user['id'] 
+        user_id = current_user.id 
         # Note: Handover service layer assumed int user_id, but usually it's UUID str in this app.
         # Check if user_id needs cast. Service code uses it in SQL params.
         # If DB column is UUID, str is fine. If DB column is INT, we need int.
@@ -62,7 +63,7 @@ async def list_grns(
     to_date: Optional[date] = None,
     page: int = 1,
     limit: int = 20,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     """List GRNs with filtering"""
     try:
@@ -81,7 +82,7 @@ async def list_grns(
 @router.get("/{grn_id}", response_model=GRNDetailResponse)
 async def get_grn(
     grn_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     try:
         grn = await grn_service.get_grn_details(grn_id)
@@ -95,10 +96,10 @@ async def get_grn(
 async def update_grn(
     grn_id: int,
     request: GRNUpdateRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     try:
-        return await grn_service.update_grn(grn_id, request, current_user['id'])
+        return await grn_service.update_grn(grn_id, request, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -107,10 +108,10 @@ async def update_grn(
 @router.post("/{grn_id}/finalize", response_model=GRNDetailResponse)
 async def finalize_grn(
     grn_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     try:
-        return await grn_service.finalize_grn(grn_id, current_user['id'])
+        return await grn_service.finalize_grn(grn_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -122,11 +123,11 @@ async def upload_photos(
     item_id: int = Form(...),
     photo_type: str = Form(...),
     files: List[UploadFile] = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     try:
         urls = await grn_service.upload_grn_photos(
-            grn_id, item_id, photo_type, files, current_user['id']
+            grn_id, item_id, photo_type, files, current_user.id
         )
         return {"urls": urls}
     except ValueError as e:
@@ -137,10 +138,10 @@ async def upload_photos(
 @router.delete("/photos/{photo_id}")
 async def delete_photo(
     photo_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     try:
-        await grn_service.delete_grn_photo(photo_id, current_user['id'])
+        await grn_service.delete_grn_photo(photo_id, current_user.id)
         return {"status": "success"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -150,7 +151,7 @@ async def delete_photo(
 @router.get("/{grn_id}/print")
 async def print_grn(
     grn_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ):
     try:
         pdf_bytes = await grn_service.generate_blank_grn_pdf(grn_id)
