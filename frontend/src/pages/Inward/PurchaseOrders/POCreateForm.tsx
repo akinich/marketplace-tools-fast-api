@@ -56,6 +56,9 @@ const POCreateForm: React.FC = () => {
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
 
+    const [poNumber, setPoNumber] = useState('');
+    const [hsnMap, setHsnMap] = useState<Record<number, string>>({});
+
     const [loading, setLoading] = useState(false);
     const [vendorId, setVendorId] = useState<number | null>(null);
     const [dispatchDate, setDispatchDate] = useState<string>(getTodayISO());
@@ -70,16 +73,44 @@ const POCreateForm: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
+                // Fetch next PO number first
+                try {
+                    const nextPo = await purchaseOrdersAPI.getNextNumber();
+                    setPoNumber(nextPo.po_number);
+                } catch (error) {
+                    console.error('Failed to fetch next PO number:', error);
+                    enqueueSnackbar('Could not generate PO number automatically', { variant: 'warning' });
+                }
+
                 const [vendorsData, itemsData] = await Promise.all([
                     zohoVendorAPI.getItems(),
                     zohoItemAPI.getItems(),
                 ]);
 
+                if (!vendorsData.vendors || vendorsData.vendors.length === 0) {
+                    console.warn('No vendors returned from API');
+                    enqueueSnackbar('No vendors found. Please check Zoho sync.', { variant: 'warning' });
+                }
+
                 setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.vendor_id, name: v.vendor_name })) || []);
-                setAvailableItems(itemsData.items?.map((i: any) => ({ id: i.item_id, name: i.name, rate: i.rate })) || []);
+
+                // Map items and store HSN codes
+                const validItems = itemsData.items || [];
+                setAvailableItems(validItems.map((i: any) => ({ id: i.item_id, name: i.name, rate: i.rate })) || []);
+
+                // Create HSN map for quick lookup
+                const hsnMapping: Record<number, string> = {};
+                validItems.forEach((i: any) => {
+                    if (i.hsn_or_sac) {
+                        hsnMapping[i.item_id] = i.hsn_or_sac;
+                    }
+                });
+                setHsnMap(hsnMapping);
+
             } catch (error: any) {
-                console.error('Failed to load data:', error);
-                enqueueSnackbar('Failed to load vendors and items', { variant: 'error' });
+                console.error('Failed to load data details:', error);
+                const errorMsg = error.response?.data?.detail || 'Failed to load vendors and items';
+                enqueueSnackbar(errorMsg, { variant: 'error' });
             }
         };
 
@@ -216,10 +247,16 @@ const POCreateForm: React.FC = () => {
             return;
         }
 
+        if (!poNumber) {
+            enqueueSnackbar('PO Number is required', { variant: 'error' });
+            return;
+        }
+
         setLoading(true);
         try {
             const poData: POCreateRequest = {
                 vendor_id: vendorId!,
+                po_number: poNumber, // Add custom PO number
                 dispatch_date: dispatchDate,
                 delivery_date: deliveryDate,
                 items: items.map((item) => ({
@@ -235,9 +272,9 @@ const POCreateForm: React.FC = () => {
 
             if (sendToFarm) {
                 await purchaseOrdersAPI.send(response.id);
-                enqueueSnackbar('PO created and sent to farm successfully', { variant: 'success' });
+                enqueueSnackbar(`PO ${response.po_number} created and sent to farm`, { variant: 'success' });
             } else {
-                enqueueSnackbar('PO created successfully', { variant: 'success' });
+                enqueueSnackbar(`PO ${response.po_number} created successfully`, { variant: 'success' });
             }
 
             navigate(`/inward/purchase-orders/${response.id}`);
@@ -265,6 +302,19 @@ const POCreateForm: React.FC = () => {
             </Box>
 
             <Card sx={{ p: 3, mb: 3 }}>
+                {/* PO Number (Top Row) */}
+                <Box sx={{ mb: 3 }}>
+                    <TextField
+                        label="PO Number *"
+                        value={poNumber}
+                        onChange={(e) => setPoNumber(e.target.value)}
+                        placeholder="PO/YY[YY+1]/XXXX"
+                        helperText="Auto-generated but editable (Format: PO/2526/0001)"
+                        fullWidth
+                        required
+                    />
+                </Box>
+
                 {/* Vendor Selection */}
                 <Autocomplete
                     options={vendors}
@@ -314,25 +364,31 @@ const POCreateForm: React.FC = () => {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>Item *</TableCell>
-                                <TableCell>Quantity *</TableCell>
-                                <TableCell>Unit Price *</TableCell>
-                                <TableCell>Source</TableCell>
-                                <TableCell>Total</TableCell>
-                                <TableCell>Actions</TableCell>
+                                <TableCell width="5%">#</TableCell>
+                                <TableCell width="30%">Item & Description *</TableCell>
+                                <TableCell width="10%">HSN/SAC</TableCell>
+                                <TableCell width="15%">Qty *</TableCell>
+                                <TableCell width="15%">Rate *</TableCell>
+                                <TableCell width="10%">Source</TableCell>
+                                <TableCell width="15%">Amount</TableCell>
+                                <TableCell width="5%">Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {items.map((item, index) => (
                                 <TableRow key={index}>
+                                    <TableCell>{index + 1}</TableCell>
                                     <TableCell>
                                         <Autocomplete
                                             options={availableItems}
                                             getOptionLabel={(option) => option.name}
                                             onChange={(_, value) => handleItemSelect(index, value)}
-                                            renderInput={(params) => <TextField {...params} size="small" />}
+                                            renderInput={(params) => <TextField {...params} size="small" placeholder="Select Item" />}
                                             sx={{ minWidth: 200 }}
                                         />
+                                    </TableCell>
+                                    <TableCell>
+                                        {item.item_id ? (hsnMap[item.item_id] || '-') : '-'}
                                     </TableCell>
                                     <TableCell>
                                         <TextField

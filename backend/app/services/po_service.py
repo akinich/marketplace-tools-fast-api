@@ -45,34 +45,73 @@ logger = logging.getLogger(__name__)
 # PO NUMBER GENERATION
 # ============================================================================
 
-async def generate_po_number() -> str:
+async def generate_po_number(custom_number: Optional[str] = None) -> Dict[str, Any]:
     """
     Generate sequential PO number (thread-safe).
-    Format: PO-001, PO-002, PO-003, etc.
+    Format: PO/YY[YY+1]/XXXX (e.g., PO/2526/0001)
+
+    Args:
+        custom_number: Optional custom number to validate/use
 
     Returns:
-        Sequential PO number
-
-    Raises:
-        Exception: If PO number generation fails
+        Dict with {po_number, sequence_number, financial_year}
     """
     try:
-        # Get max PO number and increment
+        # 1. Determine Financial Year (FY)
+        today = date.today()
+        year = today.year
+        month = today.month
+
+        if month >= 4:  # April onwards
+            start_year = year
+            end_year = year + 1
+        else:  # Jan-Mar
+            start_year = year - 1
+            end_year = year
+        
+        # Format: 2526 (for FY 2025-26)
+        fy_str = f"{str(start_year)[-2:]}{str(end_year)[-2:]}"
+
+        # 2. If custom number provided, use it (but try to extract sequence)
+        if custom_number:
+            # Try to extract sequence if it matches pattern
+            import re
+            match = re.match(r"PO/(\d{4})/(\d{4})", custom_number)
+            if match:
+                fy_match = match.group(1)
+                seq_match = int(match.group(2))
+                if fy_match == fy_str:
+                    return {
+                        "po_number": custom_number,
+                        "sequence_number": seq_match,
+                        "financial_year": fy_str
+                    }
+            
+            # If not matching pattern or different FY, just save as text
+            return {
+                "po_number": custom_number,
+                "sequence_number": None,
+                "financial_year": fy_str
+            }
+
+        # 3. Get max sequence number for this FY
         query = """
-            SELECT COALESCE(
-                MAX(CAST(SUBSTRING(po_number FROM 4) AS INTEGER)), 
-                0
-            ) + 1 as next_number
+            SELECT COALESCE(MAX(sequence_number), 0) + 1 as next_seq
             FROM purchase_orders
+            WHERE financial_year = $1
         """
-        result = await fetch_one(query)
-        next_number = result['next_number'] if result else 1
+        result = await fetch_one(query, fy_str)
+        next_seq = result['next_seq'] if result else 1
 
-        # Format: PO-001, PO-002, etc. (pad to 3 digits)
-        po_number = f"PO-{next_number:03d}"
+        # 4. Format: PO/2526/0001
+        po_number = f"PO/{fy_str}/{next_seq:04d}"
 
-        logger.info(f"✅ Generated PO number: {po_number}")
-        return po_number
+        logger.info(f"✅ Generated PO number: {po_number} (Seq: {next_seq}, FY: {fy_str})")
+        return {
+            "po_number": po_number,
+            "sequence_number": next_seq,
+            "financial_year": fy_str
+        }
 
     except Exception as e:
         logger.error(f"❌ Failed to generate PO number: {e}")
@@ -181,20 +220,26 @@ async def create_po(
                 raise ValueError(f"Vendor {request.vendor_id} not found")
 
             # 2. Generate PO number (within transaction for atomicity)
-            po_number = await generate_po_number()
+            po_info = await generate_po_number(request.po_number)
+            po_number = po_info['po_number']
+            sequence_number = po_info['sequence_number']
+            financial_year = po_info['financial_year']
 
             # 3. Create PO record
             po_insert_query = """
                 INSERT INTO purchase_orders (
-                    po_number, vendor_id, dispatch_date, delivery_date,
+                    po_number, sequence_number, financial_year,
+                    vendor_id, dispatch_date, delivery_date,
                     notes, created_by
                 )
-                VALUES ($1, $2, $3, $4, $5, $6)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING id, po_number, status, created_at, updated_at
             """
             po = await conn.fetchrow(
                 po_insert_query,
                 po_number,
+                sequence_number,
+                financial_year,
                 request.vendor_id,
                 request.dispatch_date,
                 request.delivery_date,

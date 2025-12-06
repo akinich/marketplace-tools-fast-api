@@ -39,6 +39,7 @@ export interface POItem {
 
 export interface POCreateRequest {
     vendor_id: number;
+    po_number?: string;
     dispatch_date: string;  // ISO date: YYYY-MM-DD
     delivery_date: string;
     items: POItem[];
@@ -151,6 +152,14 @@ export const purchaseOrdersAPI = {
      */
     create: async (data: POCreateRequest): Promise<PODetailResponse> => {
         const response = await apiClient.post('/po/create', data);
+        return response.data;
+    },
+
+    /**
+     * Get next sequential PO number
+     */
+    getNextNumber: async (): Promise<{ po_number: string; sequence_number: number; financial_year: string }> => {
+        const response = await apiClient.get('/po/next-number');
         return response.data;
     },
 
