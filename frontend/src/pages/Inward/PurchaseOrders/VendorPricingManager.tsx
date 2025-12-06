@@ -65,7 +65,7 @@ const VendorPricingManager: React.FC = () => {
     const [filterItem, setFilterItem] = useState<ItemOption | null>(null);
 
     // Check if user is admin
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'Admin';
 
     // Load vendors and items
     useEffect(() => {
@@ -76,8 +76,8 @@ const VendorPricingManager: React.FC = () => {
                     zohoItemAPI.getItems(),
                 ]);
 
-                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.contact_id, name: v.contact_name })) || []);
-                setItems(itemsData.items?.map((i: any) => ({ id: i.item_id, name: i.name })) || []);
+                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.id, name: v.contact_name })) || []);
+                setItems(itemsData.items?.map((i: any) => ({ id: i.id, name: i.name })) || []);
             } catch (error: any) {
                 console.error('Failed to load data:', error);
                 enqueueSnackbar('Failed to load vendors and items', { variant: 'error' });
