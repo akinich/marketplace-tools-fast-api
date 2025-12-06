@@ -76,7 +76,7 @@ const VendorPricingManager: React.FC = () => {
                     zohoItemAPI.getItems(),
                 ]);
 
-                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.vendor_id, name: v.vendor_name })) || []);
+                setVendors(vendorsData.vendors?.map((v: any) => ({ id: v.contact_id, name: v.contact_name })) || []);
                 setItems(itemsData.items?.map((i: any) => ({ id: i.item_id, name: i.name })) || []);
             } catch (error: any) {
                 console.error('Failed to load data:', error);

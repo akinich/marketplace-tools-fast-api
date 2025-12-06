@@ -105,7 +105,7 @@ export interface GRNListResponse {
 export const grnAPI = {
     // GRN Management
     generate: (poId: number) =>
-        api.post<GRNResponse>('/grn/generate', { po_id: poId }),
+        api.post<GRNResponse>('/grn/generate', null, { params: { po_id: poId } }),
 
     getById: (grnId: number) =>
         api.get<GRNDetailResponse>(`/grn/${grnId}`),
