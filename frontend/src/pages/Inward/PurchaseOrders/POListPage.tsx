@@ -82,6 +82,7 @@ const POListPage: React.FC = () => {
 
     useEffect(() => {
         loadPOs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters]);
 
     // Handle send to farm

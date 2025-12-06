@@ -85,7 +85,7 @@ const VendorPricingManager: React.FC = () => {
         };
 
         loadData();
-    }, []);
+    }, [enqueueSnackbar]);
 
     // Load price history when filter changes
     useEffect(() => {
@@ -108,7 +108,7 @@ const VendorPricingManager: React.FC = () => {
         };
 
         loadHistory();
-    }, [filterVendor, filterItem]);
+    }, [filterVendor, filterItem, enqueueSnackbar]);
 
     // Handle form submit
     const handleSubmit = async () => {
@@ -194,7 +194,7 @@ const VendorPricingManager: React.FC = () => {
                             options={vendors}
                             getOptionLabel={(option) => option.name}
                             value={selectedVendor}
-                            onChange={(e, value) => setSelectedVendor(value)}
+                            onChange={(_, value) => setSelectedVendor(value)}
                             renderInput={(params) => <TextField {...params} label="Vendor *" required />}
                             sx={{ mb: 2 }}
                         />
@@ -203,7 +203,7 @@ const VendorPricingManager: React.FC = () => {
                             options={items}
                             getOptionLabel={(option) => option.name}
                             value={selectedItem}
-                            onChange={(e, value) => setSelectedItem(value)}
+                            onChange={(_, value) => setSelectedItem(value)}
                             renderInput={(params) => <TextField {...params} label="Item *" required />}
                             sx={{ mb: 2 }}
                         />
@@ -277,7 +277,7 @@ const VendorPricingManager: React.FC = () => {
                                 options={vendors}
                                 getOptionLabel={(option) => option.name}
                                 value={filterVendor}
-                                onChange={(e, value) => setFilterVendor(value)}
+                                onChange={(_, value) => setFilterVendor(value)}
                                 renderInput={(params) => <TextField {...params} label="Filter by Vendor" />}
                                 sx={{ flex: 1 }}
                             />
@@ -286,7 +286,7 @@ const VendorPricingManager: React.FC = () => {
                                 options={items}
                                 getOptionLabel={(option) => option.name}
                                 value={filterItem}
-                                onChange={(e, value) => setFilterItem(value)}
+                                onChange={(_, value) => setFilterItem(value)}
                                 renderInput={(params) => <TextField {...params} label="Filter by Item" />}
                                 sx={{ flex: 1 }}
                             />
