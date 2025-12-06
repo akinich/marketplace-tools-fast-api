@@ -104,6 +104,8 @@ import {
   Storage as DatabaseIcon,
   Inventory2 as InventoryIcon,
   LocalShipping as InwardIcon,
+  Send as OutwardIcon,
+  Assessment as ReportingIcon,
   AccountCircle,
   Logout,
   Lock,
@@ -366,6 +368,8 @@ export default function DashboardLayout() {
       database_management: <DatabaseIcon />,
       inventory: <InventoryIcon />,
       inward: <InwardIcon />,
+      outward: <OutwardIcon />,
+      reporting: <ReportingIcon />,
     };
     return icons[moduleKey] || <DashboardIcon />;
   };
@@ -425,9 +429,42 @@ export default function DashboardLayout() {
 
     // Inward Operations sub-modules
     const inwardRoutes = {
+      inward_dashboard: '/inward/dashboard',
       purchase_orders: '/inward/purchase-orders',
       vendor_pricing: '/inward/vendor-pricing',
       grn_management: '/inward/grn',
+      grading_sorting: '/inward/grading',
+      packing_labeling: '/inward/packing',
+    };
+
+    // Outward Operations sub-modules
+    const outwardRoutes = {
+      outward_dashboard: '/outward/dashboard',
+      sales_orders: '/outward/sales-orders',
+      invoice_management: '/outward/invoices',
+      order_allocation: '/outward/allocation',
+      customer_pricing: '/outward/customer-pricing',
+    };
+
+    // Reporting sub-modules
+    const reportingRoutes = {
+      reporting_dashboard: '/reporting/dashboard',
+      purchase_reports: '/reporting/purchase',
+      wastage_reports: '/reporting/wastage',
+      inventory_reports: '/reporting/inventory',
+      sales_reports: '/reporting/sales',
+      operational_reports: '/reporting/operations',
+      financial_reports: '/reporting/financial',
+      traceability_reports: '/reporting/traceability',
+      logistics_reports: '/reporting/logistics',
+    };
+
+    // Tickets sub-modules
+    const ticketsRoutes = {
+      tickets_dashboard: '/tickets/dashboard',
+      b2b_tickets: '/tickets/b2b',
+      b2c_tickets: '/tickets/b2c',
+      internal_tickets: '/tickets/internal',
     };
 
     if (parentModuleKey === 'admin') {
@@ -444,6 +481,12 @@ export default function DashboardLayout() {
       return inventoryRoutes[subModuleKey] || `/inventory/${subModuleKey}`;
     } else if (parentModuleKey === 'inward') {
       return inwardRoutes[subModuleKey] || `/inward/${subModuleKey}`;
+    } else if (parentModuleKey === 'outward') {
+      return outwardRoutes[subModuleKey] || `/outward/${subModuleKey}`;
+    } else if (parentModuleKey === 'reporting') {
+      return reportingRoutes[subModuleKey] || `/reporting/${subModuleKey}`;
+    } else if (parentModuleKey === 'tickets') {
+      return ticketsRoutes[subModuleKey] || `/tickets/${subModuleKey}`;
     }
 
     // Default: construct route from keys
