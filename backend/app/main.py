@@ -308,7 +308,8 @@ from app.routes import (
     stock_price,
     woo_checkout,
     batch_tracking,
-    wastage_tracking
+    wastage_tracking,
+    po
 )
 from app.routes import settings as settings_router
 
@@ -341,6 +342,9 @@ app.include_router(woo_checkout.router, prefix=f"{settings.API_PREFIX}", tags=["
 # Inventory & Batch Tracking
 app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batches", tags=["Batch Tracking"])
 app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}", tags=["Wastage Tracking"])
+
+# Purchase Orders
+app.include_router(po.router, prefix=f"{settings.API_PREFIX}/po", tags=["Purchase Orders"])
 
 
 # ============================================================================
