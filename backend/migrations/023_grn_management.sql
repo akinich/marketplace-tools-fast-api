@@ -110,13 +110,27 @@ CREATE TABLE IF NOT EXISTS grn_edit_history (
 CREATE INDEX IF NOT EXISTS idx_grn_history_grn ON grn_edit_history(grn_id);
 
 -- Module Registration
-INSERT INTO modules (name, display_name, category, description, route, icon, status)
-VALUES (
+INSERT INTO modules (
+    module_key,
+    module_name,
+    description,
+    icon,
+    parent_module_id,
+    is_active,
+    display_order
+) VALUES (
     'grn_management',
     'GRN Management',
-    'Inward Operations',
     'Goods receiving, batch assignment, and wastage documentation',
-    '/inward/grn',
     'Inventory',
-    'active'
-) ON CONFLICT (name) DO NOTHING;
+    (SELECT id FROM modules WHERE module_key = 'inward'),
+    true,
+    30
+)
+ON CONFLICT (module_key) DO UPDATE SET
+    module_name = EXCLUDED.module_name,
+    description = EXCLUDED.description,
+    icon = EXCLUDED.icon,
+    parent_module_id = EXCLUDED.parent_module_id,
+    is_active = EXCLUDED.is_active,
+    display_order = EXCLUDED.display_order;
