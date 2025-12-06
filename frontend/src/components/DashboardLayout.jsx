@@ -244,15 +244,24 @@ export default function DashboardLayout() {
   useEffect(() => {
     const fetchModules = async () => {
       try {
+        console.log('[DashboardLayout] Fetching user modules...');
         const data = await dashboardAPI.getUserModules();
+        console.log('[DashboardLayout] Modules received:', data);
         setAllModules(data.modules || []);
+        if (!data.modules || data.modules.length === 0) {
+          console.warn('[DashboardLayout] No modules returned from API');
+        }
       } catch (error) {
-        console.error('Failed to fetch modules:', error);
+        console.error('[DashboardLayout] Failed to fetch modules:', error);
+        enqueueSnackbar('Failed to load navigation modules. Please refresh the page.', {
+          variant: 'error',
+          persist: true
+        });
       }
     };
 
     fetchModules();
-  }, []);
+  }, [enqueueSnackbar]);
 
   // Set up WebSocket event listeners for real-time notifications
   useEffect(() => {
