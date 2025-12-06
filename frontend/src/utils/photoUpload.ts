@@ -13,7 +13,7 @@
 import supabase from './supabaseClient';
 
 // Constants
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB (matches backend limit)
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
 const BUCKET_NAME = 'wastage-photos';
 
@@ -25,7 +25,7 @@ export const validatePhoto = (file: File): { valid: boolean; error?: string } =>
     if (file.size > MAX_FILE_SIZE) {
         return {
             valid: false,
-            error: `File size exceeds 10MB limit. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+            error: `File size exceeds 5MB limit. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
         };
     }
 

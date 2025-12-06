@@ -16,7 +16,7 @@ Functions:
   - search_batches: Search with multiple criteria
   - create_repacked_batch: Repacking workflow
   - add_batch_history: Log event to batch history
-  - archive_old_batches: Auto-archive batches 3 days after delivery
+  - archive_old_batches: Auto-archive batches 5 days after delivery
   - link_document_to_batch: Link documents to batch
   - get_batch_wastage_summary: All wastage for batch (integration with wastage module)
 
