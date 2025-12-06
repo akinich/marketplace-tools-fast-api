@@ -427,6 +427,7 @@ export default function DashboardLayout() {
     const inwardRoutes = {
       purchase_orders: '/inward/purchase-orders',
       vendor_pricing: '/inward/vendor-pricing',
+      grn_management: '/inward/grn',
     };
 
     if (parentModuleKey === 'admin') {

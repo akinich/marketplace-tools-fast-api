@@ -16,6 +16,9 @@ import POListPage from './PurchaseOrders/POListPage';
 import POCreateForm from './PurchaseOrders/POCreateForm';
 import PODetailPage from './PurchaseOrders/PODetailPage';
 import VendorPricingManager from './PurchaseOrders/VendorPricingManager';
+import GRNListPage from './GRN/GRNListPage';
+import GRNDetailPage from './GRN/GRNDetailPage';
+import GRNDataEntryForm from './GRN/GRNDataEntryForm';
 
 export default function InwardModule() {
     return (
@@ -25,6 +28,11 @@ export default function InwardModule() {
             <Route path="purchase-orders/create" element={<POCreateForm />} />
             <Route path="purchase-orders/:poId" element={<PODetailPage />} />
             <Route path="vendor-pricing" element={<VendorPricingManager />} />
+
+            {/* GRN Management */}
+            <Route path="grn" element={<GRNListPage />} />
+            <Route path="grn/:grnId" element={<GRNDetailPage />} />
+            <Route path="grn/:grnId/edit" element={<GRNDataEntryForm />} />
         </Routes>
     );
 }
