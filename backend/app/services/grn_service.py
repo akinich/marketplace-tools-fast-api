@@ -52,7 +52,7 @@ async def generate_grn_number(conn: asyncpg.Connection) -> str:
 
 async def generate_grn_from_po(
     po_id: int,
-    user_id: int
+    user_id: str
 ) -> Dict[str, Any]:
     """
     Create new GRN from PO
@@ -302,7 +302,7 @@ async def log_edit(conn, grn_id, field_name, old_val, new_val, user_id):
 async def update_grn(
     grn_id: int,
     request: GRNUpdateRequest,
-    user_id: int
+    user_id: str
 ) -> Dict[str, Any]:
     """Update GRN details"""
     try:
@@ -389,7 +389,7 @@ async def update_grn(
 # FINALIZE GRN
 # ============================================================================
 
-async def finalize_grn(grn_id: int, user_id: int) -> Dict[str, Any]:
+async def finalize_grn(grn_id: int, user_id: str) -> Dict[str, Any]:
     """
     Finalize GRN and trigger downstream processes
     """
@@ -537,7 +537,7 @@ async def upload_grn_photos(
     item_id: int,
     photo_type: str,
     files: List[UploadFile],
-    user_id: int
+    user_id: str
 ) -> List[str]:
     """Upload photos to Supabase"""
     if photo_type not in ['damage', 'reject']:
@@ -583,7 +583,7 @@ async def upload_grn_photos(
         
     return photo_urls
 
-async def delete_grn_photo(photo_id: int, user_id: int) -> bool:
+async def delete_grn_photo(photo_id: int, user_id: str) -> bool:
     async with DatabaseTransaction() as conn:
         photo = await conn.fetchrow("SELECT * FROM grn_photos WHERE id = $1", photo_id)
         if not photo:

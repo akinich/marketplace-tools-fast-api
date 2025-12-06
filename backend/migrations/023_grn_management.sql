@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS grns (
     -- Status values: draft, completed, locked
     
     -- Personnel
-    receiver_id INTEGER REFERENCES users(id),  -- User who physically received
-    created_by INTEGER NOT NULL REFERENCES users(id),
+    receiver_id UUID REFERENCES auth.users(id),  -- User who physically received
+    created_by UUID NOT NULL REFERENCES auth.users(id),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     completed_at TIMESTAMP,
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS grn_photos (
     photo_path TEXT NOT NULL,         -- Storage path for deletion
     
     -- Metadata
-    uploaded_by INTEGER NOT NULL REFERENCES users(id),
+    uploaded_by UUID NOT NULL REFERENCES auth.users(id),
     uploaded_at TIMESTAMP DEFAULT NOW(),
     file_size INTEGER,                -- Bytes
     gps_coordinates POINT,            -- PostGIS point type (optional)
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS grn_edit_history (
     new_value TEXT,
     
     -- Who and when
-    edited_by INTEGER NOT NULL REFERENCES users(id),
+    edited_by UUID NOT NULL REFERENCES auth.users(id),
     edited_at TIMESTAMP DEFAULT NOW(),
     
     notes TEXT

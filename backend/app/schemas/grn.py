@@ -30,7 +30,7 @@ class GRNUpdateRequest(BaseModel):
     number_of_boxes: Optional[int] = Field(None, ge=0)
     receiving_time: Optional[time] = None
     receiving_date: Optional[date] = None
-    receiver_id: Optional[int] = None
+    receiver_id: Optional[str] = None
     items: Optional[List[GRNItemUpdate]] = None
     notes: Optional[str] = None
 
@@ -53,7 +53,7 @@ class GRNPhotoResponse(BaseModel):
     item_name: Optional[str] = None
     photo_type: str
     photo_url: str
-    uploaded_by: int
+    uploaded_by: str
     uploaded_by_name: Optional[str] = None
     uploaded_at: datetime
     file_size: Optional[int] = None
@@ -73,7 +73,7 @@ class GRNResponse(BaseModel):
     receiving_time: Optional[time] = None
     receiving_date: date
     status: str
-    receiver_id: Optional[int] = None
+    receiver_id: Optional[str] = None
     receiver_name: Optional[str] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
@@ -83,7 +83,7 @@ class EditHistory(BaseModel):
     field_name: str
     old_value: Optional[str] = None
     new_value: Optional[str] = None
-    edited_by: int
+    edited_by: str
     edited_by_name: Optional[str] = None
     edited_at: datetime
 
