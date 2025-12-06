@@ -46,7 +46,7 @@ from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
-from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service
+from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service, wastage_tracking_service
 from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
@@ -223,6 +223,25 @@ async def process_email_queue():
         logger.error(f"❌ Error processing email queue: {e}", exc_info=True)
 
 
+async def check_wastage_thresholds():
+    """
+    Check wastage thresholds and generate alerts.
+    Runs every hour at the top of the hour.
+    """
+    try:
+        logger.debug("Checking wastage thresholds...")
+
+        result = await wastage_tracking_service.check_threshold_alerts()
+        
+        if result.alerts:
+            logger.info(f"⚠️ Generated {len(result.alerts)} wastage alerts")
+        else:
+            logger.debug("No wastage threshold alerts")
+
+    except Exception as e:
+        logger.error(f"❌ Error checking wastage thresholds: {e}", exc_info=True)
+
+
 def start_scheduler():
     """
     Start the background scheduler with all scheduled tasks.
@@ -302,6 +321,16 @@ def start_scheduler():
             max_instances=1,
         )
 
+        # Task 8: Check wastage thresholds hourly
+        scheduler.add_job(
+            check_wastage_thresholds,
+            trigger=CronTrigger(minute=0, timezone='Asia/Kolkata'),  # Top of every hour
+            id="check_wastage_thresholds",
+            name="Check wastage thresholds and generate alerts",
+            replace_existing=True,
+            max_instances=1,
+        )
+
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
         logger.info("📅 Scheduled tasks:")
@@ -312,6 +341,7 @@ def start_scheduler():
         logger.info("   - Sync WooCommerce Customers: Daily at 4:00 AM IST")
         logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
+        logger.info("   - Check wastage thresholds: Every hour")
 
     except Exception as e:
         logger.error(f"❌ Failed to start scheduler: {e}", exc_info=True)
