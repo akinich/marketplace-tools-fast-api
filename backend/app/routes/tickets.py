@@ -57,7 +57,7 @@ from fastapi import APIRouter, Depends, Query, status
 from typing import Optional
 
 from app.schemas.tickets import (
-    TicketType, TicketStatus, TicketPriority,
+    TicketType, TicketStatus, TicketPriority, TicketCategory,
     CreateTicketRequest, UpdateTicketRequest, AdminUpdateTicketRequest,
     CloseTicketRequest, CreateCommentRequest, UpdateCommentRequest,
     TicketResponse, TicketDetailResponse, TicketsListResponse,
@@ -82,6 +82,7 @@ async def list_tickets(
     ticket_type: Optional[TicketType] = Query(None, description="Filter by ticket type"),
     status: Optional[TicketStatus] = Query(None, description="Filter by status"),
     priority: Optional[TicketPriority] = Query(None, description="Filter by priority"),
+    ticket_category: Optional[TicketCategory] = Query(None, description="Filter by category (internal/b2b/b2c)"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
     current_user: CurrentUser = Depends(get_current_user),
@@ -94,6 +95,7 @@ async def list_tickets(
         ticket_type=ticket_type,
         ticket_status=status,
         priority=priority,
+        ticket_category=ticket_category,
         page=page,
         limit=limit,
     )
@@ -125,6 +127,17 @@ async def get_ticket_stats(
     Get ticket statistics overview.
     """
     return await tickets_service.get_ticket_stats()
+
+
+@router.get("/dashboard-stats")
+async def get_dashboard_stats(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get aggregated ticket statistics across all categories for dashboard.
+    Returns stats for internal, B2B, and B2C tickets separately.
+    """
+    return await tickets_service.get_dashboard_stats()
 
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)

@@ -58,7 +58,7 @@ from app.database import (
     fetch_one_tx, execute_query_tx
 )
 from app.schemas.tickets import (
-    TicketType, TicketStatus, TicketPriority,
+    TicketType, TicketStatus, TicketPriority, TicketCategory,
     CreateTicketRequest, UpdateTicketRequest, AdminUpdateTicketRequest,
     CreateCommentRequest, UpdateCommentRequest
 )
@@ -76,6 +76,7 @@ async def get_tickets_list(
     ticket_type: Optional[TicketType] = None,
     ticket_status: Optional[TicketStatus] = None,
     priority: Optional[TicketPriority] = None,
+    ticket_category: Optional[TicketCategory] = None,
     created_by_id: Optional[str] = None,
     page: int = 1,
     limit: int = 50,
@@ -104,6 +105,11 @@ async def get_tickets_list(
         params.append(priority.value)
         param_count += 1
 
+    if ticket_category:
+        where_conditions.append(f"t.ticket_category = ${param_count}")
+        params.append(ticket_category.value)
+        param_count += 1
+
     if created_by_id:
         where_conditions.append(f"t.created_by_id = ${param_count}")
         params.append(UUID(created_by_id))
@@ -124,6 +130,7 @@ async def get_tickets_list(
             t.title,
             t.description,
             t.ticket_type,
+            t.ticket_category,
             t.status,
             t.priority,
             t.created_by_id::text,
@@ -134,6 +141,18 @@ async def get_tickets_list(
             t.closed_at,
             t.created_at,
             t.updated_at,
+            t.customer_name,
+            t.customer_email,
+            t.customer_phone,
+            t.woocommerce_order_id,
+            t.sales_order_id,
+            t.invoice_id,
+            t.batch_number,
+            t.delivery_date::text,
+            t.claim_window_days,
+            t.is_late_claim,
+            t.photo_urls,
+            t.assigned_to_id::text,
             COALESCE(
                 (SELECT COUNT(*) FROM ticket_comments tc WHERE tc.ticket_id = t.id),
                 0
@@ -169,6 +188,7 @@ async def get_ticket_by_id(ticket_id: int) -> Dict:
             t.title,
             t.description,
             t.ticket_type,
+            t.ticket_category,
             t.status,
             t.priority,
             t.created_by_id::text,
@@ -178,7 +198,19 @@ async def get_ticket_by_id(ticket_id: int) -> Dict:
             up_closed.full_name as closed_by_name,
             t.closed_at,
             t.created_at,
-            t.updated_at
+            t.updated_at,
+            t.customer_name,
+            t.customer_email,
+            t.customer_phone,
+            t.woocommerce_order_id,
+            t.sales_order_id,
+            t.invoice_id,
+            t.batch_number,
+            t.delivery_date::text,
+            t.claim_window_days,
+            t.is_late_claim,
+            t.photo_urls,
+            t.assigned_to_id::text
         FROM tickets t
         LEFT JOIN user_profiles up_created ON t.created_by_id = up_created.id
         LEFT JOIN auth.users au_created ON au_created.id = up_created.id
@@ -230,10 +262,20 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
             title,
             description,
             ticket_type,
+            ticket_category,
             status,
-            created_by_id
+            created_by_id,
+            customer_name,
+            customer_email,
+            customer_phone,
+            woocommerce_order_id,
+            sales_order_id,
+            invoice_id,
+            batch_number,
+            delivery_date,
+            photo_urls
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id
     """
 
@@ -242,8 +284,18 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
         request.title,
         request.description,
         request.ticket_type.value,
+        request.ticket_category.value,
         TicketStatus.OPEN.value,
-        UUID(user_id)
+        UUID(user_id),
+        request.customer_name,
+        request.customer_email,
+        request.customer_phone,
+        request.woocommerce_order_id,
+        request.sales_order_id,
+        request.invoice_id,
+        request.batch_number,
+        request.delivery_date,
+        request.photo_urls
     )
 
     logger.info(f"Ticket {ticket_id} created by user {user_id}")
@@ -825,3 +877,45 @@ async def get_my_tickets(
         page=page,
         limit=limit,
     )
+
+
+async def get_dashboard_stats() -> Dict:
+    """
+    Get aggregated ticket statistics across all categories for dashboard.
+    Returns stats for internal, B2B, and B2C tickets separately.
+    """
+    # Get stats for each category
+    categories_query = """
+        SELECT
+            ticket_category,
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status = 'open') as open,
+            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
+            COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+            COUNT(*) FILTER (WHERE status = 'closed') as closed
+        FROM tickets
+        GROUP BY ticket_category
+    """
+    
+    results = await fetch_all(categories_query)
+    
+    # Initialize stats for all categories
+    stats = {
+        "internal": {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0},
+        "b2b": {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0},
+        "b2c": {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0},
+    }
+    
+    # Populate stats from query results
+    for row in results:
+        category = row["ticket_category"]
+        if category in stats:
+            stats[category] = {
+                "total": row["total"],
+                "open": row["open"],
+                "in_progress": row["in_progress"],
+                "resolved": row["resolved"],
+                "closed": row["closed"],
+            }
+    
+    return stats
