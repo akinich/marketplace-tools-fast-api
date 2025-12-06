@@ -309,7 +309,9 @@ from app.routes import (
     woo_checkout,
     batch_tracking,
     wastage_tracking,
-    po
+    wastage_tracking,
+    po,
+    grn
 )
 from app.routes import settings as settings_router
 
@@ -344,7 +346,11 @@ app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batches
 app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}", tags=["Wastage Tracking"])
 
 # Purchase Orders
+# Purchase Orders
 app.include_router(po.router, prefix=f"{settings.API_PREFIX}/po", tags=["Purchase Orders"])
+
+# GRN Management
+app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["GRN Management"])
 
 
 # ============================================================================
