@@ -4,6 +4,7 @@
  * Created: 2025-12-07
  */
 
+import React from 'react';
 import ComingSoon from '../../components/ComingSoon';
 
 export default function StockManagement() {
