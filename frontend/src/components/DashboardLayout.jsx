@@ -241,22 +241,14 @@ export default function DashboardLayout() {
   }, [resetTimer, logout, navigate, enqueueSnackbar]);
 
   // Fetch user accessible modules
+  // Fetch user accessible modules
   useEffect(() => {
     const fetchModules = async () => {
       try {
-        console.log('[DashboardLayout] Fetching user modules...');
         const data = await dashboardAPI.getUserModules();
-        console.log('[DashboardLayout] Modules received:', data);
         setAllModules(data.modules || []);
-        if (!data.modules || data.modules.length === 0) {
-          console.warn('[DashboardLayout] No modules returned from API');
-        }
       } catch (error) {
-        console.error('[DashboardLayout] Failed to fetch modules:', error);
-        enqueueSnackbar('Failed to load navigation modules. Please refresh the page.', {
-          variant: 'error',
-          persist: true
-        });
+        console.error('Failed to fetch modules:', error);
       }
     };
 
