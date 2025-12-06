@@ -146,9 +146,10 @@ class SearchBatchesRequest(BaseModel):
     item_name: Optional[str] = Field(None, description="Item name")
     customer_name: Optional[str] = Field(None, description="Customer name")
     status: Optional[BatchStatus] = Field(None, description="Batch status")
-    date_from: Optional[str] = Field(None, description="Start date (YYYY-MM-DD)")
-    date_to: Optional[str] = Field(None, description="End date (YYYY-MM-DD)")
+    date_from: Optional[str] = Field(None, description="Filter by created date from (YYYY-MM-DD)")
+    date_to: Optional[str] = Field(None, description="Filter by created date to (YYYY-MM-DD)")
     is_archived: Optional[bool] = Field(False, description="Include archived batches")
+    is_repacked: Optional[bool] = Field(None, description="Filter by repacked status")
     page: int = Field(1, ge=1, description="Page number")
     limit: int = Field(50, ge=1, le=100, description="Items per page")
 

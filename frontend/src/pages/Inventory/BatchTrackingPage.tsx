@@ -45,8 +45,7 @@ export default function BatchTrackingPage() {
     const [batches, setBatches] = useState<BatchSearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [totalBatches, setTotalBatches] = useState(0);
-    const [page, setPage] = useState(0);
-    const [pageSize, setPageSize] = useState(25);
+    const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 });
     const [currentFilters, setCurrentFilters] = useState<SearchBatchesRequest>({});
 
     // Generate batch modal
@@ -61,8 +60,8 @@ export default function BatchTrackingPage() {
         try {
             const response = await batchTrackingAPI.searchBatches({
                 ...filters,
-                page: page + 1, // API uses 1-indexed pages
-                limit: pageSize,
+                page: paginationModel.page + 1, // API uses 1-indexed pages
+                limit: paginationModel.pageSize,
             });
 
             setBatches(response.batches);
@@ -78,11 +77,12 @@ export default function BatchTrackingPage() {
     // Initial load
     useEffect(() => {
         fetchBatches();
-    }, [page, pageSize]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paginationModel.page, paginationModel.pageSize]);
 
     // Handle search
     const handleSearch = (filters: SearchBatchesRequest) => {
-        setPage(0); // Reset to first page
+        setPaginationModel({ ...paginationModel, page: 0 }); // Reset to first page
         fetchBatches(filters);
     };
 
@@ -167,7 +167,7 @@ export default function BatchTrackingPage() {
             field: 'created_at',
             headerName: 'Created',
             width: 180,
-            valueFormatter: (params) => new Date(params).toLocaleString(),
+            valueFormatter: (params) => new Date(params.value).toLocaleString(),
         },
         {
             field: 'farm',
@@ -224,10 +224,8 @@ export default function BatchTrackingPage() {
                         pagination
                         paginationMode="server"
                         rowCount={totalBatches}
-                        page={page}
-                        pageSize={pageSize}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
+                        paginationModel={paginationModel}
+                        onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[25, 50, 100]}
                         disableRowSelectionOnClick
                         onRowClick={(params) => navigate(`/inventory/batch-tracking/${params.row.batch_number}`)}
