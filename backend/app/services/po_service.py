@@ -309,6 +309,7 @@ async def create_po(
                     'unit_price': unit_price,
                     'price_source': price_source,
                     'total_price': total_price,
+                    'added_from_grn': False,
                     'notes': item_req.notes
                 })
 
@@ -752,6 +753,35 @@ async def manage_vendor_pricing(
         raise
     except Exception as e:
         logger.error(f"❌ Failed to manage vendor pricing: {e}")
+        raise
+
+
+async def get_vendors_with_pricing() -> List[Dict[str, Any]]:
+    """
+    Get list of vendors with pricing configured.
+
+    Returns:
+        List of vendors with pricing summary
+    """
+    try:
+        query = """
+            SELECT
+                v.id,
+                v.contact_id,
+                v.contact_name,
+                v.company_name,
+                COUNT(DISTINCT vph.item_id) as items_count,
+                MAX(vph.created_at) as last_price_update
+            FROM zoho_vendors v
+            INNER JOIN vendor_item_price_history vph ON v.id = vph.vendor_id
+            WHERE vph.effective_to IS NULL OR vph.effective_to >= CURRENT_DATE
+            GROUP BY v.id, v.contact_id, v.contact_name, v.company_name
+            ORDER BY v.contact_name
+        """
+        results = await fetch_all(query)
+        return [dict(row) for row in results]
+    except Exception as e:
+        logger.error(f"❌ Failed to get vendors with pricing: {e}")
         raise
 
 
