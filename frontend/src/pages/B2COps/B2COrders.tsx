@@ -154,11 +154,16 @@ export default function B2COrders() {
     // Sync orders mutation
     const syncMutation = useMutation(
         async (days: number) => {
+            console.log('[B2C Orders] Starting sync, days:', days);
+            console.log('[B2C Orders] API URL:', `${API_BASE_URL}/orders/sync`);
+
             const response = await axios.post(
                 `${API_BASE_URL}/orders/sync`,
                 { days, force_full_sync: false },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
+
+            console.log('[B2C Orders] Sync response:', response.data);
             return response.data;
         },
         {
@@ -166,6 +171,8 @@ export default function B2COrders() {
                 const synced = data?.synced || 0;
                 const created = data?.created || 0;
                 const updated = data?.updated || 0;
+
+                console.log('[B2C Orders] Sync success:', { synced, created, updated });
 
                 enqueueSnackbar(
                     `Synced ${synced} orders (${created} created, ${updated} updated)`,
@@ -176,6 +183,7 @@ export default function B2COrders() {
                 setSyncDialogOpen(false);
             },
             onError: (error: any) => {
+                console.error('[B2C Orders] Sync error:', error);
                 enqueueSnackbar(error.response?.data?.detail || 'Failed to sync orders', {
                     variant: 'error',
                 });
