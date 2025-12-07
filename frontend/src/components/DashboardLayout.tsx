@@ -403,8 +403,8 @@ export default function DashboardLayout() {
 
         // B2C Management sub-modules
         const b2cManagementRoutes: Record<string, string> = {
-            b2c_dashboard: '/b2c_ops/dashboard',
-            subscription_management: '/b2c_ops/subscriptions',
+            b2c_dashboard: '/b2c-ops/dashboard',
+            subscription_management: '/b2c-ops/subscriptions',
             woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
             stock_price_updater: '/b2c-ops/stock-price-updater',
             order_place_test: '/b2c-ops/order-place-test',
