@@ -270,7 +270,14 @@ async def woocommerce_webhook(request: Request):
                 detail="Webhook secret not configured"
             )
 
+        # Extract and parse webhook secret (handle JSONB encoding)
         webhook_secret = secret_row['setting_value']
+
+        # Handle potential JSON string encoding
+        if isinstance(webhook_secret, str) and webhook_secret.startswith('"') and webhook_secret.endswith('"'):
+            webhook_secret = json.loads(webhook_secret)
+
+        webhook_secret = str(webhook_secret)
 
         # Validate signature
         is_valid = await OrdersService.validate_webhook_signature(
