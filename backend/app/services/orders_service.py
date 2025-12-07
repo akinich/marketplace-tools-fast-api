@@ -609,16 +609,8 @@ class OrdersService:
 
         except Exception as e:
             logger.error(f"Error syncing orders from WooCommerce: {e}", exc_info=True)
-            duration = (datetime.now() - start_time).total_seconds()
-            return SyncOrdersResponse(
-                synced=synced,
-                created=created,
-                updated=updated,
-                skipped=skipped,
-                errors=errors + 1,
-                sync_duration_seconds=round(duration, 2),
-                sync_source="api"
-            )
+            # Re-raise the exception so the frontend gets the actual error message
+            raise Exception(f"Failed to sync orders from WooCommerce: {str(e)}")
 
     # ========================================================================
     # Helper Methods
