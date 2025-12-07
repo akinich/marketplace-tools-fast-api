@@ -292,7 +292,7 @@ export default function B2COrders() {
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                     <RevenueIcon color="success" sx={{ fontSize: 40 }} />
                                     <Box>
-                                        <Typography variant="h4">₹{stats.total_revenue.toLocaleString()}</Typography>
+                                        <Typography variant="h4">₹{(stats.total_revenue || 0).toLocaleString()}</Typography>
                                         <Typography variant="body2" color="text.secondary">
                                             Total Revenue
                                         </Typography>
@@ -401,7 +401,7 @@ export default function B2COrders() {
                                                 size="small"
                                             />
                                         </TableCell>
-                                        <TableCell align="right">₹{order.total.toLocaleString()}</TableCell>
+                                        <TableCell align="right">₹{(order.total || 0).toLocaleString()}</TableCell>
                                         <TableCell>{order.payment_method_title || '-'}</TableCell>
                                         <TableCell align="center">
                                             <IconButton
@@ -507,7 +507,7 @@ export default function B2COrders() {
                                                         <TableCell>{item.name}</TableCell>
                                                         <TableCell align="right">{item.quantity}</TableCell>
                                                         <TableCell align="right">
-                                                            ₹{item.total.toLocaleString()}
+                                                            ₹{(item.total || 0).toLocaleString()}
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
