@@ -7,7 +7,7 @@
 
 ## Overview
 
-The Farm Management System frontend is built with React 18 and Material-UI, providing a modern, responsive user interface. It features robust authentication, state management with React Query and Zustand, and modular architecture for extensibility.
+The Marketplace ERP Tools frontend is built with React 18 and Material-UI, providing a modern, responsive user interface. It features robust authentication, state management with React Query and Zustand, and modular architecture for extensibility.
 
 ### Key Features
 
@@ -189,7 +189,7 @@ Create `.env` in frontend directory:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
-VITE_APP_NAME=Farm Management System
+VITE_APP_NAME=Marketplace ERP Tools
 VITE_APP_VERSION=1.0.0
 ```
 
@@ -211,5 +211,5 @@ npm run lint         # Run ESLint
 
 ## License
 
-Part of the Farm Management System
+Part of the Marketplace ERP Tools
 © 2025 All rights reserved

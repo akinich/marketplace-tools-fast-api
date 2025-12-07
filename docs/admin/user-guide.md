@@ -93,7 +93,7 @@ The admin panel provides:
 5. **Share Password Securely:**
    - Email the user their credentials:
      ```
-     Welcome to the Farm Management System!
+     Welcome to the Marketplace ERP Tools!
 
      Login URL: https://your-system.com
      Email: john.smith@company.com

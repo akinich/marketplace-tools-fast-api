@@ -44,10 +44,17 @@ class TicketCategory(str, Enum):
 
 
 class TicketType(str, Enum):
+    # Internal ticket types
     ISSUE = "issue"
     FEATURE_REQUEST = "feature_request"
     UPGRADE = "upgrade"
     OTHERS = "others"
+    # B2B/B2C ticket types
+    QUALITY_ISSUE = "quality_issue"
+    DELIVERY_ISSUE = "delivery_issue"
+    ORDER_ISSUE = "order_issue"
+    RETURN_REQUEST = "return_request"
+    GENERAL = "general"
 
 
 class TicketStatus(str, Enum):
@@ -71,14 +78,27 @@ class CreateTicketRequest(BaseModel):
     description: str = Field(..., min_length=1, description="Detailed description of the issue/request")
     ticket_type: TicketType = Field(..., description="Type of ticket")
     ticket_category: TicketCategory = Field(TicketCategory.INTERNAL, description="Category of ticket (internal/b2b/b2c)")
+    
+    # B2B/B2C specific fields (optional)
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    woocommerce_order_id: Optional[str] = None
+    sales_order_id: Optional[int] = None
+    invoice_id: Optional[int] = None
+    batch_number: Optional[str] = None
+    delivery_date: Optional[str] = None
+    photo_urls: Optional[List[str]] = None
 
     class Config:
         json_schema_extra = {
             "example": {
-                "title": "Login page not loading",
-                "description": "When I try to access the login page, it shows a blank screen on mobile devices.",
-                "ticket_type": "issue",
-                "ticket_category": "internal"
+                "title": "Quality issue with batch",
+                "description": "Received damaged produce in batch ABC123",
+                "ticket_type": "quality_issue",
+                "ticket_category": "b2b",
+                "customer_name": "Hotel XYZ",
+                "batch_number": "ABC123"
             }
         }
 
@@ -165,6 +185,20 @@ class TicketResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     comment_count: int = 0
+    
+    # B2B/B2C specific fields
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    woocommerce_order_id: Optional[str] = None
+    sales_order_id: Optional[int] = None
+    invoice_id: Optional[int] = None
+    batch_number: Optional[str] = None
+    delivery_date: Optional[str] = None
+    claim_window_days: Optional[int] = None
+    is_late_claim: Optional[bool] = None
+    photo_urls: Optional[List[str]] = None
+    assigned_to_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -188,6 +222,20 @@ class TicketDetailResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     comments: List[CommentResponse] = []
+    
+    # B2B/B2C specific fields
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    woocommerce_order_id: Optional[str] = None
+    sales_order_id: Optional[int] = None
+    invoice_id: Optional[int] = None
+    batch_number: Optional[str] = None
+    delivery_date: Optional[str] = None
+    claim_window_days: Optional[int] = None
+    is_late_claim: Optional[bool] = None
+    photo_urls: Optional[List[str]] = None
+    assigned_to_id: Optional[str] = None
 
     class Config:
         from_attributes = True

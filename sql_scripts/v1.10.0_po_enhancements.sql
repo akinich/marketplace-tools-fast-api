@@ -1,5 +1,5 @@
 -- ============================================================================
--- Farm Management System - Purchase Order Enhancements
+-- Marketplace ERP Tools - Purchase Order Enhancements
 -- Version: 1.10.0
 -- Date: 2025-11-21
 --

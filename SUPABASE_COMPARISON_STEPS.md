@@ -4,7 +4,7 @@
 
 ### Step 1: Open Both Databases in Supabase
 
-1. Open **farm2-app-fast-api** database in Supabase Dashboard
+1. Open **marketplace-tools-fast-api** database in Supabase Dashboard
 2. Open **marketplace-tools-fast-api** database in another browser tab
 3. Go to **SQL Editor** in both tabs
 

@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Fix Unconfirmed User Emails
+Marketplace ERP Tools - Fix Unconfirmed User Emails
 ================================================================================
 Version: 1.3.2
 Created: 2025-11-19

@@ -142,6 +142,17 @@ async def get_ticket_dashboard(
     return await tickets_service.get_dashboard_stats()
 
 
+@router.get("/dashboard-stats")
+async def get_dashboard_stats(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get aggregated ticket statistics across all categories for dashboard.
+    Returns stats for internal, B2B, and B2C tickets separately.
+    """
+    return await tickets_service.get_dashboard_stats()
+
+
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)
 async def get_ticket(
     ticket_id: int,

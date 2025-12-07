@@ -259,7 +259,7 @@ The Communication module provides multiple channels for notifications and integr
    - **SMTP User**: Your email address
    - **SMTP Password**: App-specific password (not your regular password)
    - **From Email**: Email address to send from
-   - **From Name**: Display name (e.g., "Farm Management System")
+   - **From Name**: Display name (e.g., "Marketplace ERP Tools")
 3. Enable **Use TLS**: Yes
 4. Click **Save Changes**
 
