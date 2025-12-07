@@ -58,7 +58,7 @@ from app.database import (
     fetch_one_tx, execute_query_tx
 )
 from app.schemas.tickets import (
-    TicketType, TicketStatus, TicketPriority,
+    TicketType, TicketStatus, TicketPriority, TicketCategory,
     CreateTicketRequest, UpdateTicketRequest, AdminUpdateTicketRequest,
     CreateCommentRequest, UpdateCommentRequest
 )
@@ -73,6 +73,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_tickets_list(
+    ticket_category: Optional[TicketCategory] = None,
     ticket_type: Optional[TicketType] = None,
     ticket_status: Optional[TicketStatus] = None,
     priority: Optional[TicketPriority] = None,
@@ -88,6 +89,11 @@ async def get_tickets_list(
     where_conditions = []
     params = []
     param_count = 1
+
+    if ticket_category:
+        where_conditions.append(f"t.ticket_category = ${param_count}")
+        params.append(ticket_category.value)
+        param_count += 1
 
     if ticket_type:
         where_conditions.append(f"t.ticket_type = ${param_count}")
@@ -124,6 +130,7 @@ async def get_tickets_list(
             t.title,
             t.description,
             t.ticket_type,
+            t.ticket_category,
             t.status,
             t.priority,
             t.created_by_id::text,
@@ -169,6 +176,7 @@ async def get_ticket_by_id(ticket_id: int) -> Dict:
             t.title,
             t.description,
             t.ticket_type,
+            t.ticket_category,
             t.status,
             t.priority,
             t.created_by_id::text,
@@ -230,10 +238,11 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
             title,
             description,
             ticket_type,
+            ticket_category,
             status,
             created_by_id
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
     """
 
@@ -242,6 +251,7 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
         request.title,
         request.description,
         request.ticket_type.value,
+        request.ticket_category.value,
         TicketStatus.OPEN.value,
         UUID(user_id)
     )
@@ -799,6 +809,15 @@ async def get_ticket_stats() -> Dict:
     priority_results = await fetch_all(priority_query)
     by_priority = {row["priority"]: row["count"] for row in priority_results}
 
+    # Get counts by category
+    category_query = """
+        SELECT ticket_category, COUNT(*) as count
+        FROM tickets
+        GROUP BY ticket_category
+    """
+    category_results = await fetch_all(category_query)
+    by_category = {row["ticket_category"]: row["count"] for row in category_results}
+
     return {
         "total_tickets": status_stats["total_tickets"],
         "open_tickets": status_stats["open_tickets"],
@@ -807,6 +826,66 @@ async def get_ticket_stats() -> Dict:
         "closed_tickets": status_stats["closed_tickets"],
         "by_type": by_type,
         "by_priority": by_priority,
+        "by_category": by_category,
+    }
+
+
+async def get_dashboard_stats() -> Dict:
+    """
+    Get dashboard statistics broken down by category (Internal/B2B/B2C).
+    Returns status breakdown for each category plus overall totals.
+    """
+    # Get stats for each category
+    dashboard_query = """
+        SELECT
+            ticket_category,
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status = 'open') as open,
+            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
+            COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
+            COUNT(*) FILTER (WHERE status = 'closed') as closed
+        FROM tickets
+        GROUP BY ticket_category
+    """
+    category_stats = await fetch_all(dashboard_query)
+
+    # Initialize category data
+    internal_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
+    b2b_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
+    b2c_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
+
+    # Fill in category data
+    for row in category_stats:
+        category = row["ticket_category"]
+        stats = {
+            "total": row["total"],
+            "open": row["open"],
+            "in_progress": row["in_progress"],
+            "resolved": row["resolved"],
+            "closed": row["closed"],
+        }
+
+        if category == "internal":
+            internal_stats = stats
+        elif category == "b2b":
+            b2b_stats = stats
+        elif category == "b2c":
+            b2c_stats = stats
+
+    # Calculate total across all categories
+    total_across_categories = {
+        "total": internal_stats["total"] + b2b_stats["total"] + b2c_stats["total"],
+        "open": internal_stats["open"] + b2b_stats["open"] + b2c_stats["open"],
+        "in_progress": internal_stats["in_progress"] + b2b_stats["in_progress"] + b2c_stats["in_progress"],
+        "resolved": internal_stats["resolved"] + b2b_stats["resolved"] + b2c_stats["resolved"],
+        "closed": internal_stats["closed"] + b2b_stats["closed"] + b2c_stats["closed"],
+    }
+
+    return {
+        "internal": internal_stats,
+        "b2b": b2b_stats,
+        "b2c": b2c_stats,
+        "total_across_categories": total_across_categories,
     }
 
 

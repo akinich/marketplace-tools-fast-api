@@ -210,6 +210,11 @@ export const ticketsAPI = {
     return response.data;
   },
 
+  getDashboardStats: async () => {
+    const response = await apiClient.get('/tickets/dashboard');
+    return response.data;
+  },
+
   getTicket: async (ticketId) => {
     const response = await apiClient.get(`/tickets/${ticketId}`);
     return response.data;
