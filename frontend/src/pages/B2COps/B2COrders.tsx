@@ -51,8 +51,8 @@ import { useSnackbar } from 'notistack';
 import axios from 'axios';
 
 const API_BASE_URL = window.location.origin.includes('localhost')
-    ? 'http://localhost:8000/api'
-    : `${window.location.origin}/api`;
+    ? 'http://localhost:8000/api/v1'
+    : `${window.location.origin}/api/v1`;
 
 interface Order {
     id: number;
