@@ -105,7 +105,7 @@ export default function B2COrders() {
     const [syncDays, setSyncDays] = useState(3);
 
     // Fetch orders
-    const { data: ordersData, isLoading: ordersLoading, refetch: refetchOrders } = useQuery(
+    const { data: ordersData, isLoading: ordersLoading, error: ordersError, refetch: refetchOrders } = useQuery(
         ['b2c-orders', statusFilter, page, rowsPerPage],
         async () => {
             const params = new URLSearchParams({
@@ -118,17 +118,36 @@ export default function B2COrders() {
                 headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
             });
             return response.data;
+        },
+        {
+            retry: 1,
+            refetchOnWindowFocus: false,
+            onError: (error: any) => {
+                console.error('Error fetching orders:', error);
+                enqueueSnackbar(
+                    error.response?.data?.detail || 'Failed to load orders',
+                    { variant: 'error' }
+                );
+            },
         }
     );
 
     // Fetch stats
-    const { data: stats } = useQuery<OrderStats>(
+    const { data: stats, error: statsError } = useQuery<OrderStats>(
         'b2c-orders-stats',
         async () => {
             const response = await axios.get(`${API_BASE_URL}/orders/stats`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
             });
             return response.data;
+        },
+        {
+            retry: 1,
+            refetchOnWindowFocus: false,
+            onError: (error: any) => {
+                console.error('Error fetching stats:', error);
+                // Don't show error for stats, just log it
+            },
         }
     );
 
@@ -241,6 +260,13 @@ export default function B2COrders() {
                     </Button>
                 </Box>
             </Box>
+
+            {/* Error State */}
+            {ordersError && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                    Failed to load orders. Please try refreshing the page or contact support if the issue persists.
+                </Alert>
+            )}
 
             {/* Statistics Cards */}
             {stats && (
