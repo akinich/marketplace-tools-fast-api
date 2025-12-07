@@ -21,6 +21,17 @@ export const zohoCustomerAPI = {
     },
 
     /**
+     * Search customers by name
+     */
+    searchCustomers: async (query: string): Promise<any> => {
+        // Assuming backend supports 'search' or 'name' filter.
+        // If not, we might need to adjust this to match the backend implementation.
+        // For now, assuming standard filter pattern.
+        const response = await apiClient.get('/zoho-customers', { params: { search: query, limit: 100 } });
+        return response.data;
+    },
+
+    /**
      * Get single Zoho item by ID
      */
     getItem: async (itemId: string | number): Promise<any> => {
