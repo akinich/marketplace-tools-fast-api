@@ -193,6 +193,10 @@ class WooCommerceLineItem(BaseModel):
     tax: Optional[str] = "0.00"
     meta_data: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
+    class Config:
+        # Allow extra fields from API (e.g., taxes, image, parent_name, etc.)
+        extra = "allow"
+
 
 class WooCommerceWebhookPayload(BaseModel):
     """WooCommerce webhook payload structure"""
@@ -225,6 +229,10 @@ class WooCommerceWebhookPayload(BaseModel):
     created_via: Optional[str] = ""
 
     line_items: List[WooCommerceLineItem] = Field(default_factory=list)
+
+    class Config:
+        # Allow extra fields from API that aren't in schema (e.g., _links, meta_data at root level)
+        extra = "allow"
 
     @validator('number', pre=True, always=True)
     def set_order_number(cls, v, values):
