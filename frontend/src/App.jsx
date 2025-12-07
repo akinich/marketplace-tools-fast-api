@@ -55,7 +55,7 @@ import InventoryModule from './pages/Inventory/InventoryModule';
 import InwardModule from './pages/Inward/InwardModule';
 import OutwardModule from './pages/Outward/OutwardModule';
 import ReportingModule from './pages/Reporting/ReportingModule';
-import TicketsModule from './pages/TicketsModule';
+import TicketsModuleRouter from './pages/TicketsModuleRouter';
 import DevelopmentModule from './pages/DevelopmentModule';
 import DocsModule from './pages/DocsModule';
 
@@ -145,7 +145,7 @@ function App() {
         <Route path="inward/*" element={<InwardModule />} />
         <Route path="outward/*" element={<OutwardModule />} />
         <Route path="reporting/*" element={<ReportingModule />} />
-        <Route path="tickets/*" element={<TicketsModule />} />
+        <Route path="tickets/*" element={<TicketsModuleRouter />} />
         <Route path="development/*" element={<DevelopmentModule />} />
         <Route path="docs/*" element={<DocsModule />} />
       </Route>
