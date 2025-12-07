@@ -42,6 +42,8 @@ interface ZohoItem {
     unit: string | null;
     status: string;
     is_taxable: boolean;
+    for_purchase: boolean;
+    segment: string | null;
     last_sync_at?: string;
 }
 
@@ -301,7 +303,7 @@ function ZohoItemMaster() {
     // Export to CSV
     const handleExport = () => {
         const csvContent = [
-            ['ID', 'Item ID', 'Name', 'SKU', 'Description', 'Rate', 'Purchase Rate', 'Item Type', 'Product Type', 'HSN/SAC', 'Unit', 'Status', 'Taxable'],
+            ['ID', 'Item ID', 'Name', 'SKU', 'Description', 'Rate', 'Purchase Rate', 'Item Type', 'Product Type', 'HSN/SAC', 'Unit', 'Status', 'Taxable', 'For Purchase', 'Segment'],
             ...items.map((item) => [
                 item.id,
                 item.item_id,
@@ -316,6 +318,8 @@ function ZohoItemMaster() {
                 item.unit || '',
                 item.status,
                 item.is_taxable ? 'Yes' : 'No',
+                item.for_purchase ? 'Yes' : 'No',
+                item.segment || '',
             ]),
         ]
             .map((row) => row.join(','))
@@ -345,6 +349,8 @@ function ZohoItemMaster() {
         { field: 'unit', headerName: 'Unit', width: 100, editable: isAdmin },
         { field: 'status', headerName: 'Status', width: 100, editable: isAdmin },
         { field: 'is_taxable', headerName: 'Taxable', width: 100, editable: isAdmin, type: 'boolean' },
+        { field: 'for_purchase', headerName: 'For Purchase', width: 120, editable: true, type: 'boolean' },
+        { field: 'segment', headerName: 'Segment', width: 150, editable: true, type: 'singleSelect', valueOptions: ['b2b', 'b2c', 'others'] },
     ];
 
     return (

@@ -151,7 +151,8 @@ async def get_item_by_id(item_id: int) -> Optional[Dict]:
                 id, item_id, name, sku, description,
                 rate, purchase_rate, item_type, product_type, status,
                 hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                unit, account_id,
+                hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
+                unit, account_id, for_purchase, segment,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_items
@@ -192,10 +193,11 @@ async def update_item(
         # For now, all fields are read-only since Zoho is source of truth
         # In future, you can add editable fields here if needed
         # user_editable_fields = []
-        
+        user_editable_fields = ['for_purchase', 'segment']
+
         for field, value in item_data.model_dump(exclude_unset=True).items():
-            # Only admins can update (for now)
-            if not is_admin:
+            # Only admins can update (for now), UNLESS it is a whitelisted field
+            if not is_admin and field not in user_editable_fields:
                 continue
             
             param_count += 1
@@ -225,7 +227,7 @@ async def update_item(
                 id, item_id, name, sku, description,
                 rate, purchase_rate, item_type, product_type, status,
                 hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                unit, account_id,
+                unit, account_id, for_purchase, segment,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
         """
