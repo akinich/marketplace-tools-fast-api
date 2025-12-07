@@ -5,7 +5,7 @@
  * Allows admins to manage webhooks for event-driven integrations.
  * Features: Create/Edit/Delete webhooks, test webhooks, view delivery logs.
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -44,20 +44,39 @@ import {
 import { useSnackbar } from 'notistack';
 import { webhooksAPI } from '../api/webhooks';
 
+interface Webhook {
+  id: number;
+  name: string;
+  url: string;
+  events: string[];
+  description?: string;
+  is_active: boolean;
+  timeout_seconds: number;
+  retry_attempts: number;
+  secret: string;
+}
+
+interface WebhookDelivery {
+  id: number;
+  event_type: string;
+  status: 'success' | 'failed' | 'pending' | 'retrying';
+  attempts: number;
+  created_at: string;
+}
+
 function WebhooksPage() {
   const { enqueueSnackbar } = useSnackbar();
-  const [webhooks, setWebhooks] = useState([]);
-  const [availableEvents, setAvailableEvents] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const [availableEvents, setAvailableEvents] = useState<string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingWebhook, setEditingWebhook] = useState(null);
+  const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
   const [deliveriesDialogOpen, setDeliveriesDialogOpen] = useState(false);
-  const [deliveries, setDeliveries] = useState([]);
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
     url: '',
-    events: [],
+    events: [] as string[],
     description: '',
     is_active: true,
     timeout_seconds: 30,
@@ -71,13 +90,10 @@ function WebhooksPage() {
 
   const loadWebhooks = async () => {
     try {
-      setLoading(true);
       const data = await webhooksAPI.list();
       setWebhooks(data);
-      setLoading(false);
     } catch (error) {
       enqueueSnackbar('Failed to load webhooks', { variant: 'error' });
-      setLoading(false);
     }
   };
 
@@ -102,12 +118,12 @@ function WebhooksPage() {
       setDialogOpen(false);
       setEditingWebhook(null);
       loadWebhooks();
-    } catch (error) {
+    } catch (error: any) {
       enqueueSnackbar(error.response?.data?.detail || 'Failed to save webhook', { variant: 'error' });
     }
   };
 
-  const handleEdit = (webhook) => {
+  const handleEdit = (webhook: Webhook) => {
     setEditingWebhook(webhook);
     setFormData({
       name: webhook.name,
@@ -121,7 +137,7 @@ function WebhooksPage() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this webhook?')) return;
 
     try {
@@ -133,7 +149,7 @@ function WebhooksPage() {
     }
   };
 
-  const handleTest = async (webhook) => {
+  const handleTest = async (webhook: Webhook) => {
     try {
       const result = await webhooksAPI.test(webhook.id);
       if (result.success) {
@@ -146,7 +162,7 @@ function WebhooksPage() {
     }
   };
 
-  const handleViewDeliveries = async (webhook) => {
+  const handleViewDeliveries = async (webhook: Webhook) => {
     try {
       const data = await webhooksAPI.getDeliveries(webhook.id);
       setDeliveries(data);
@@ -156,12 +172,12 @@ function WebhooksPage() {
     }
   };
 
-  const handleCopySecret = (secret) => {
+  const handleCopySecret = (secret: string) => {
     navigator.clipboard.writeText(secret);
     enqueueSnackbar('Secret copied to clipboard', { variant: 'success' });
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'success': return 'success';
       case 'failed': return 'error';
@@ -267,7 +283,7 @@ function WebhooksPage() {
             fullWidth
             label="Name"
             value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             sx={{ mt: 2, mb: 2 }}
             required
           />
@@ -275,7 +291,7 @@ function WebhooksPage() {
             fullWidth
             label="URL"
             value={formData.url}
-            onChange={(e) => setFormData({...formData, url: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
             sx={{ mb: 2 }}
             placeholder="https://example.com/webhook"
             required
@@ -285,10 +301,11 @@ function WebhooksPage() {
             <Select
               multiple
               value={formData.events}
-              onChange={(e) => setFormData({...formData, events: e.target.value})}
+              label="Events"
+              onChange={(e) => setFormData({ ...formData, events: e.target.value as string[] })}
               renderValue={(selected) => (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map(value => (
+                  {selected.map((value: string) => (
                     <Chip key={value} label={value} size="small" />
                   ))}
                 </Box>
@@ -305,7 +322,7 @@ function WebhooksPage() {
             multiline
             rows={2}
             value={formData.description}
-            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             sx={{ mb: 2 }}
           />
           <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -315,7 +332,7 @@ function WebhooksPage() {
                 label="Timeout (seconds)"
                 type="number"
                 value={formData.timeout_seconds}
-                onChange={(e) => setFormData({...formData, timeout_seconds: parseInt(e.target.value)})}
+                onChange={(e) => setFormData({ ...formData, timeout_seconds: parseInt(e.target.value) })}
                 inputProps={{ min: 5, max: 120 }}
               />
             </Grid>
@@ -325,7 +342,7 @@ function WebhooksPage() {
                 label="Retry Attempts"
                 type="number"
                 value={formData.retry_attempts}
-                onChange={(e) => setFormData({...formData, retry_attempts: parseInt(e.target.value)})}
+                onChange={(e) => setFormData({ ...formData, retry_attempts: parseInt(e.target.value) })}
                 inputProps={{ min: 0, max: 10 }}
               />
             </Grid>
@@ -334,7 +351,7 @@ function WebhooksPage() {
             control={
               <Switch
                 checked={formData.is_active}
-                onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
               />
             }
             label="Active"
