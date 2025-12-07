@@ -251,7 +251,7 @@ def main():
     # Get database URLs
     print("Enter connection details:\n")
 
-    db1_url = input("Database 1 URL (farm2-app-fast-api): ").strip()
+    db1_url = input("Database 1 URL (marketplace-tools-fast-api): ").strip()
     if not db1_url:
         print("❌ Database URL cannot be empty")
         sys.exit(1)

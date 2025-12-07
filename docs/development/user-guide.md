@@ -23,7 +23,7 @@
 
 ### Accessing the Module
 
-1. Log in to the Farm Management System
+1. Log in to the Marketplace ERP Tools
 2. Navigate to **Development Planning** from the main menu
 3. You'll land on the Features List showing all planned work
 

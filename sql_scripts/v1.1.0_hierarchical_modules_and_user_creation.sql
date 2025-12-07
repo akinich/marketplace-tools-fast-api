@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Database Migration v1.1.0
+Marketplace ERP Tools - Database Migration v1.1.0
 ================================================================================
 Version: 1.1.0
 Created: 2025-11-17

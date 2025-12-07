@@ -22,7 +22,7 @@
 #### Option A: SendGrid (Recommended for Render)
 1. Sign up: https://signup.sendgrid.com/
 2. Settings → API Keys → Create API Key
-3. Name: `Farm Management`
+3. Name: `Marketplace ERP Tools`
 4. Permissions: **Mail Send** or Full Access
 5. Copy key (starts with `SG.`)
 

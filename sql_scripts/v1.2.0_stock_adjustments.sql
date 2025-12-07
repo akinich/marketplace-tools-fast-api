@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Stock Adjustments Table Migration
+Marketplace ERP Tools - Stock Adjustments Table Migration
 ================================================================================
 Version: 1.2.0
 Created: 2025-11-18

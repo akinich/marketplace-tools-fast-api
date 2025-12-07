@@ -24,7 +24,7 @@
 
 ### Accessing the Ticket System
 
-1. Log in to the Farm Management System
+1. Log in to the Marketplace ERP Tools
 2. Navigate to **Tickets** from the main menu
 3. You'll see the "All Tickets" view showing all system tickets
 

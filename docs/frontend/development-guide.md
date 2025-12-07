@@ -27,7 +27,7 @@ npm run dev
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
-VITE_APP_NAME=Farm Management System
+VITE_APP_NAME=Marketplace ERP Tools
 VITE_APP_VERSION=1.0.0
 ```
 

@@ -1,6 +1,6 @@
 # SQL Scripts - Version History
 
-This folder contains all database migration scripts for the Farm Management System.
+This folder contains all database migration scripts for the Marketplace ERP Tools.
 
 ## Version History
 

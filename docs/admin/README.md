@@ -27,7 +27,7 @@ The Admin Module is a comprehensive system administration platform for managing 
 - PostgreSQL database (>= 12)
 - Python 3.8+ (backend)
 - Node.js 16+ (frontend)
-- Farm Management System core installed
+- Marketplace ERP Tools core installed
 - Admin user account
 
 ### Access Requirements
@@ -408,5 +408,5 @@ For issues, questions, or contributions:
 
 ## License
 
-Part of the Farm Management System
+Part of the Marketplace ERP Tools
 © 2025 All rights reserved

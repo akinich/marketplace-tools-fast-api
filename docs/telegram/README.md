@@ -6,7 +6,7 @@
 
 ## Overview
 
-The Telegram Notifications Module provides real-time messaging capabilities to your Farm Management System through Telegram Bot API integration. It sends automated notifications for tickets, purchase orders, and inventory alerts to designated Telegram channels, ensuring your team stays informed about critical events as they happen.
+The Telegram Notifications Module provides real-time messaging capabilities to your Marketplace ERP Tools through Telegram Bot API integration. It sends automated notifications for tickets, purchase orders, and inventory alerts to designated Telegram channels, ensuring your team stays informed about critical events as they happen.
 
 ### Key Capabilities
 
@@ -27,7 +27,7 @@ The Telegram Notifications Module provides real-time messaging capabilities to y
 - PostgreSQL database (>= 12)
 - Python 3.8+ with `python-telegram-bot` library
 - Telegram account
-- Farm Management System core installed
+- Marketplace ERP Tools core installed
 - Active Telegram bot (created via @BotFather)
 
 ### Installation

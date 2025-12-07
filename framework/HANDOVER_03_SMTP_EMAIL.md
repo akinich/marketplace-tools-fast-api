@@ -553,8 +553,8 @@ async def test_smtp_connection(conn: Connection, test_email: str) -> Dict[str, A
             smtp_settings,
             to_email=test_email,
             subject="SMTP Test Email",
-            plain_body="This is a test email from your Farm Management System. SMTP is configured correctly!",
-            html_body="<h2>SMTP Test Email</h2><p>This is a test email from your Farm Management System.</p><p><strong>SMTP is configured correctly!</strong></p>"
+            plain_body="This is a test email from your Marketplace ERP Tools. SMTP is configured correctly!",
+            html_body="<h2>SMTP Test Email</h2><p>This is a test email from your Marketplace ERP Tools.</p><p><strong>SMTP is configured correctly!</strong></p>"
         )
 
         return {"success": True, "message": f"Test email sent to {test_email}"}
@@ -583,7 +583,7 @@ async def _get_smtp_settings(conn: Connection) -> Dict[str, Any]:
         'username': await settings_service.get_setting(conn, 'email.smtp_user', ''),
         'password': await settings_service.get_setting(conn, 'email.smtp_password', ''),
         'from_email': await settings_service.get_setting(conn, 'email.from_email', 'noreply@farmapp.com'),
-        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Farm Management System'),
+        'from_name': await settings_service.get_setting(conn, 'email.from_name', 'Marketplace ERP Tools'),
     }
 
 async def _send_smtp_email(

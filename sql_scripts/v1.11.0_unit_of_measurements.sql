@@ -1,5 +1,5 @@
 -- ============================================================================
--- Farm Management System - Unit of Measurements
+-- Marketplace ERP Tools - Unit of Measurements
 -- ============================================================================
 -- Version: 1.11.0
 -- Purpose: Standardize units across inventory items with a centralized table

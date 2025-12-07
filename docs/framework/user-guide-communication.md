@@ -21,7 +21,7 @@
 
 ## Overview
 
-The Farm Management System keeps you informed through multiple communication channels:
+The Marketplace ERP Tools keeps you informed through multiple communication channels:
 
 | Feature | What It Does | When You'll See It |
 |---------|-------------|-------------------|
@@ -92,7 +92,7 @@ Immediate attention required.
 [View Ticket] [Add Comment]
 
 ---
-Farm Management System
+Marketplace ERP Tools
 © 2025 All Rights Reserved
 ```
 
@@ -231,7 +231,7 @@ Look for the connection indicator in the top-right corner:
 
 #### Step 2: Link Your Account
 
-1. In Farm Management System, go to **Profile → Integrations**
+1. In Marketplace ERP Tools, go to **Profile → Integrations**
 2. Click **"Connect Telegram"**
 3. Copy the code shown (e.g., `LINK-ABC123`)
 4. In Telegram, send the code to the bot:
@@ -302,7 +302,7 @@ Immediate action needed.
 
 ### What Are API Keys?
 
-API keys let you access the Farm Management System from:
+API keys let you access the Marketplace ERP Tools from:
 - Custom scripts
 - Mobile apps
 - External tools

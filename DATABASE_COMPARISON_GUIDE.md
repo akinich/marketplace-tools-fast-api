@@ -1,6 +1,6 @@
 # Database and Repository Comparison Guide
 
-This guide helps you verify that the `marketplace-tools-fast-api` repository and database are exact copies of the `farm2-app-fast-api` repository and database.
+This guide helps you verify that the `marketplace-tools-fast-api` repository and database are exact copies of the `marketplace-tools-fast-api` repository and database.
 
 ## Repository Comparison Results
 
@@ -9,7 +9,7 @@ This guide helps you verify that the `marketplace-tools-fast-api` repository and
 
 **Differences found:**
 - Only 1 file differs: `frontend/.env.production`
-  - **farm2-app-fast-api**: Uses `farm2-fastapi-backend.onrender.com`
+  - **marketplace-tools-fast-api**: Uses `farm2-fastapi-backend.onrender.com`
   - **marketplace-tools-fast-api**: Uses `marketplace-erp.onrender.com`
 
 This difference is **expected and correct** as both repositories deploy to different URLs.
@@ -45,7 +45,7 @@ The script will:
 ```bash
 $ python compare_databases.py
 
-Database 1 URL (farm2-app-fast-api): postgresql://user:pass@db.xxx.supabase.co:5432/postgres
+Database 1 URL (marketplace-tools-fast-api): postgresql://user:pass@db.xxx.supabase.co:5432/postgres
 Database 2 URL (marketplace-tools-fast-api): postgresql://user:pass@db.yyy.supabase.co:5432/postgres
 ```
 
