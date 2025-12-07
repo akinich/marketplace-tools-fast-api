@@ -311,7 +311,8 @@ from app.routes import (
     wastage_tracking,
     wastage_tracking,
     po,
-    grn
+    grn,
+    sales_orders
 )
 from app.routes import settings as settings_router
 
@@ -351,6 +352,9 @@ app.include_router(po.router, prefix=f"{settings.API_PREFIX}/po", tags=["Purchas
 
 # GRN Management
 app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["GRN Management"])
+
+# Sales Order & Pricing
+app.include_router(sales_orders.router, prefix=f"{settings.API_PREFIX}/sales-orders", tags=["Sales Orders"])
 
 
 # ============================================================================
