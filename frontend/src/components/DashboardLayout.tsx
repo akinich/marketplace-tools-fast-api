@@ -408,6 +408,7 @@ export default function DashboardLayout() {
             woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
             stock_price_updater: '/b2c-ops/stock-price-updater',
             order_place_test: '/b2c-ops/order-place-test',
+            b2c_orders: '/b2c-ops/b2c-orders',
         };
 
         // Database Management sub-modules
