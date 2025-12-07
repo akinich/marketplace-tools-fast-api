@@ -163,8 +163,12 @@ export default function B2COrders() {
         },
         {
             onSuccess: (data) => {
+                const synced = data?.synced || 0;
+                const created = data?.created || 0;
+                const updated = data?.updated || 0;
+
                 enqueueSnackbar(
-                    `Synced ${data.synced} orders (${data.created} created, ${data.updated} updated)`,
+                    `Synced ${synced} orders (${created} created, ${updated} updated)`,
                     { variant: 'success' }
                 );
                 queryClient.invalidateQueries('b2c-orders');
