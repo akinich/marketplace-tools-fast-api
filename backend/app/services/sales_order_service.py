@@ -503,11 +503,15 @@ async def list_sos(
 
         sos = await fetch_all(list_query, *params)
 
+        import math
+        pages = math.ceil(total / limit) if total > 0 else 1
+
         return {
             'orders': sos,
             'total': total,
             'page': page,
-            'limit': limit
+            'limit': limit,
+            'pages': pages
         }
 
     except Exception as e:
