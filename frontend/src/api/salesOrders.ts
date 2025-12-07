@@ -5,12 +5,13 @@
  */
 
 import apiClient from './client';
-CreateSORequest,
+import {
+    CreateSORequest,
     UpdateSORequest,
     SalesOrderListFilters,
     SalesOrderListResponse,
     CustomerPricing,
-    SalesOrder // Assuming this new type is needed for the updated API
+    SalesOrder
 } from '../types/SalesOrder';
 
 export const salesOrdersAPI = {
