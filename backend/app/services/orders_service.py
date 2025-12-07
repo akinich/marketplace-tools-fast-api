@@ -559,6 +559,8 @@ class OrdersService:
             # Calculate date range
             end_date = datetime.now().date()
             start_date = end_date - timedelta(days=days)
+            
+            logger.info(f"Date range: {start_date} to {end_date}")
 
             # Fetch orders from WooCommerce
             woo_orders = await WooCommerceService.fetch_orders(
