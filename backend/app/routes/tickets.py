@@ -57,11 +57,11 @@ from fastapi import APIRouter, Depends, Query, status
 from typing import Optional
 
 from app.schemas.tickets import (
-    TicketType, TicketStatus, TicketPriority,
+    TicketType, TicketStatus, TicketPriority, TicketCategory,
     CreateTicketRequest, UpdateTicketRequest, AdminUpdateTicketRequest,
     CloseTicketRequest, CreateCommentRequest, UpdateCommentRequest,
     TicketResponse, TicketDetailResponse, TicketsListResponse,
-    CommentResponse, TicketStatsResponse
+    CommentResponse, TicketStatsResponse, TicketDashboardStats
 )
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
@@ -79,6 +79,7 @@ router = APIRouter()
 
 @router.get("", response_model=TicketsListResponse)
 async def list_tickets(
+    ticket_category: Optional[TicketCategory] = Query(None, description="Filter by ticket category (internal/b2b/b2c)"),
     ticket_type: Optional[TicketType] = Query(None, description="Filter by ticket type"),
     status: Optional[TicketStatus] = Query(None, description="Filter by status"),
     priority: Optional[TicketPriority] = Query(None, description="Filter by priority"),
@@ -91,6 +92,7 @@ async def list_tickets(
     All authenticated users can view all tickets.
     """
     return await tickets_service.get_tickets_list(
+        ticket_category=ticket_category,
         ticket_type=ticket_type,
         ticket_status=status,
         priority=priority,
@@ -125,6 +127,17 @@ async def get_ticket_stats(
     Get ticket statistics overview.
     """
     return await tickets_service.get_ticket_stats()
+
+
+@router.get("/dashboard", response_model=TicketDashboardStats)
+async def get_ticket_dashboard(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get ticket dashboard statistics broken down by category (Internal/B2B/B2C).
+    Shows status breakdown for each category plus overall totals.
+    """
+    return await tickets_service.get_dashboard_stats()
 
 
 @router.get("/{ticket_id}", response_model=TicketDetailResponse)

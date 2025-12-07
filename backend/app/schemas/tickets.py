@@ -37,6 +37,12 @@ import math
 
 
 # Enums
+class TicketCategory(str, Enum):
+    INTERNAL = "internal"
+    B2B = "b2b"
+    B2C = "b2c"
+
+
 class TicketType(str, Enum):
     ISSUE = "issue"
     FEATURE_REQUEST = "feature_request"
@@ -64,13 +70,15 @@ class CreateTicketRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200, description="Ticket title")
     description: str = Field(..., min_length=1, description="Detailed description of the issue/request")
     ticket_type: TicketType = Field(..., description="Type of ticket")
+    ticket_category: TicketCategory = Field(TicketCategory.INTERNAL, description="Category of ticket (internal/b2b/b2c)")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "title": "Login page not loading",
                 "description": "When I try to access the login page, it shows a blank screen on mobile devices.",
-                "ticket_type": "issue"
+                "ticket_type": "issue",
+                "ticket_category": "internal"
             }
         }
 
@@ -145,6 +153,7 @@ class TicketResponse(BaseModel):
     title: str
     description: str
     ticket_type: TicketType
+    ticket_category: TicketCategory
     status: TicketStatus
     priority: Optional[TicketPriority] = None
     created_by_id: str
@@ -167,6 +176,7 @@ class TicketDetailResponse(BaseModel):
     title: str
     description: str
     ticket_type: TicketType
+    ticket_category: TicketCategory
     status: TicketStatus
     priority: Optional[TicketPriority] = None
     created_by_id: str
@@ -212,3 +222,12 @@ class TicketStatsResponse(BaseModel):
     closed_tickets: int
     by_type: dict
     by_priority: dict
+    by_category: dict  # Stats broken down by category (internal/b2b/b2c)
+
+
+class TicketDashboardStats(BaseModel):
+    """Dashboard statistics for all ticket categories"""
+    internal: dict
+    b2b: dict
+    b2c: dict
+    total_across_categories: dict
