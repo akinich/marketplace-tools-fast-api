@@ -36,6 +36,8 @@ class ZohoItemBase(BaseModel):
     is_taxable: bool = True
     unit: Optional[str] = None
     account_id: Optional[str] = None
+    for_purchase: bool = False
+    segment: Optional[str] = None
 
 
 class ZohoItemCreate(ZohoItemBase):
@@ -62,11 +64,15 @@ class ZohoItemUpdate(BaseModel):
     is_taxable: Optional[bool] = None
     unit: Optional[str] = None
     account_id: Optional[str] = None
+    for_purchase: Optional[bool] = None
+    segment: Optional[str] = None
 
 
 class ZohoItemResponse(ZohoItemBase):
     """Schema for Zoho item response"""
     id: int
+    for_purchase: bool = False
+    segment: Optional[str] = None
     created_time: Optional[datetime] = None
     last_modified_time: Optional[datetime] = None
     last_sync_at: Optional[datetime] = None
