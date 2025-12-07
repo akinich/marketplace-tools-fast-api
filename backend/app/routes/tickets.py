@@ -55,13 +55,14 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, Query, status
 from typing import Optional
+import logging
 
 from app.schemas.tickets import (
     TicketType, TicketStatus, TicketPriority, TicketCategory,
     CreateTicketRequest, UpdateTicketRequest, AdminUpdateTicketRequest,
     CloseTicketRequest, CreateCommentRequest, UpdateCommentRequest,
     TicketResponse, TicketDetailResponse, TicketsListResponse,
-    CommentResponse, TicketStatsResponse
+    CommentResponse, TicketStatsResponse, TicketDashboardStats
 )
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
@@ -70,6 +71,7 @@ from app.database import get_db
 from app.websocket import events as ws_events
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -79,10 +81,10 @@ router = APIRouter()
 
 @router.get("", response_model=TicketsListResponse)
 async def list_tickets(
+    ticket_category: Optional[TicketCategory] = Query(None, description="Filter by ticket category (internal/b2b/b2c)"),
     ticket_type: Optional[TicketType] = Query(None, description="Filter by ticket type"),
     status: Optional[TicketStatus] = Query(None, description="Filter by status"),
     priority: Optional[TicketPriority] = Query(None, description="Filter by priority"),
-    ticket_category: Optional[TicketCategory] = Query(None, description="Filter by category (internal/b2b/b2c)"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
     current_user: CurrentUser = Depends(get_current_user),
@@ -92,10 +94,10 @@ async def list_tickets(
     All authenticated users can view all tickets.
     """
     return await tickets_service.get_tickets_list(
+        ticket_category=ticket_category,
         ticket_type=ticket_type,
         ticket_status=status,
         priority=priority,
-        ticket_category=ticket_category,
         page=page,
         limit=limit,
     )
@@ -127,6 +129,17 @@ async def get_ticket_stats(
     Get ticket statistics overview.
     """
     return await tickets_service.get_ticket_stats()
+
+
+@router.get("/dashboard", response_model=TicketDashboardStats)
+async def get_ticket_dashboard(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get ticket dashboard statistics broken down by category (Internal/B2B/B2C).
+    Shows status breakdown for each category plus overall totals.
+    """
+    return await tickets_service.get_dashboard_stats()
 
 
 @router.get("/dashboard-stats")

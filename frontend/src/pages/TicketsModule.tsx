@@ -1,58 +1,42 @@
 /**
  * ============================================================================
- * Marketplace ERP - Tickets Module Frontend
+ * Marketplace ERP - Tickets Module Frontend (TypeScript)
  * ============================================================================
- * Version: 1.1.0
- * Last Updated: 2025-11-20
+ * Version: 2.0.0
+ * Last Updated: 2025-12-07
  *
  * Changelog:
  * ----------
- * v1.1.0 (2025-11-20):
- *   - Added ticket deletion functionality
- *   - Users can delete their own tickets
- *   - Admins can delete any ticket
- *   - Delete button in ticket detail view
- *   - Confirmation dialog with warning
- *   - Cascade deletion of associated comments
- *
- * v1.0.1 (2025-11-20):
- *   - Version bump to match backend fixes
- *   - No frontend changes required for SQL fix
- *
- * v1.0.0 (2025-11-20):
- *   - Initial tickets module frontend implementation
- *   - Ticket listing with filters (status, type, priority)
- *   - Create new ticket dialog
- *   - View ticket details with comments
- *   - Add/edit/delete comments functionality
- *   - Admin features: set priority, change status, close tickets
- *   - Ticket statistics dashboard
- *   - Pagination support
- *   - Responsive design with Material-UI
+ * v2.0.0 (2025-12-07):
+ *   - MAJOR: Rewritten in TypeScript with category-based tabs
+ *   - Added ticket categories: Internal, B2B, B2C
+ *   - Tab interface for filtering by category
+ *   - Category selector in create ticket dialog
+ *   - Improved type safety with TypeScript
  *
  * Description:
- *   Complete frontend interface for the ticket system module. Allows users
- *   to create, view, and manage tickets for issues, feature requests, and
- *   upgrade suggestions. Includes comment threads and admin controls.
+ *   Complete frontend interface for the categorized ticket system. Allows users
+ *   to create, view, and manage tickets across three categories: Internal (ERP
+ *   issues), B2B (B2B customer complaints), and B2C (B2C customer complaints).
  * ============================================================================
  */
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
   Button,
   Card,
   CardContent,
-  Grid,
+  Tabs,
+  Tab,
   TextField,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
   Chip,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -67,114 +51,188 @@ import {
   TablePagination,
   CircularProgress,
   Alert,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
+  Grid,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Visibility as ViewIcon,
-  Edit as EditIcon,
-  Close as CloseIcon,
-  Send as SendIcon,
-  Delete as DeleteIcon,
   BugReport as BugIcon,
   Lightbulb as FeatureIcon,
   TrendingUp as UpgradeIcon,
   MoreHoriz as OthersIcon,
-  Comment as CommentIcon,
+  Business as B2BIcon,
+  People as B2CIcon,
+  HomeWork as InternalIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import useAuthStore from '../store/authStore';
 import { ticketsAPI } from '../api';
 
 // ============================================================================
+// TYPES
+// ============================================================================
+
+type TicketCategory = 'internal' | 'b2b' | 'b2c';
+type TicketType = 'issue' | 'feature_request' | 'upgrade' | 'others';
+type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
+
+interface Ticket {
+  id: number;
+  title: string;
+  description: string;
+  ticket_type: TicketType;
+  ticket_category: TicketCategory;
+  status: TicketStatus;
+  priority?: TicketPriority;
+  created_by_id: string;
+  created_by_name: string;
+  created_by_email?: string;
+  closed_by_id?: string;
+  closed_by_name?: string;
+  closed_at?: string;
+  created_at: string;
+  updated_at?: string;
+  comment_count?: number;
+}
+
+interface TicketsListResponse {
+  tickets: Ticket[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+interface CreateTicketData {
+  title: string;
+  description: string;
+  ticket_type: TicketType;
+  ticket_category: TicketCategory;
+}
+
+interface TicketStats {
+  total_tickets: number;
+  open_tickets: number;
+  in_progress_tickets: number;
+  resolved_tickets: number;
+  closed_tickets: number;
+  by_type: Record<string, number>;
+  by_priority: Record<string, number>;
+  by_category: Record<string, number>;
+}
+
+// ============================================================================
 // CONSTANTS
 // ============================================================================
 
+const TICKET_CATEGORIES = [
+  { value: 'internal' as TicketCategory, label: 'Internal', icon: <InternalIcon />, color: '#7b1fa2' as const },
+  { value: 'b2b' as TicketCategory, label: 'B2B', icon: <B2BIcon />, color: '#1976d2' as const },
+  { value: 'b2c' as TicketCategory, label: 'B2C', icon: <B2CIcon />, color: '#388e3c' as const },
+];
+
 const TICKET_TYPES = [
-  { value: 'issue', label: 'Issue', icon: <BugIcon />, color: 'error' },
-  { value: 'feature_request', label: 'Feature Request', icon: <FeatureIcon />, color: 'info' },
-  { value: 'upgrade', label: 'Upgrade', icon: <UpgradeIcon />, color: 'success' },
-  { value: 'others', label: 'Others', icon: <OthersIcon />, color: 'default' },
+  { value: 'issue' as TicketType, label: 'Issue', icon: <BugIcon />, color: 'error' as const },
+  { value: 'feature_request' as TicketType, label: 'Feature Request', icon: <FeatureIcon />, color: 'info' as const },
+  { value: 'upgrade' as TicketType, label: 'Upgrade', icon: <UpgradeIcon />, color: 'success' as const },
+  { value: 'others' as TicketType, label: 'Others', icon: <OthersIcon />, color: 'default' as const },
 ];
 
 const TICKET_STATUS = [
-  { value: 'open', label: 'Open', color: 'info' },
-  { value: 'in_progress', label: 'In Progress', color: 'warning' },
-  { value: 'resolved', label: 'Resolved', color: 'success' },
-  { value: 'closed', label: 'Closed', color: 'default' },
+  { value: 'open' as TicketStatus, label: 'Open', color: 'info' as const },
+  { value: 'in_progress' as TicketStatus, label: 'In Progress', color: 'warning' as const },
+  { value: 'resolved' as TicketStatus, label: 'Resolved', color: 'success' as const },
+  { value: 'closed' as TicketStatus, label: 'Closed', color: 'default' as const },
 ];
 
 const TICKET_PRIORITY = [
-  { value: 'low', label: 'Low', color: 'success' },
-  { value: 'medium', label: 'Medium', color: 'info' },
-  { value: 'high', label: 'High', color: 'warning' },
-  { value: 'critical', label: 'Critical', color: 'error' },
+  { value: 'low' as TicketPriority, label: 'Low', color: 'success' as const },
+  { value: 'medium' as TicketPriority, label: 'Medium', color: 'info' as const },
+  { value: 'high' as TicketPriority, label: 'High', color: 'warning' as const },
+  { value: 'critical' as TicketPriority, label: 'Critical', color: 'error' as const },
 ];
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-const getTypeConfig = (type) => TICKET_TYPES.find((t) => t.value === type) || TICKET_TYPES[3];
-const getStatusConfig = (status) => TICKET_STATUS.find((s) => s.value === status) || TICKET_STATUS[0];
-const getPriorityConfig = (priority) => TICKET_PRIORITY.find((p) => p.value === priority);
+const getCategoryConfig = (category: TicketCategory) =>
+  TICKET_CATEGORIES.find((c) => c.value === category) || TICKET_CATEGORIES[0];
 
-const formatDate = (dateString) => {
+const getTypeConfig = (type: TicketType) =>
+  TICKET_TYPES.find((t) => t.value === type) || TICKET_TYPES[0];
+
+const getStatusConfig = (status: TicketStatus) =>
+  TICKET_STATUS.find((s) => s.value === status) || TICKET_STATUS[0];
+
+const getPriorityConfig = (priority: TicketPriority) =>
+  TICKET_PRIORITY.find((p) => p.value === priority);
+
+const formatDate = (dateString?: string): string => {
   if (!dateString) return '-';
   return new Date(dateString).toLocaleString();
 };
 
 // ============================================================================
-// TICKETS LIST COMPONENT
+// MAIN COMPONENT
 // ============================================================================
 
-function TicketsList() {
+export default function TicketsModule() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const isAdmin = user?.role === 'Admin';
 
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [stats, setStats] = useState(null);
+  // Tab state
+  const [currentTab, setCurrentTab] = useState<number>(0);
+  const currentCategory = TICKET_CATEGORIES[currentTab].value;
+
+  // Tickets state
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [total, setTotal] = useState<number>(0);
+  const [page, setPage] = useState<number>(0);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+  const [stats, setStats] = useState<TicketStats | null>(null);
 
   // Filters
-  const [typeFilter, setTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [priorityFilter, setPriorityFilter] = useState<string>('');
 
   // Create dialog
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newTicket, setNewTicket] = useState({
+  const [createOpen, setCreateOpen] = useState<boolean>(false);
+  const [newTicket, setNewTicket] = useState<CreateTicketData>({
     title: '',
     description: '',
     ticket_type: 'issue',
+    ticket_category: 'internal',
   });
+
+  // ============================================================================
+  // API CALLS
+  // ============================================================================
 
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      const params = {
+      const params: any = {
         page: page + 1,
         limit: rowsPerPage,
+        ticket_category: currentCategory,
       };
       if (typeFilter) params.ticket_type = typeFilter;
       if (statusFilter) params.status = statusFilter;
       if (priorityFilter) params.priority = priorityFilter;
 
-      const data = await ticketsAPI.getTickets(params);
+      const data: TicketsListResponse = await ticketsAPI.getTickets(params);
       setTickets(data.tickets || []);
       setTotal(data.total || 0);
-    } catch (error) {
-      enqueueSnackbar('Failed to fetch tickets', { variant: 'error' });
+    } catch (error: any) {
+      enqueueSnackbar(`Failed to fetch ${currentCategory.toUpperCase()} tickets`, { variant: 'error' });
+      console.error('Failed to fetch tickets:', error);
     } finally {
       setLoading(false);
     }
@@ -182,7 +240,7 @@ function TicketsList() {
 
   const fetchStats = async () => {
     try {
-      const data = await ticketsAPI.getTicketStats();
+      const data: TicketStats = await ticketsAPI.getTicketStats();
       setStats(data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
@@ -191,8 +249,23 @@ function TicketsList() {
 
   useEffect(() => {
     fetchTickets();
+  }, [currentTab, page, rowsPerPage, typeFilter, statusFilter, priorityFilter]);
+
+  useEffect(() => {
     fetchStats();
-  }, [page, rowsPerPage, typeFilter, statusFilter, priorityFilter]);
+  }, []);
+
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
+    setPage(0); // Reset to first page when switching tabs
+    setTypeFilter('');
+    setStatusFilter('');
+    setPriorityFilter('');
+  };
 
   const handleCreateTicket = async () => {
     if (!newTicket.title.trim() || !newTicket.description.trim()) {
@@ -201,159 +274,280 @@ function TicketsList() {
     }
 
     try {
-      await ticketsAPI.createTicket(newTicket);
+      await ticketsAPI.createTicket({
+        title: newTicket.title,
+        description: newTicket.description,
+        ticket_type: newTicket.ticket_type,
+        ticket_category: newTicket.ticket_category,
+      });
+
       enqueueSnackbar('Ticket created successfully', { variant: 'success' });
       setCreateOpen(false);
-      setNewTicket({ title: '', description: '', ticket_type: 'issue' });
-      fetchTickets();
+      setNewTicket({
+        title: '',
+        description: '',
+        ticket_type: 'issue',
+        ticket_category: currentCategory, // Default to current tab category
+      });
+
+      // Refresh if the created ticket matches current tab
+      if (newTicket.ticket_category === currentCategory) {
+        fetchTickets();
+      }
       fetchStats();
-    } catch (error) {
-      enqueueSnackbar(error.response?.data?.detail || 'Failed to create ticket', { variant: 'error' });
+    } catch (error: any) {
+      enqueueSnackbar(error.response?.data?.detail || 'Failed to create ticket', {
+        variant: 'error',
+      });
     }
   };
 
+  const handleOpenCreate = () => {
+    // Set default category to current tab when opening dialog
+    setNewTicket((prev) => ({
+      ...prev,
+      ticket_category: currentCategory,
+    }));
+    setCreateOpen(true);
+  };
+
+  const handleViewTicket = (ticketId: number) => {
+    navigate(`/tickets/${ticketId}`);
+  };
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  const categoryConfig = getCategoryConfig(currentCategory);
+  const categoryStats = stats?.by_category[currentCategory] || 0;
+
   return (
-    <Box>
-      {/* Stats Cards */}
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom fontWeight="bold">
+            Tickets
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage support tickets across Internal, B2B, and B2C categories
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleOpenCreate}
+          sx={{ minWidth: 150 }}
+        >
+          New Ticket
+        </Button>
+      </Box>
+
+      {/* Statistics Cards */}
       {stats && (
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} sm={3}>
+          <Grid item xs={12} sm={6} md={2.4}>
             <Card>
-              <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                <Typography variant="h4" color="info.main">{stats.open_tickets}</Typography>
-                <Typography variant="body2" color="text.secondary">Open</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                <Typography variant="h4" color="warning.main">{stats.in_progress_tickets}</Typography>
-                <Typography variant="body2" color="text.secondary">In Progress</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 2 }}>
-                <Typography variant="h4" color="success.main">{stats.resolved_tickets}</Typography>
-                <Typography variant="body2" color="text.secondary">Resolved</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Card>
-              <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary">
+                  Total
+                </Typography>
                 <Typography variant="h4">{stats.total_tickets}</Typography>
-                <Typography variant="body2" color="text.secondary">Total</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <Card>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary">
+                  Open
+                </Typography>
+                <Typography variant="h4" color="info.main">
+                  {stats.open_tickets}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <Card>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary">
+                  In Progress
+                </Typography>
+                <Typography variant="h4" color="warning.main">
+                  {stats.in_progress_tickets}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <Card>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary">
+                  Resolved
+                </Typography>
+                <Typography variant="h4" color="success.main">
+                  {stats.resolved_tickets}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2.4}>
+            <Card>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary">
+                  Closed
+                </Typography>
+                <Typography variant="h4" color="text.disabled">
+                  {stats.closed_tickets}
+                </Typography>
               </CardContent>
             </Card>
           </Grid>
         </Grid>
       )}
 
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5">Tickets</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateOpen(true)}
+      {/* Category Tabs */}
+      <Card sx={{ mb: 3 }}>
+        <Tabs
+          value={currentTab}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          variant="fullWidth"
         >
-          Create Ticket
-        </Button>
-      </Box>
+          {TICKET_CATEGORIES.map((category, index) => (
+            <Tab
+              key={category.value}
+              icon={category.icon}
+              iconPosition="start"
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {category.label}
+                  <Chip
+                    label={stats?.by_category[category.value] || 0}
+                    size="small"
+                    sx={{ bgcolor: category.color, color: 'white' }}
+                  />
+                </Box>
+              }
+            />
+          ))}
+        </Tabs>
+      </Card>
 
       {/* Filters */}
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={typeFilter}
-                  label="Type"
-                  onChange={(e) => { setTypeFilter(e.target.value); setPage(0); }}
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  {TICKET_TYPES.map((type) => (
-                    <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={statusFilter}
-                  label="Status"
-                  onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-                >
-                  <MenuItem value="">All Status</MenuItem>
-                  {TICKET_STATUS.map((status) => (
-                    <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Priority</InputLabel>
-                <Select
-                  value={priorityFilter}
-                  label="Priority"
-                  onChange={(e) => { setPriorityFilter(e.target.value); setPage(0); }}
-                >
-                  <MenuItem value="">All Priorities</MenuItem>
-                  {TICKET_PRIORITY.map((priority) => (
-                    <MenuItem key={priority.value} value={priority.value}>{priority.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+      <Card sx={{ mb: 3, p: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Type</InputLabel>
+              <Select
+                value={typeFilter}
+                onChange={(e: SelectChangeEvent) => setTypeFilter(e.target.value)}
+                label="Type"
+              >
+                <MenuItem value="">All Types</MenuItem>
+                {TICKET_TYPES.map((type) => (
+                  <MenuItem key={type.value} value={type.value}>
+                    {type.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
-        </CardContent>
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={statusFilter}
+                onChange={(e: SelectChangeEvent) => setStatusFilter(e.target.value)}
+                label="Status"
+              >
+                <MenuItem value="">All Statuses</MenuItem>
+                {TICKET_STATUS.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Priority</InputLabel>
+              <Select
+                value={priorityFilter}
+                onChange={(e: SelectChangeEvent) => setPriorityFilter(e.target.value)}
+                label="Priority"
+              >
+                <MenuItem value="">All Priorities</MenuItem>
+                {TICKET_PRIORITY.map((priority) => (
+                  <MenuItem key={priority.value} value={priority.value}>
+                    {priority.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
       </Card>
 
       {/* Tickets Table */}
-      <TableContainer component={Paper}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : tickets.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">No tickets found</Typography>
-          </Box>
-        ) : (
-          <>
-            <Table>
-              <TableHead>
+      <Card>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>ID</TableCell>
+                <TableCell>Title</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Priority</TableCell>
+                <TableCell>Created By</TableCell>
+                <TableCell>Created At</TableCell>
+                <TableCell>Comments</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
                 <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Priority</TableCell>
-                  <TableCell>Created By</TableCell>
-                  <TableCell>Created At</TableCell>
-                  <TableCell>Comments</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell colSpan={9} align="center" sx={{ py: 5 }}>
+                    <CircularProgress />
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {tickets.map((ticket) => {
+              ) : tickets.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 5 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No tickets found for {categoryConfig.label}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                tickets.map((ticket) => {
                   const typeConfig = getTypeConfig(ticket.ticket_type);
                   const statusConfig = getStatusConfig(ticket.status);
-                  const priorityConfig = getPriorityConfig(ticket.priority);
+                  const priorityConfig = ticket.priority
+                    ? getPriorityConfig(ticket.priority)
+                    : null;
 
                   return (
                     <TableRow key={ticket.id} hover>
                       <TableCell>#{ticket.id}</TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        <Typography variant="body2" fontWeight="medium">
                           {ticket.title}
                         </Typography>
                       </TableCell>
@@ -379,485 +573,128 @@ function TicketsList() {
                             label={priorityConfig.label}
                             size="small"
                             color={priorityConfig.color}
-                            variant="outlined"
                           />
                         ) : (
-                          <Typography variant="body2" color="text.secondary">-</Typography>
+                          <Typography variant="caption" color="text.disabled">
+                            Unassigned
+                          </Typography>
                         )}
                       </TableCell>
-                      <TableCell>{ticket.created_by_name}</TableCell>
-                      <TableCell>{formatDate(ticket.created_at)}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {ticket.created_by_name}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDate(ticket.created_at)}
+                        </Typography>
+                      </TableCell>
                       <TableCell>
                         <Chip
-                          icon={<CommentIcon />}
-                          label={ticket.comment_count}
+                          label={ticket.comment_count || 0}
                           size="small"
                           variant="outlined"
                         />
                       </TableCell>
-                      <TableCell align="right">
-                        <IconButton
+                      <TableCell align="center">
+                        <Button
                           size="small"
-                          onClick={() => navigate(`/tickets/${ticket.id}`)}
+                          startIcon={<ViewIcon />}
+                          onClick={() => handleViewTicket(ticket.id)}
                         >
-                          <ViewIcon />
-                        </IconButton>
+                          View
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
-                })}
-              </TableBody>
-            </Table>
-            <TablePagination
-              component="div"
-              count={total}
-              page={page}
-              onPageChange={(e, newPage) => setPage(newPage)}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={(e) => {
-                setRowsPerPage(parseInt(e.target.value, 10));
-                setPage(0);
-              }}
-              rowsPerPageOptions={[5, 10, 25, 50]}
-            />
-          </>
-        )}
-      </TableContainer>
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+        />
+      </Card>
 
       {/* Create Ticket Dialog */}
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Create New Ticket</DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Title"
-              fullWidth
-              required
-              value={newTicket.title}
-              onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
-            />
-            <FormControl fullWidth required>
-              <InputLabel>Type</InputLabel>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
               <Select
-                value={newTicket.ticket_type}
-                label="Type"
-                onChange={(e) => setNewTicket({ ...newTicket, ticket_type: e.target.value })}
+                value={newTicket.ticket_category}
+                onChange={(e: SelectChangeEvent<TicketCategory>) =>
+                  setNewTicket({ ...newTicket, ticket_category: e.target.value as TicketCategory })
+                }
+                label="Category"
               >
-                {TICKET_TYPES.map((type) => (
-                  <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
+                {TICKET_CATEGORIES.map((category) => (
+                  <MenuItem key={category.value} value={category.value}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {category.icon}
+                      {category.label}
+                    </Box>
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Type</InputLabel>
+              <Select
+                value={newTicket.ticket_type}
+                onChange={(e: SelectChangeEvent<TicketType>) =>
+                  setNewTicket({ ...newTicket, ticket_type: e.target.value as TicketType })
+                }
+                label="Type"
+              >
+                {TICKET_TYPES.map((type) => (
+                  <MenuItem key={type.value} value={type.value}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {type.icon}
+                      {type.label}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             <TextField
-              label="Description"
               fullWidth
+              label="Title"
+              value={newTicket.title}
+              onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
               required
-              multiline
-              rows={4}
+            />
+
+            <TextField
+              fullWidth
+              label="Description"
               value={newTicket.description}
               onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
-              placeholder="Describe your issue, feature request, or suggestion in detail..."
+              multiline
+              rows={6}
+              required
             />
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateTicket}>Create</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-}
-
-// ============================================================================
-// TICKET DETAIL COMPONENT
-// ============================================================================
-
-function TicketDetail() {
-  const navigate = useNavigate();
-  const { enqueueSnackbar } = useSnackbar();
-  const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
-
-  const ticketId = window.location.pathname.split('/').pop();
-
-  const [ticket, setTicket] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [newComment, setNewComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  // Admin controls
-  const [adminDialog, setAdminDialog] = useState(false);
-  const [adminUpdate, setAdminUpdate] = useState({
-    status: '',
-    priority: '',
-  });
-  const [closeDialog, setCloseDialog] = useState(false);
-  const [closeComment, setCloseComment] = useState('');
-  const [deleteDialog, setDeleteDialog] = useState(false);
-
-  const fetchTicket = async () => {
-    setLoading(true);
-    try {
-      const data = await ticketsAPI.getTicket(ticketId);
-      setTicket(data);
-      setAdminUpdate({
-        status: data.status || '',
-        priority: data.priority || '',
-      });
-    } catch (error) {
-      enqueueSnackbar('Failed to fetch ticket', { variant: 'error' });
-      navigate('/tickets');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTicket();
-  }, [ticketId]);
-
-  const handleAddComment = async () => {
-    if (!newComment.trim()) return;
-
-    setSubmitting(true);
-    try {
-      await ticketsAPI.addComment(ticketId, { comment: newComment });
-      setNewComment('');
-      fetchTicket();
-      enqueueSnackbar('Comment added', { variant: 'success' });
-    } catch (error) {
-      enqueueSnackbar(error.response?.data?.detail || 'Failed to add comment', { variant: 'error' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleAdminUpdate = async () => {
-    try {
-      const updateData = {};
-      if (adminUpdate.status) updateData.status = adminUpdate.status;
-      if (adminUpdate.priority) updateData.priority = adminUpdate.priority;
-
-      await ticketsAPI.adminUpdateTicket(ticketId, updateData);
-      setAdminDialog(false);
-      fetchTicket();
-      enqueueSnackbar('Ticket updated', { variant: 'success' });
-    } catch (error) {
-      enqueueSnackbar(error.response?.data?.detail || 'Failed to update ticket', { variant: 'error' });
-    }
-  };
-
-  const handleCloseTicket = async () => {
-    try {
-      await ticketsAPI.closeTicket(ticketId, closeComment || null);
-      setCloseDialog(false);
-      fetchTicket();
-      enqueueSnackbar('Ticket closed', { variant: 'success' });
-    } catch (error) {
-      enqueueSnackbar(error.response?.data?.detail || 'Failed to close ticket', { variant: 'error' });
-    }
-  };
-
-  const handleDeleteTicket = async () => {
-    try {
-      await ticketsAPI.deleteTicket(ticketId);
-      setDeleteDialog(false);
-      navigate('/tickets');
-      enqueueSnackbar('Ticket deleted successfully', { variant: 'success' });
-    } catch (error) {
-      enqueueSnackbar(error.response?.data?.detail || 'Failed to delete ticket', { variant: 'error' });
-    }
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!ticket) {
-    return (
-      <Alert severity="error">Ticket not found</Alert>
-    );
-  }
-
-  const typeConfig = getTypeConfig(ticket.ticket_type);
-  const statusConfig = getStatusConfig(ticket.status);
-  const priorityConfig = getPriorityConfig(ticket.priority);
-  const isClosed = ticket.status === 'closed';
-
-  return (
-    <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-        <Box>
-          <Typography variant="h5" gutterBottom>
-            #{ticket.id} - {ticket.title}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Chip
-              icon={typeConfig.icon}
-              label={typeConfig.label}
-              color={typeConfig.color}
-              variant="outlined"
-            />
-            <Chip label={statusConfig.label} color={statusConfig.color} />
-            {priorityConfig && (
-              <Chip label={priorityConfig.label} color={priorityConfig.color} variant="outlined" />
-            )}
-          </Box>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" onClick={() => navigate('/tickets')}>
-            Back
-          </Button>
-          {(isAdmin || ticket.created_by_id === user?.id) && (
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={() => setDeleteDialog(true)}
-            >
-              Delete
-            </Button>
-          )}
-          {isAdmin && !isClosed && (
-            <>
-              <Button variant="outlined" onClick={() => setAdminDialog(true)}>
-                Update
-              </Button>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<CloseIcon />}
-                onClick={() => setCloseDialog(true)}
-              >
-                Close Ticket
-              </Button>
-            </>
-          )}
-        </Box>
-      </Box>
-
-      <Grid container spacing={3}>
-        {/* Main Content */}
-        <Grid item xs={12} md={8}>
-          {/* Description */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Description
-              </Typography>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                {ticket.description}
-              </Typography>
-            </CardContent>
-          </Card>
-
-          {/* Comments */}
-          <Card>
-            <CardContent>
-              <Typography variant="subtitle1" gutterBottom>
-                Comments ({ticket.comments?.length || 0})
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-
-              {ticket.comments?.length > 0 ? (
-                <List>
-                  {ticket.comments.map((comment) => (
-                    <ListItem key={comment.id} alignItems="flex-start" sx={{ px: 0 }}>
-                      <ListItemAvatar>
-                        <Avatar>{comment.user_name?.charAt(0) || '?'}</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="subtitle2">{comment.user_name}</Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {formatDate(comment.created_at)}
-                            </Typography>
-                          </Box>
-                        }
-                        secondary={
-                          <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
-                            {comment.comment}
-                          </Typography>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                  No comments yet
-                </Typography>
-              )}
-
-              {/* Add Comment */}
-              {!isClosed && (
-                <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Add a comment..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAddComment();
-                      }
-                    }}
-                    multiline
-                    maxRows={4}
-                  />
-                  <IconButton
-                    color="primary"
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() || submitting}
-                  >
-                    <SendIcon />
-                  </IconButton>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Sidebar */}
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="subtitle2" color="text.secondary">Created By</Typography>
-              <Typography variant="body1" gutterBottom>{ticket.created_by_name}</Typography>
-              <Typography variant="caption" color="text.secondary">{ticket.created_by_email}</Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" color="text.secondary">Created At</Typography>
-              <Typography variant="body1" gutterBottom>{formatDate(ticket.created_at)}</Typography>
-
-              {ticket.updated_at && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" color="text.secondary">Last Updated</Typography>
-                  <Typography variant="body1" gutterBottom>{formatDate(ticket.updated_at)}</Typography>
-                </>
-              )}
-
-              {ticket.closed_at && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" color="text.secondary">Closed At</Typography>
-                  <Typography variant="body1" gutterBottom>{formatDate(ticket.closed_at)}</Typography>
-                  <Typography variant="subtitle2" color="text.secondary">Closed By</Typography>
-                  <Typography variant="body1">{ticket.closed_by_name}</Typography>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Admin Update Dialog */}
-      <Dialog open={adminDialog} onClose={() => setAdminDialog(false)}>
-        <DialogTitle>Update Ticket</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 300 }}>
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={adminUpdate.status}
-                label="Status"
-                onChange={(e) => setAdminUpdate({ ...adminUpdate, status: e.target.value })}
-              >
-                {TICKET_STATUS.filter(s => s.value !== 'closed').map((status) => (
-                  <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
-              <Select
-                value={adminUpdate.priority}
-                label="Priority"
-                onChange={(e) => setAdminUpdate({ ...adminUpdate, priority: e.target.value })}
-              >
-                <MenuItem value="">Not Set</MenuItem>
-                {TICKET_PRIORITY.map((priority) => (
-                  <MenuItem key={priority.value} value={priority.value}>{priority.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAdminDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAdminUpdate}>Update</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Close Ticket Dialog */}
-      <Dialog open={closeDialog} onClose={() => setCloseDialog(false)}>
-        <DialogTitle>Close Ticket</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Are you sure you want to close this ticket? You can optionally add a closing comment.
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Closing Comment (Optional)"
-            value={closeComment}
-            onChange={(e) => setCloseComment(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCloseDialog(false)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleCloseTicket}>
-            Close Ticket
+          <Button onClick={handleCreateTicket} variant="contained">
+            Create
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Delete Ticket Dialog */}
-      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
-        <DialogTitle>Delete Ticket</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            This action cannot be undone!
-          </Alert>
-          <Typography variant="body2" color="text.secondary">
-            Are you sure you want to delete this ticket? All associated comments will also be deleted.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialog(false)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteTicket}>
-            Delete Ticket
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-}
-
-// ============================================================================
-// MAIN MODULE COMPONENT
-// ============================================================================
-
-export default function TicketsModule() {
-  return (
-    <Box sx={{ p: 3 }}>
-      <Routes>
-        <Route index element={<TicketsList />} />
-        <Route path=":ticketId" element={<TicketDetail />} />
-        <Route path="*" element={<Navigate to="/tickets" replace />} />
-      </Routes>
     </Box>
   );
 }

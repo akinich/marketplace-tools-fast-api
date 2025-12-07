@@ -77,7 +77,7 @@ class CreateTicketRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200, description="Ticket title")
     description: str = Field(..., min_length=1, description="Detailed description of the issue/request")
     ticket_type: TicketType = Field(..., description="Type of ticket")
-    ticket_category: TicketCategory = Field(TicketCategory.INTERNAL, description="Category of ticket")
+    ticket_category: TicketCategory = Field(TicketCategory.INTERNAL, description="Category of ticket (internal/b2b/b2c)")
     
     # B2B/B2C specific fields (optional)
     customer_name: Optional[str] = None
@@ -270,3 +270,12 @@ class TicketStatsResponse(BaseModel):
     closed_tickets: int
     by_type: dict
     by_priority: dict
+    by_category: dict  # Stats broken down by category (internal/b2b/b2c)
+
+
+class TicketDashboardStats(BaseModel):
+    """Dashboard statistics for all ticket categories"""
+    internal: dict
+    b2b: dict
+    b2c: dict
+    total_across_categories: dict
