@@ -12,9 +12,11 @@
  *   - Customer Pricing Lists
  */
 
+
 import { Routes, Route, Navigate } from 'react-router-dom';
 import OutwardDashboard from './OutwardDashboard';
-import SalesOrders from './SalesOrders';
+import SalesOrderList from './SalesOrders/SalesOrderList';
+import SalesOrderForm from './SalesOrders/SalesOrderForm';
 import InvoiceManagement from './InvoiceManagement';
 import OrderAllocation from './OrderAllocation';
 import CustomerPricing from './CustomerPricing';
@@ -24,7 +26,12 @@ export default function OutwardModule() {
         <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<OutwardDashboard />} />
-            <Route path="sales-orders" element={<SalesOrders />} />
+
+            {/* Sales Orders */}
+            <Route path="sales-orders" element={<SalesOrderList />} />
+            <Route path="sales-orders/new" element={<SalesOrderForm />} />
+            <Route path="sales-orders/:id" element={<SalesOrderForm />} />
+
             <Route path="invoices" element={<InvoiceManagement />} />
             <Route path="allocation" element={<OrderAllocation />} />
             <Route path="customer-pricing" element={<CustomerPricing />} />
