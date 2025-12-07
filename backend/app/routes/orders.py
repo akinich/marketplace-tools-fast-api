@@ -1,15 +1,15 @@
 """
 ================================================================================
-Orders Routes - FastAPI Endpoints
+Orders Routes - FastAPI Endpoints (Simplified - API Sync Only)
 ================================================================================
-Version: 1.0.0
+Version: 2.0.0
 Created: 2025-12-07
+Updated: 2025-12-07
 
 Description:
     API routes for B2C Orders module
     - Order management (list, get, update status)
-    - WooCommerce webhook handler
-    - Manual sync trigger
+    - API sync from WooCommerce (manual + scheduled every 3 hours)
     - Order statistics
     - Export orders to Excel
 
@@ -18,18 +18,18 @@ Endpoints:
     GET    /orders/stats     - Get order statistics
     GET    /orders/{id}      - Get single order by ID
     PUT    /orders/{id}/status - Update order status
-    POST   /orders/webhook   - WooCommerce webhook handler
-    POST   /orders/sync      - Trigger manual sync from WooCommerce
+    POST   /orders/sync      - Trigger manual sync from WooCommerce API
     POST   /orders/export    - Export orders to Excel
 
 Authentication:
-    - Most endpoints require valid JWT token
-    - Webhook endpoint is public with HMAC signature validation
+    - All endpoints require valid JWT token
+
+Note: Webhooks removed - using API sync only (like Order Extractor)
 
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict
 import pandas as pd
@@ -45,14 +45,12 @@ from app.schemas.orders import (
     OrderListResponse,
     OrderStatsResponse,
     OrderUpdate,
-    WooCommerceWebhookPayload,
-    WebhookValidationResponse,
     SyncOrdersRequest,
     SyncOrdersResponse,
     OrderExportRequest
 )
 from app.services.orders_service import OrdersService
-from app.database import fetch_one, execute_query
+from app.database import execute_query
 
 logger = logging.getLogger(__name__)
 
@@ -226,111 +224,7 @@ async def update_order_status(
 
 
 # ============================================================================
-# Webhook Endpoint
-# ============================================================================
-
-@router.post("/webhook", response_model=WebhookValidationResponse)
-async def woocommerce_webhook(request: Request):
-    """
-    WooCommerce webhook handler for order.created and order.updated events
-
-    This endpoint is public but validates HMAC-SHA256 signature from WooCommerce
-
-    Headers required:
-    - X-WC-Webhook-Signature: HMAC-SHA256 signature
-    - X-WC-Webhook-Source: WooCommerce site URL
-    - X-WC-Webhook-Topic: order.created or order.updated
-    """
-    try:
-        # Get headers
-        signature = request.headers.get('X-WC-Webhook-Signature')
-        topic = request.headers.get('X-WC-Webhook-Topic')
-        source = request.headers.get('X-WC-Webhook-Source')
-
-        logger.info(f"Received webhook: topic={topic}, source={source}")
-
-        if not signature:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing webhook signature"
-            )
-
-        # Get raw body for signature validation
-        body = await request.body()
-
-        # Get webhook secret from settings
-        secret_row = await fetch_one(
-            "SELECT setting_value FROM system_settings WHERE setting_key = 'woocommerce.webhook_secret'"
-        )
-
-        if not secret_row or not secret_row['setting_value']:
-            logger.error("WooCommerce webhook secret not configured")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Webhook secret not configured"
-            )
-
-        # Extract and parse webhook secret (handle JSONB encoding)
-        webhook_secret = secret_row['setting_value']
-
-        # Handle potential JSON string encoding
-        if isinstance(webhook_secret, str) and webhook_secret.startswith('"') and webhook_secret.endswith('"'):
-            webhook_secret = json.loads(webhook_secret)
-
-        webhook_secret = str(webhook_secret)
-
-        # Validate signature
-        is_valid = await OrdersService.validate_webhook_signature(
-            body,
-            signature,
-            webhook_secret
-        )
-
-        if not is_valid:
-            logger.warning("Invalid webhook signature")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid webhook signature"
-            )
-
-        # Parse JSON payload
-        try:
-            payload_data = json.loads(body)
-            payload = WooCommerceWebhookPayload(**payload_data)
-        except Exception as e:
-            logger.error(f"Failed to parse webhook payload: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid webhook payload"
-            )
-
-        # Process webhook
-        success, message, order_id = await OrdersService.process_webhook(payload, sync_source="webhook")
-
-        if success:
-            return WebhookValidationResponse(
-                valid=True,
-                message=message,
-                order_id=order_id
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=message
-            )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing webhook: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process webhook"
-        )
-
-
-# ============================================================================
-# Sync Endpoint
+# Sync Endpoint (API Only - No Webhooks)
 # ============================================================================
 
 @router.post("/sync", response_model=SyncOrdersResponse)
@@ -339,12 +233,13 @@ async def sync_orders(
     current_user: CurrentUser = Depends(get_current_user)
 ):
     """
-    Manually trigger order sync from WooCommerce
+    Manually trigger order sync from WooCommerce API
 
     - **days**: Number of days to sync (1-90, default 3)
     - **force_full_sync**: Force sync of all orders (default false)
 
-    This will fetch orders from WooCommerce API and upsert them into the database
+    This will fetch orders from WooCommerce API and save them to database.
+    Also runs automatically every 3 hours in the background.
     """
     try:
         logger.info(f"Manual sync triggered by user {current_user.id}: {sync_request.days} days")

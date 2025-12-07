@@ -1,44 +1,36 @@
 """
 ================================================================================
-Orders Service - Business Logic Layer
+Orders Service - Business Logic Layer (Simplified - API Sync Only)
 ================================================================================
-Version: 1.0.0
+Version: 2.0.0
 Created: 2025-12-07
+Updated: 2025-12-07
 
 Description:
-    Service layer for Orders module including:
+    Service layer for Orders module
     - CRUD operations for orders and order items
-    - WooCommerce webhook processing
-    - Scheduled API sync (every 3 hours, last 3 days)
-    - Conflict resolution (most recent data wins)
+    - API sync from WooCommerce (no webhooks)
+    - Simple, proven approach (like Order Extractor)
 
 Features:
+    - Works with raw WooCommerce API dict data
     - Upsert logic (insert or update based on woo_order_id)
     - Automatic customer linking to woo_customers table
     - Order items stored in separate table
-    - HMAC-SHA256 webhook signature validation
+    - No complex schema validation
     - Comprehensive error handling and logging
 
 ================================================================================
 """
 
 import logging
-import hmac
-import hashlib
 import json
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
-from app.schemas.orders import (
-    OrderCreate,
-    OrderUpdate,
-    OrderResponse,
-    OrderItemResponse,
-    WooCommerceWebhookPayload,
-    SyncOrdersResponse
-)
+from app.schemas.orders import SyncOrdersResponse
 from app.services.woocommerce_service import WooCommerceService
 
 logger = logging.getLogger(__name__)
@@ -150,45 +142,6 @@ class OrdersService:
 
         except Exception as e:
             logger.error(f"Error fetching order {order_id}: {e}", exc_info=True)
-            raise
-
-    @staticmethod
-    async def get_order_by_woo_id(woo_order_id: int, include_items: bool = True) -> Optional[Dict]:
-        """
-        Get single order by WooCommerce order ID
-
-        Args:
-            woo_order_id: WooCommerce order ID
-            include_items: Whether to include order items
-
-        Returns:
-            Order dictionary or None if not found
-        """
-        try:
-            order = await fetch_one(
-                "SELECT * FROM orders WHERE woo_order_id = $1",
-                woo_order_id
-            )
-
-            if not order:
-                return None
-
-            order_dict = dict(order)
-
-            # Fetch order items if requested
-            if include_items:
-                items = await fetch_all(
-                    "SELECT * FROM order_items WHERE order_id = $1 ORDER BY id",
-                    order_dict['id']
-                )
-                order_dict['line_items'] = [dict(item) for item in items]
-            else:
-                order_dict['line_items'] = []
-
-            return order_dict
-
-        except Exception as e:
-            logger.error(f"Error fetching order by woo_id {woo_order_id}: {e}", exc_info=True)
             raise
 
     @staticmethod
@@ -313,84 +266,97 @@ class OrdersService:
             raise
 
     # ========================================================================
-    # Webhook Processing
+    # API Sync (Simple, Like Order Extractor)
     # ========================================================================
 
     @staticmethod
-    async def validate_webhook_signature(payload: bytes, signature: str, secret: str) -> bool:
+    async def sync_orders_from_woocommerce(days: int = 3, force_full_sync: bool = False) -> SyncOrdersResponse:
         """
-        Validate WooCommerce webhook signature using HMAC-SHA256
+        Sync orders from WooCommerce API (simple, proven approach)
 
         Args:
-            payload: Raw request body as bytes
-            signature: Signature from X-WC-Webhook-Signature header
-            secret: Webhook secret from settings
+            days: Number of days to sync (default 3)
+            force_full_sync: Force sync all orders regardless of modification date
 
         Returns:
-            True if signature is valid, False otherwise
+            SyncOrdersResponse with statistics
         """
+        start_time = datetime.now()
+        synced = 0
+        created = 0
+        updated = 0
+        skipped = 0
+        errors = 0
+
         try:
-            # Generate HMAC signature
-            computed_signature = hmac.new(
-                secret.encode('utf-8'),
-                payload,
-                hashlib.sha256
-            ).digest()
+            logger.info(f"Starting WooCommerce order sync (last {days} days)")
 
-            # Convert to base64
-            import base64
-            computed_signature_b64 = base64.b64encode(computed_signature).decode('utf-8')
+            # Calculate date range
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=days)
+            
+            logger.info(f"Date range: {start_date} to {end_date}")
 
-            # Compare signatures (constant time comparison)
-            return hmac.compare_digest(signature, computed_signature_b64)
+            # Fetch orders from WooCommerce API (returns raw dict data - proven to work!)
+            woo_orders = await WooCommerceService.fetch_orders(
+                start_date=start_date,
+                end_date=end_date,
+                status="any"  # Fetch all statuses
+            )
+
+            logger.info(f"Fetched {len(woo_orders)} orders from WooCommerce API")
+
+            # Process each order (simple dict processing, no complex validation)
+            for woo_order in woo_orders:
+                try:
+                    # Check if order exists
+                    existing = await fetch_one(
+                        "SELECT id FROM orders WHERE woo_order_id = $1",
+                        woo_order.get('id')
+                    )
+
+                    # Insert or update order
+                    await OrdersService._save_order_to_database(woo_order)
+
+                    if existing:
+                        updated += 1
+                    else:
+                        created += 1
+
+                    synced += 1
+
+                except Exception as e:
+                    logger.error(f"Error syncing order {woo_order.get('id')}: {e}", exc_info=True)
+                    errors += 1
+
+            # Calculate duration
+            duration = (datetime.now() - start_time).total_seconds()
+
+            logger.info(f"Sync completed: {synced} synced ({created} created, {updated} updated), {errors} errors in {duration:.2f}s")
+
+            return SyncOrdersResponse(
+                synced=synced,
+                created=created,
+                updated=updated,
+                skipped=skipped,
+                errors=errors,
+                sync_duration_seconds=round(duration, 2),
+                sync_source="api"
+            )
 
         except Exception as e:
-            logger.error(f"Error validating webhook signature: {e}", exc_info=True)
-            return False
+            logger.error(f"Error syncing orders from WooCommerce: {e}", exc_info=True)
+            # Re-raise the exception so the frontend gets the actual error message
+            raise Exception(f"Failed to sync orders from WooCommerce: {str(e)}")
 
     @staticmethod
-    async def process_webhook(payload: WooCommerceWebhookPayload, sync_source: str = "webhook") -> Tuple[bool, str, Optional[int]]:
+    async def _save_order_to_database(woo_order: Dict[str, Any]) -> int:
         """
-        Process WooCommerce webhook (order.created or order.updated)
+        Save order to database (insert or update)
+        Works with raw WooCommerce dict data - no schema validation!
 
         Args:
-            payload: WooCommerce webhook payload
-            sync_source: Source of sync (webhook, api, manual)
-
-        Returns:
-            Tuple of (success, message, order_id)
-        """
-        try:
-            logger.info(f"Processing webhook for WooCommerce order {payload.id}")
-
-            # Check if order already exists
-            existing_order = await OrdersService.get_order_by_woo_id(payload.id, include_items=False)
-
-            # Determine if this is create or update
-            is_update = existing_order is not None
-
-            # Upsert order (insert or update)
-            order_id = await OrdersService._upsert_order_from_woocommerce(payload, sync_source)
-
-            if is_update:
-                logger.info(f"Updated order {order_id} from webhook (woo_order_id: {payload.id})")
-                return (True, f"Order updated successfully", order_id)
-            else:
-                logger.info(f"Created order {order_id} from webhook (woo_order_id: {payload.id})")
-                return (True, f"Order created successfully", order_id)
-
-        except Exception as e:
-            logger.error(f"Error processing webhook: {e}", exc_info=True)
-            return (False, f"Error processing webhook: {str(e)}", None)
-
-    @staticmethod
-    async def _upsert_order_from_woocommerce(woo_order: Any, sync_source: str = "webhook") -> int:
-        """
-        Insert or update order from WooCommerce data
-
-        Args:
-            woo_order: WooCommerce order object (webhook payload or API response)
-            sync_source: Source of sync (webhook, api, manual)
+            woo_order: Raw WooCommerce order dict from API
 
         Returns:
             Internal order ID
@@ -398,31 +364,44 @@ class OrdersService:
         pool = get_db()
         async with pool.acquire() as conn:
             async with conn.transaction():
-                # Extract dates
-                date_created = OrdersService._parse_datetime(woo_order.date_created)
-                date_modified = OrdersService._parse_datetime(woo_order.date_modified) if woo_order.date_modified else None
-                date_completed = OrdersService._parse_datetime(woo_order.date_completed) if woo_order.date_completed else None
-                date_paid = OrdersService._parse_datetime(woo_order.date_paid) if woo_order.date_paid else None
+                # Extract basic order data (safely with .get())
+                woo_order_id = woo_order.get('id')
+                order_number = woo_order.get('number') or woo_order.get('order_number') or str(woo_order_id)
+                status = woo_order.get('status', 'pending')
 
-                # Check if order exists
-                existing = await conn.fetchrow(
-                    "SELECT id, date_modified FROM orders WHERE woo_order_id = $1",
-                    woo_order.id
-                )
+                # Dates
+                date_created = OrdersService._parse_datetime(woo_order.get('date_created'))
+                date_modified = OrdersService._parse_datetime(woo_order.get('date_modified'))
+                date_completed = OrdersService._parse_datetime(woo_order.get('date_completed'))
+                date_paid = OrdersService._parse_datetime(woo_order.get('date_paid'))
 
-                # Conflict resolution: Only update if WooCommerce data is newer
-                if existing and date_modified:
-                    existing_modified = existing['date_modified']
-                    if existing_modified and existing_modified >= date_modified:
-                        logger.info(f"Skipping order {woo_order.id} - existing data is newer")
-                        return existing['id']
+                # Financial data
+                currency = woo_order.get('currency', 'INR')
+                total = Decimal(str(woo_order.get('total', 0)))
+                total_tax = Decimal(str(woo_order.get('total_tax', 0)))
+                shipping_total = Decimal(str(woo_order.get('shipping_total', 0)))
+                discount_total = Decimal(str(woo_order.get('discount_total', 0)))
+                subtotal = total - total_tax - shipping_total
 
-                # Prepare billing and shipping as JSONB
-                billing_json = json.dumps(woo_order.billing)
-                shipping_json = json.dumps(woo_order.shipping)
+                # Customer
+                customer_id = woo_order.get('customer_id', 0)
+                if customer_id == 0:
+                    customer_id = None
 
-                # Extract customer_id (can be 0 for guest orders)
-                customer_id = woo_order.customer_id if woo_order.customer_id > 0 else None
+                # Payment
+                payment_method = woo_order.get('payment_method', '')
+                payment_method_title = woo_order.get('payment_method_title', '')
+                transaction_id = woo_order.get('transaction_id', '')
+
+                # Notes
+                customer_note = woo_order.get('customer_note', '')
+                created_via = woo_order.get('created_via', '')
+
+                # Billing and shipping (store as-is)
+                billing = woo_order.get('billing', {})
+                shipping = woo_order.get('shipping', {})
+                billing_json = json.dumps(billing)
+                shipping_json = json.dumps(shipping)
 
                 # Upsert order
                 order_row = await conn.fetchrow("""
@@ -442,7 +421,7 @@ class OrdersService:
                         $15, $16, $17,
                         $18, $19,
                         $20::jsonb, $21::jsonb,
-                        NOW(), $22
+                        NOW(), 'api'
                     )
                     ON CONFLICT (woo_order_id) DO UPDATE SET
                         order_number = EXCLUDED.order_number,
@@ -465,32 +444,15 @@ class OrdersService:
                         billing = EXCLUDED.billing,
                         shipping = EXCLUDED.shipping,
                         last_synced_at = NOW(),
-                        sync_source = EXCLUDED.sync_source,
                         updated_at = NOW()
                     RETURNING id
                 """,
-                    woo_order.id,
-                    woo_order.number or str(woo_order.id),
-                    customer_id,
-                    woo_order.status,
-                    date_created,
-                    date_modified,
-                    date_completed,
-                    date_paid,
-                    woo_order.currency,
-                    Decimal(woo_order.total) - Decimal(woo_order.total_tax or "0.00") - Decimal(woo_order.shipping_total or "0.00"),  # subtotal
-                    Decimal(woo_order.total_tax or "0.00"),
-                    Decimal(woo_order.shipping_total or "0.00"),
-                    Decimal(woo_order.discount_total or "0.00"),
-                    Decimal(woo_order.total),
-                    woo_order.payment_method or "",
-                    woo_order.payment_method_title or "",
-                    woo_order.transaction_id or "",
-                    woo_order.customer_note or "",
-                    woo_order.created_via or "",
-                    billing_json,
-                    shipping_json,
-                    sync_source
+                    woo_order_id, order_number, customer_id, status,
+                    date_created, date_modified, date_completed, date_paid,
+                    currency, subtotal, total_tax, shipping_total, discount_total, total,
+                    payment_method, payment_method_title, transaction_id,
+                    customer_note, created_via,
+                    billing_json, shipping_json
                 )
 
                 order_id = order_row['id']
@@ -498,12 +460,25 @@ class OrdersService:
                 # Delete existing order items (we'll recreate them)
                 await conn.execute("DELETE FROM order_items WHERE order_id = $1", order_id)
 
-                # Insert order items
-                for item in woo_order.line_items:
-                    # Convert meta_data list to dict
+                # Insert order items (raw dict processing)
+                line_items = woo_order.get('line_items', [])
+                for item in line_items:
+                    # Extract item data safely
+                    product_id = item.get('product_id')
+                    variation_id = item.get('variation_id')
+                    name = item.get('name', 'Unknown Product')
+                    sku = item.get('sku', '')
+                    quantity = item.get('quantity', 1)
+                    price = Decimal(str(item.get('price', 0)))
+                    subtotal_item = Decimal(str(item.get('subtotal', 0)))
+                    total_item = Decimal(str(item.get('total', 0)))
+                    tax_item = Decimal(str(item.get('tax', 0)))
+
+                    # Meta data (convert list to dict if needed)
                     meta_dict = {}
-                    if hasattr(item, 'meta_data') and item.meta_data:
-                        for meta in item.meta_data:
+                    meta_data = item.get('meta_data', [])
+                    if isinstance(meta_data, list):
+                        for meta in meta_data:
                             if isinstance(meta, dict):
                                 meta_dict[meta.get('key', '')] = meta.get('value', '')
 
@@ -514,105 +489,13 @@ class OrdersService:
                         )
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
                     """,
-                        order_id,
-                        item.product_id,
-                        item.variation_id,
-                        item.name,
-                        item.sku or "",
-                        item.quantity,
-                        Decimal(item.price or "0.00"),
-                        Decimal(item.subtotal or "0.00"),
-                        Decimal(item.total or "0.00"),
-                        Decimal(item.tax or "0.00"),
+                        order_id, product_id, variation_id, name, sku,
+                        quantity, price, subtotal_item, total_item, tax_item,
                         json.dumps(meta_dict)
                     )
 
-                logger.info(f"Upserted order {order_id} (woo_order_id: {woo_order.id}) with {len(woo_order.line_items)} items")
+                logger.info(f"Saved order {order_id} (woo_order_id: {woo_order_id}) with {len(line_items)} items")
                 return order_id
-
-    # ========================================================================
-    # API Sync
-    # ========================================================================
-
-    @staticmethod
-    async def sync_orders_from_woocommerce(days: int = 3, force_full_sync: bool = False) -> SyncOrdersResponse:
-        """
-        Sync orders from WooCommerce API
-
-        Args:
-            days: Number of days to sync (default 3)
-            force_full_sync: Force sync all orders regardless of modification date
-
-        Returns:
-            SyncOrdersResponse with statistics
-        """
-        start_time = datetime.now()
-        synced = 0
-        created = 0
-        updated = 0
-        skipped = 0
-        errors = 0
-
-        try:
-            logger.info(f"Starting WooCommerce order sync (last {days} days, force={force_full_sync})")
-
-            # Calculate date range
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=days)
-            
-            logger.info(f"Date range: {start_date} to {end_date}")
-
-            # Fetch orders from WooCommerce
-            woo_orders = await WooCommerceService.fetch_orders(
-                start_date=start_date,
-                end_date=end_date,
-                status="any"  # Fetch all statuses
-            )
-
-            logger.info(f"Fetched {len(woo_orders)} orders from WooCommerce")
-
-            # Process each order
-            for woo_order_data in woo_orders:
-                try:
-                    # Convert to WooCommerceWebhookPayload schema
-                    woo_order = WooCommerceWebhookPayload(**woo_order_data)
-
-                    # Check if order exists
-                    existing = await OrdersService.get_order_by_woo_id(woo_order.id, include_items=False)
-
-                    # Upsert order
-                    await OrdersService._upsert_order_from_woocommerce(woo_order, sync_source="api")
-
-                    if existing:
-                        updated += 1
-                    else:
-                        created += 1
-
-                    synced += 1
-
-                except Exception as e:
-                    logger.error(f"Error syncing order {woo_order_data.get('id')}: {e}", exc_info=True)
-                    errors += 1
-
-            # Calculate duration
-            duration = (datetime.now() - start_time).total_seconds()
-
-            logger.info(f"Sync completed: {synced} synced ({created} created, {updated} updated), {errors} errors in {duration:.2f}s")
-
-            return SyncOrdersResponse(
-                synced=synced,
-                created=created,
-                updated=updated,
-                skipped=skipped,
-                errors=errors,
-                sync_duration_seconds=round(duration, 2),
-                sync_source="api"
-            )
-
-        except Exception as e:
-            logger.error(f"Error syncing orders from WooCommerce: {e}", exc_info=True)
-            # Re-raise the exception so the frontend gets the actual error message
-            raise Exception(f"Failed to sync orders from WooCommerce: {str(e)}")
 
     # ========================================================================
     # Helper Methods

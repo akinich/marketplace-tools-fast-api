@@ -1,8 +1,26 @@
-# Orders Module Troubleshooting Guide
+# Orders Module Troubleshooting Guide (API Sync Only)
 
-## Issue: Webhooks and API Sync Not Working
+## Overview
 
-Both webhooks and API sync failing suggests a **common issue** - likely configuration or deployment.
+The Orders module has been **simplified to use API sync only** - no webhooks.
+
+**Sync Strategy:**
+- ✅ **Automatic sync**: Every 3 hours (last 3 days of orders)
+- ✅ **Manual sync**: Via API endpoint (configurable 1-90 days)
+- ❌ **Webhooks**: Removed (was too complex and unreliable)
+
+This uses the **proven Order Extractor pattern** - simple, reliable API fetching with raw dict processing.
+
+---
+
+## Quick Verification Checklist
+
+- [ ] Render deploy is live with latest commit
+- [ ] Render logs show "Background scheduler started successfully"
+- [ ] Render logs show "Sync WooCommerce Orders: Every 3 hours"
+- [ ] All 4 WooCommerce settings configured in database
+- [ ] Manual sync test returns success
+- [ ] Orders appear in database
 
 ---
 
@@ -13,7 +31,7 @@ Both webhooks and API sync failing suggests a **common issue** - likely configur
 2. Check **Latest Deploy** tab
 3. Verify:
    - ✅ Deploy status: **Live**
-   - ✅ Commit: `eab1363` (fix: Handle JSONB encoding...)
+   - ✅ Commit: `723c322` (refactor: Simplify orders module...)
    - ✅ No build errors
 
 ### If deploy failed or is outdated:
@@ -42,18 +60,6 @@ git push -f origin claude/add-orders-module-webhook-01246ubYfRoFmeENVhAXjNVn
 ```
 → Code not deployed properly. Redeploy.
 
-**For webhook requests, look for:**
-```
-Received webhook: topic=order.created, source=https://sustenance.co.in
-```
-
-**If you see:**
-```
-❌ Webhook secret not configured
-❌ Invalid webhook signature
-```
-→ Continue to Step 3
-
 ---
 
 ## Step 3: Run Diagnostic SQL Queries
@@ -75,38 +81,16 @@ WHERE setting_key LIKE 'woocommerce.%'
 ORDER BY setting_key;
 ```
 
-**Expected result:** 4 rows
+**Expected result:** 3 rows (API sync doesn't need webhook_secret)
 - `woocommerce.api_url`
 - `woocommerce.consumer_key`
 - `woocommerce.consumer_secret`
-- `woocommerce.webhook_secret`
 
 **If missing rows:** Continue to Step 4
 
 ---
 
-### Query 2: Test Webhook Secret Extraction
-```sql
-SELECT
-    setting_key,
-    setting_value,
-    setting_value::text as extracted_value,
-    CASE
-        WHEN setting_value::text LIKE '"%"'
-        THEN regexp_replace(setting_value::text, '^"|"$', '', 'g')
-        ELSE setting_value::text
-    END as final_value
-FROM system_settings
-WHERE setting_key = 'woocommerce.webhook_secret';
-```
-
-**Expected `final_value`:** `2a7429ec-6ac8-4f44-9cac-1c066e355b97`
-
-**If different or NULL:** Webhook secret is wrong. Re-run INSERT from Step 4.
-
----
-
-### Query 3: Check Tables Exist
+### Query 2: Check Tables Exist
 ```sql
 SELECT tablename
 FROM pg_tables
@@ -120,21 +104,21 @@ WHERE tablename IN ('orders', 'order_items')
 
 ---
 
-### Query 4: Check for Any Orders
+### Query 3: Check for Any Orders
 ```sql
 SELECT
     COUNT(*) as total_orders,
-    COUNT(*) FILTER (WHERE sync_source = 'webhook') as from_webhooks,
     COUNT(*) FILTER (WHERE sync_source = 'api') as from_api,
-    MAX(created_at) as latest_order
+    MAX(created_at) as latest_order,
+    MAX(last_synced_at) as last_sync
 FROM orders;
 ```
 
-**If total_orders = 0:** No orders have been synced yet (expected if webhooks/API failing)
+**If total_orders = 0:** No orders have been synced yet
 
 ---
 
-##Step 4: Fix Missing WooCommerce API Credentials
+## Step 4: Fix Missing WooCommerce API Credentials
 
 ### If Query 1 showed missing credentials:
 
@@ -188,43 +172,7 @@ ON CONFLICT (setting_key) DO UPDATE SET
 
 ---
 
-## Step 5: Test Webhook Endpoint
-
-### Test from command line:
-```bash
-# Replace with your actual values
-WEBHOOK_SECRET="2a7429ec-6ac8-4f44-9cac-1c066e355b97"
-API_URL="https://marketplaceerp.sustenance.co.in"
-
-# Generate test signature
-PAYLOAD='{"id":999,"number":"999","status":"pending","date_created":"2025-12-07T12:00:00","total":"100.00","billing":{},"shipping":{},"line_items":[]}'
-
-SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" -binary | base64)
-
-# Send test webhook
-curl -X POST "$API_URL/api/v1/orders/webhook" \
-  -H "Content-Type: application/json" \
-  -H "X-WC-Webhook-Signature: $SIGNATURE" \
-  -H "X-WC-Webhook-Topic: order.created" \
-  -H "X-WC-Webhook-Source: https://sustenance.co.in" \
-  -d "$PAYLOAD"
-```
-
-**Expected Response:**
-```json
-{
-  "valid": true,
-  "message": "Order created successfully",
-  "order_id": 1
-}
-```
-
-**If you get HTTP 401:** Signature validation failing
-**If you get HTTP 500:** Check Render logs for error
-
----
-
-## Step 6: Test Manual API Sync
+## Step 5: Test Manual API Sync
 
 Get a JWT token first, then:
 
@@ -260,32 +208,7 @@ curl -X POST "https://marketplaceerp.sustenance.co.in/api/v1/orders/sync" \
 
 ---
 
-## Step 7: Check WooCommerce Webhook Delivery Logs
-
-### In WooCommerce:
-1. Settings → Advanced → Webhooks
-2. Click on "marketplace erp order created"
-3. Scroll down to **Delivery Logs**
-4. Click **View Logs**
-
-**Look for:**
-- ✅ **HTTP 200** = Success (webhook working!)
-- ❌ **HTTP 401** = Signature validation failed (secret mismatch)
-- ❌ **HTTP 500** = Server error (check Render logs)
-- ❌ **Failed to deliver** = Network/DNS issue
-
-**If all HTTP 401:**
-- Secret in WooCommerce doesn't match database
-- Re-check Query 2 results
-- Re-save webhook in WooCommerce
-
-**If HTTP 500:**
-- Check Render logs for Python traceback
-- Share the error here
-
----
-
-## Step 8: Verify Orders Are Syncing
+## Step 6: Verify Orders Are Syncing
 
 After fixes, check if orders appear:
 
@@ -309,18 +232,72 @@ LIMIT 10;
 
 ---
 
-## Quick Checklist
+## Step 7: Verify Automatic Sync is Running
 
-- [ ] Render deploy is live with commit `eab1363`
-- [ ] Render logs show scheduler started
-- [ ] Query 1: All 4 WooCommerce settings exist
-- [ ] Query 2: Webhook secret extracts correctly
-- [ ] Query 3: Tables exist
-- [ ] WooCommerce API credentials configured (if missing)
-- [ ] Test webhook endpoint returns HTTP 200
-- [ ] Test manual sync returns success
-- [ ] WooCommerce delivery logs show HTTP 200
-- [ ] Query shows orders in database
+Check Render logs for scheduled sync messages:
+
+```
+🔄 Starting scheduled WooCommerce Orders sync...
+✅ Scheduled Orders sync completed: 15 synced (10 created, 5 updated), 0 errors in 4.23s
+```
+
+**If you don't see these messages after 3 hours:**
+- Check scheduler started: Look for "Background scheduler started successfully"
+- Check scheduler job list in `/health` endpoint
+- Share Render logs
+
+---
+
+## Testing in Postman/Insomnia
+
+### Get Orders (List)
+```http
+GET https://marketplaceerp.sustenance.co.in/api/v1/orders?limit=10
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Get Order Stats
+```http
+GET https://marketplaceerp.sustenance.co.in/api/v1/orders/stats
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Manual Sync
+```http
+POST https://marketplaceerp.sustenance.co.in/api/v1/orders/sync
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+
+{
+  "days": 7,
+  "force_full_sync": false
+}
+```
+
+---
+
+## Understanding the Simplified Architecture
+
+**What was removed:**
+- ❌ Webhook endpoint (`POST /orders/webhook`)
+- ❌ HMAC signature validation
+- ❌ Webhook payload schemas
+- ❌ Complex Pydantic validation on WooCommerce data
+- ❌ Webhook secret configuration
+
+**What remains (API sync only):**
+- ✅ `WooCommerceService.fetch_orders()` - proven to work
+- ✅ Raw dict processing (like Order Extractor)
+- ✅ Automatic sync every 3 hours (last 3 days)
+- ✅ Manual sync API endpoint (1-90 days configurable)
+- ✅ Simple upsert logic (insert or update based on woo_order_id)
+
+**Why this is better:**
+- Uses the exact same `WooCommerceService.fetch_orders()` that Order Extractor uses
+- No complex schema validation that can fail silently
+- Easier to debug (just check logs for API errors)
+- More reliable (webhooks can fail for many reasons)
+- Simpler codebase (300+ lines removed)
 
 ---
 
@@ -338,13 +315,14 @@ LIMIT 10;
    -- Paste results here
    ```
 
-3. **WooCommerce webhook delivery status:**
-   - HTTP status code: ___
-   - Error message: ___
-
-4. **Manual sync test result:**
+3. **Manual sync test result:**
    ```bash
    # Paste curl response
+   ```
+
+4. **Check health endpoint:**
+   ```bash
+   curl https://marketplaceerp.sustenance.co.in/health
    ```
 
 I'll help debug from there!

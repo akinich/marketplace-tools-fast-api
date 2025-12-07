@@ -1,25 +1,18 @@
 """
 ================================================================================
-Orders Module Schemas - Pydantic Models
+Orders Module Schemas - Pydantic Models (Simplified - API Sync Only)
 ================================================================================
-Version: 1.0.0
+Version: 2.0.0
 Created: 2025-12-07
+Updated: 2025-12-07
 
 Description:
-    Pydantic schemas for B2C Orders module including:
+    Pydantic schemas for B2C Orders module
     - Order management (CRUD operations)
-    - WooCommerce webhook handling
-    - Order sync from WooCommerce API
+    - API sync from WooCommerce (no webhooks)
 
-Schemas:
-    - OrderBase: Base order schema with common fields
-    - OrderCreate: Schema for creating new orders
-    - OrderUpdate: Schema for updating existing orders
-    - OrderResponse: Response schema with all order details
-    - OrderListResponse: Paginated list of orders
-    - OrderItemBase: Base order item schema
-    - OrderItemResponse: Order item with details
-    - WooCommerceWebhookPayload: WooCommerce webhook payload
+Note: Webhook schemas removed - using API sync only
+
 ================================================================================
 """
 
@@ -45,11 +38,6 @@ class OrderItemBase(BaseModel):
     total: Decimal = Field(default=0.00, description="Total after tax")
     tax: Decimal = Field(default=0.00, description="Tax amount")
     meta_data: Optional[Dict[str, Any]] = Field(default_factory=dict)
-
-
-class OrderItemCreate(OrderItemBase):
-    """Schema for creating order items"""
-    pass
 
 
 class OrderItemResponse(OrderItemBase):
@@ -104,11 +92,6 @@ class OrderBase(BaseModel):
         if v not in valid_statuses:
             raise ValueError(f'Status must be one of {valid_statuses}')
         return v
-
-
-class OrderCreate(OrderBase):
-    """Schema for creating new orders"""
-    line_items: List[OrderItemCreate] = Field(default_factory=list, description="Order line items")
 
 
 class OrderUpdate(BaseModel):
@@ -176,81 +159,11 @@ class OrderStatsResponse(BaseModel):
 
 
 # ============================================================================
-# WooCommerce Webhook Schemas
+# API Sync Schemas
 # ============================================================================
 
-class WooCommerceLineItem(BaseModel):
-    """WooCommerce line item from webhook/API"""
-    id: Optional[int] = None
-    product_id: Optional[int] = None
-    variation_id: Optional[int] = None
-    name: str
-    sku: Optional[str] = None
-    quantity: int = 1
-    price: Optional[str] = "0.00"
-    subtotal: Optional[str] = "0.00"
-    total: Optional[str] = "0.00"
-    tax: Optional[str] = "0.00"
-    meta_data: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
-
-    class Config:
-        # Allow extra fields from API (e.g., taxes, image, parent_name, etc.)
-        extra = "allow"
-
-
-class WooCommerceWebhookPayload(BaseModel):
-    """WooCommerce webhook payload structure"""
-    id: int
-    number: Optional[str] = None
-    order_key: Optional[str] = None
-    status: str
-    currency: str = "INR"
-
-    date_created: str
-    date_modified: Optional[str] = None
-    date_completed: Optional[str] = None
-    date_paid: Optional[str] = None
-
-    discount_total: str = "0.00"
-    shipping_total: str = "0.00"
-    total: str
-    total_tax: str = "0.00"
-
-    customer_id: Optional[int] = 0
-    customer_note: Optional[str] = ""
-
-    billing: Dict[str, Any] = Field(default_factory=dict)
-    shipping: Dict[str, Any] = Field(default_factory=dict)
-
-    payment_method: Optional[str] = ""
-    payment_method_title: Optional[str] = ""
-    transaction_id: Optional[str] = ""
-
-    created_via: Optional[str] = ""
-
-    line_items: List[WooCommerceLineItem] = Field(default_factory=list)
-
-    class Config:
-        # Allow extra fields from API that aren't in schema (e.g., _links, meta_data at root level)
-        extra = "allow"
-
-    @validator('number', pre=True, always=True)
-    def set_order_number(cls, v, values):
-        """Use id as order number if not provided"""
-        if v is None and 'id' in values:
-            return str(values['id'])
-        return v or ""
-
-
-class WebhookValidationResponse(BaseModel):
-    """Response for webhook validation"""
-    valid: bool
-    message: str
-    order_id: Optional[int] = None
-
-
 class SyncOrdersRequest(BaseModel):
-    """Request to sync orders from WooCommerce"""
+    """Request to sync orders from WooCommerce API"""
     days: int = Field(default=3, ge=1, le=90, description="Number of days to sync (1-90)")
     force_full_sync: bool = Field(default=False, description="Force sync of all orders regardless of modification date")
 

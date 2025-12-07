@@ -189,8 +189,8 @@ async def sync_woo_customers_daily():
 
 async def sync_orders_from_woocommerce():
     """
-    Sync orders from WooCommerce every 3 hours.
-    Fetches orders from the last 3 days as a backup to webhooks.
+    Sync orders from WooCommerce every 3 hours (API sync only).
+    Fetches orders from the last 3 days to keep database up-to-date.
     """
     try:
         logger.info("🔄 Starting scheduled WooCommerce Orders sync...")
