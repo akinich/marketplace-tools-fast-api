@@ -102,7 +102,7 @@ const SalesOrderForm: React.FC = () => {
             if (!id) return;
             setLoading(true);
             try {
-                const order = await salesOrdersAPI.getOrder(Number(id));
+                const order = await salesOrdersAPI.getOrder(id!);
                 setCustomerId(order.customer_id);
                 setOrderDate(order.order_date);
                 setDeliveryDate(order.delivery_date || '');
@@ -116,7 +116,7 @@ const SalesOrderForm: React.FC = () => {
                     item_name: item.item_name,
                     quantity: item.quantity,
                     unit_price: item.unit_price,
-                    total: item.total_price
+                    total: item.line_total
                 }));
                 setItems(mappedItems);
 
@@ -231,7 +231,6 @@ const SalesOrderForm: React.FC = () => {
                 order_date: orderDate,
                 delivery_date: deliveryDate || undefined,
                 order_source: source,
-                status,
                 items: items.map(i => ({
                     item_id: i.item_id!,
                     quantity: i.quantity,
