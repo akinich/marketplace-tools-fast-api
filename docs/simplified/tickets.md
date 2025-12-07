@@ -534,4 +534,4 @@ The ticket system helps everyone work together to:
 - 🎯 Prioritize important issues
 - 📝 Document solutions for later
 
-**Your reports and suggestions help make the farm management system better for everyone!** 🌟
+**Your reports and suggestions help make the Marketplace ERP Tools better for everyone!** 🌟

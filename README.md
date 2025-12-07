@@ -30,7 +30,7 @@ A modern, full-stack Marketplace ERP migrated from Streamlit to FastAPI backend 
 
 ## 🎯 Overview
 
-The Farm Management System is a comprehensive solution for managing farm operations including:
+The Marketplace ERP Tools is a comprehensive solution for managing farm operations including:
 
 - **Inventory Management** - Track stock, suppliers, purchase orders with FIFO costing
 - **Biofloc Aquaculture** - Manage fish tanks, water quality, growth, and feeding *(coming soon)*
@@ -147,7 +147,7 @@ This project represents a complete architectural upgrade from the original Strea
 ## 📁 Project Structure
 
 ```
-farm2-app-fast-api/
+marketplace-tools-fast-api/
 │
 ├── backend/                      # FastAPI Backend
 │   ├── app/
@@ -225,8 +225,8 @@ farm2-app-fast-api/
 ### 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/akinich/farm2-app-fast-api.git
-cd farm2-app-fast-api
+git clone https://github.com/akinich/marketplace-tools-fast-api.git
+cd marketplace-tools-fast-api
 ```
 
 ### 2️⃣ Set Up Supabase Database
@@ -333,7 +333,7 @@ Edit `backend/.env` with these values:
 
 ```bash
 # App Settings
-APP_NAME=Farm Management System
+APP_NAME=Marketplace ERP Tools
 APP_ENV=development
 DEBUG=True
 API_VERSION=v1
@@ -373,7 +373,7 @@ Edit `frontend/.env`:
 VITE_API_BASE_URL=http://localhost:8000
 
 # App Info
-VITE_APP_NAME=Farm Management System
+VITE_APP_NAME=Marketplace ERP Tools
 VITE_APP_VERSION=1.0.0
 ```
 
@@ -518,7 +518,7 @@ See `sql_scripts/v1.0.0_initial_schema.sql` for complete schema.
 1. Go to [https://supabase.com](https://supabase.com)
 2. Click **"New Project"**
 3. Fill in project details:
-   - **Name**: `farm-management-prod` (or your choice)
+   - **Name**: `marketplace_db-prod` (or your choice)
    - **Database Password**: Generate a strong password (save this!)
    - **Region**: Choose closest to your users
    - **Pricing Plan**: Free tier works great to start
@@ -618,14 +618,14 @@ VALUES ('<user-uid>', 'Admin User', 1, TRUE);
 2. Select **"Web Service"**
 3. Connect your GitHub repository:
    - Click **"Connect account"** if first time
-   - Search for `farm2-app-fast-api`
+   - Search for `marketplace-tools-fast-api`
    - Click **"Connect"**
 
 **2.3 Configure Web Service**
 
 Fill in these settings:
 
-- **Name**: `farm-api` (or your choice - this will be in your URL)
+- **Name**: `marketplace-api` (or your choice - this will be in your URL)
 - **Region**: Choose closest to your users
 - **Branch**: `main` (or your production branch)
 - **Root Directory**: `backend`
@@ -648,7 +648,7 @@ Add each of these (click "Add" after each one):
 
 | Key | Value |
 |-----|-------|
-| `APP_NAME` | `Farm Management System` |
+| `APP_NAME` | `Marketplace ERP Tools` |
 | `APP_ENV` | `production` |
 | `DEBUG` | `False` |
 | `API_VERSION` | `v1` |
@@ -665,7 +665,7 @@ Add each of these (click "Add" after each one):
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | `7` |
 | `ALLOWED_ORIGINS` | Will add frontend URL after frontend deploy |
 | `FRONTEND_URL` | Will add after frontend deploy |
-| `API_BASE_URL` | Will be `https://farm-api.onrender.com` (use your actual service name) |
+| `API_BASE_URL` | Will be `https://marketplace-api.onrender.com` (use your actual service name) |
 
 **2.5 Deploy Backend**
 
@@ -673,7 +673,7 @@ Add each of these (click "Add" after each one):
 2. Render will start building your service
 3. Wait 3-5 minutes for deployment
 4. Once deployed, you'll see **"Your service is live 🎉"**
-5. Copy your backend URL (e.g., `https://farm-api.onrender.com`)
+5. Copy your backend URL (e.g., `https://marketplace-api.onrender.com`)
 
 **2.6 Test Backend**
 
@@ -711,7 +711,7 @@ Add each of these (click "Add" after each one):
 
 Fill in these settings:
 
-- **Name**: `farm-app` (or your choice)
+- **Name**: `marketplace-app` (or your choice)
 - **Branch**: `main`
 - **Root Directory**: `frontend`
 - **Build Command**:
@@ -726,15 +726,15 @@ Click **"Advanced"** > **"Add Environment Variable"**:
 
 | Key | Value |
 |-----|-------|
-| `VITE_API_BASE_URL` | Your backend URL from Step 2.5 (e.g., `https://farm-api.onrender.com`) |
-| `VITE_APP_NAME` | `Farm Management System` |
+| `VITE_API_BASE_URL` | Your backend URL from Step 2.5 (e.g., `https://marketplace-api.onrender.com`) |
+| `VITE_APP_NAME` | `Marketplace ERP Tools` |
 | `VITE_APP_VERSION` | `1.0.0` |
 
 **3.4 Deploy Frontend**
 
 1. Click **"Create Static Site"**
 2. Wait 2-3 minutes for build and deployment
-3. Copy your frontend URL (e.g., `https://farm-app.onrender.com`)
+3. Copy your frontend URL (e.g., `https://marketplace-app.onrender.com`)
 
 ✅ **Frontend Deployed!**
 
@@ -750,7 +750,7 @@ Click **"Advanced"** > **"Add Environment Variable"**:
 
 | Key | New Value |
 |-----|-----------|
-| `ALLOWED_ORIGINS` | Your frontend URL (e.g., `https://farm-app.onrender.com`) |
+| `ALLOWED_ORIGINS` | Your frontend URL (e.g., `https://marketplace-app.onrender.com`) |
 | `FRONTEND_URL` | Same frontend URL |
 
 4. Click **"Save Changes"**
@@ -760,7 +760,7 @@ Click **"Advanced"** > **"Add Environment Variable"**:
 
 #### Step 5: Test Production Deployment
 
-1. Visit your frontend URL (e.g., `https://farm-app.onrender.com`)
+1. Visit your frontend URL (e.g., `https://marketplace-app.onrender.com`)
 2. You should see the login page
 3. Login with your admin credentials from Step 1.5
 4. Verify dashboard loads
@@ -1167,7 +1167,7 @@ v1.0.0 (2025-11-17):
 
 ## 📄 License
 
-Proprietary - Farm Management System
+Proprietary - Marketplace ERP Tools
 
 Copyright © 2025. All rights reserved.
 
@@ -1197,4 +1197,4 @@ For issues, questions, or feature requests:
 
 **Built with ❤️ for modern farm management**
 
-🌾 Farm Management System v1.0.0
+🌾 Marketplace ERP Tools v1.0.0

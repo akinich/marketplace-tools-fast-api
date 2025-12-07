@@ -405,7 +405,7 @@ info = await diagnose_setting(conn, "telegram_bot_token")
 
 ## 📄 License
 
-Proprietary - Farm Management System
+Proprietary - Marketplace ERP Tools
 Copyright © 2025. All rights reserved.
 
 ---

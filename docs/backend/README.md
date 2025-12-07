@@ -7,7 +7,7 @@
 
 ## Overview
 
-The Farm Management System backend is built on FastAPI, a modern, high-performance Python web framework. It provides a robust, scalable foundation with comprehensive authentication, authorization, database management, and API structure for all farm management modules.
+The Marketplace ERP Tools backend is built on FastAPI, a modern, high-performance Python web framework. It provides a robust, scalable foundation with comprehensive authentication, authorization, database management, and API structure for all farm management modules.
 
 ### Key Capabilities
 
@@ -294,7 +294,7 @@ Create a `.env` file in the backend directory:
 
 ```env
 # Application
-APP_NAME=Farm Management System
+APP_NAME=Marketplace ERP Tools
 APP_ENV=development
 DEBUG=True
 API_VERSION=v1
@@ -535,5 +535,5 @@ For issues and questions:
 
 ## License
 
-Part of the Farm Management System
+Part of the Marketplace ERP Tools
 © 2025 All rights reserved

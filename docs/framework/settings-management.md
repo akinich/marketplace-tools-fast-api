@@ -307,7 +307,7 @@ const [hasChanges, setHasChanges] = useState(false);
 
 ```json
 {
-  "app.name": "Farm Management System",
+  "app.name": "Marketplace ERP Tools",
   "app.timezone": "UTC",
   "app.date_format": "DD/MM/YYYY"
 }
@@ -405,7 +405,7 @@ const [hasChanges, setHasChanges] = useState(false);
 | `smtp_user` | "" | string | SMTP username |
 | `smtp_password` | "" | string | SMTP password |
 | `from_email` | "noreply@farmapp.com" | string | Sender email |
-| `from_name` | "Farm Management System" | string | Sender name |
+| `from_name` | "Marketplace ERP Tools" | string | Sender name |
 
 #### Webhooks (`webhooks`)
 
@@ -420,7 +420,7 @@ const [hasChanges, setHasChanges] = useState(false);
 
 | Setting | Default | Type | Public | Description |
 |---------|---------|------|--------|-------------|
-| `name` | "Farm Management System" | string | Yes | App name |
+| `name` | "Marketplace ERP Tools" | string | Yes | App name |
 | `support_email` | "support@farmapp.com" | string | Yes | Support email |
 | `timezone` | "UTC" | string | Yes | App timezone |
 | `date_format` | "DD/MM/YYYY" | string | Yes | Date format |
@@ -774,4 +774,4 @@ WHERE is_public = true;
 
 **Document Version:** 1.0.0
 **Last Updated:** November 22, 2025
-**Maintained By:** Farm Management System Team
+**Maintained By:** Marketplace ERP Tools Team

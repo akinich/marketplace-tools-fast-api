@@ -91,7 +91,7 @@ INSERT INTO system_settings (setting_key, setting_value, data_type, category, de
 ('email.smtp_user', '""', 'string', 'email', 'SMTP username', '{}', false),
 ('email.smtp_password', '""', 'string', 'email', 'SMTP password (encrypted)', '{}', false),
 ('email.from_email', '"noreply@farmapp.com"', 'string', 'email', 'Default sender email address', '{}', false),
-('email.from_name', '"Farm Management System"', 'string', 'email', 'Default sender name', '{}', false),
+('email.from_name', '"Marketplace ERP Tools"', 'string', 'email', 'Default sender name', '{}', false),
 
 -- Webhook Settings
 ('webhooks.enabled', 'true', 'boolean', 'webhooks', 'Enable webhook functionality', '{}', false),
@@ -100,7 +100,7 @@ INSERT INTO system_settings (setting_key, setting_value, data_type, category, de
 ('webhooks.timeout_seconds', '30', 'integer', 'webhooks', 'Webhook request timeout in seconds', '{"min": 5, "max": 120}', false),
 
 -- Application Settings
-('app.name', '"Farm Management System"', 'string', 'app', 'Application name', '{}', true),
+('app.name', '"Marketplace ERP Tools"', 'string', 'app', 'Application name', '{}', true),
 ('app.support_email', '"support@farmapp.com"', 'string', 'app', 'Support email address', '{}', true),
 ('app.timezone', '"UTC"', 'string', 'app', 'Application timezone', '{}', true),
 ('app.date_format', '"DD/MM/YYYY"', 'string', 'app', 'Date format', '{}', true),

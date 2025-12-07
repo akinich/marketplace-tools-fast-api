@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Inventory Enhancements for Biofloc Integration
+Marketplace ERP Tools - Inventory Enhancements for Biofloc Integration
 ================================================================================
 Version: 1.3.0
 Created: 2025-11-18

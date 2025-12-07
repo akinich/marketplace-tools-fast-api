@@ -20,7 +20,7 @@
 
 ## 🎯 Overview
 
-This document provides a complete reference for all database migrations in the Farm Management System. Each migration is tracked, documented, and includes rollback procedures.
+This document provides a complete reference for all database migrations in the Marketplace ERP Tools. Each migration is tracked, documented, and includes rollback procedures.
 
 ### Migration Locations
 

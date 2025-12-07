@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Item Master Updates
+Marketplace ERP Tools - Item Master Updates
 ================================================================================
 Version: 1.9.0
 Created: 2025-11-21

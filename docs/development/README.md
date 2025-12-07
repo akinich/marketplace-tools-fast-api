@@ -26,7 +26,7 @@ The Development Planning Module is a comprehensive feature tracking and project 
 - PostgreSQL database (>= 12)
 - Python 3.8+ (backend)
 - Node.js 16+ (frontend)
-- Farm Management System core installed
+- Marketplace ERP Tools core installed
 
 ### Installation
 
@@ -313,5 +313,5 @@ For issues, questions, or contributions:
 
 ## License
 
-Part of the Farm Management System
+Part of the Marketplace ERP Tools
 © 2025 All rights reserved

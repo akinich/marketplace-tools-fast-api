@@ -1,6 +1,6 @@
 /*
 ================================================================================
-Farm Management System - Fix tank_id Column Type in inventory_transactions
+Marketplace ERP Tools - Fix tank_id Column Type in inventory_transactions
 ================================================================================
 Version: 1.3.1
 Created: 2025-11-19

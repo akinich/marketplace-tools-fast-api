@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This project adds a comprehensive **Communication Framework** and **Advanced Settings Management** system to the Farm Management System.
+This project adds a comprehensive **Communication Framework** and **Advanced Settings Management** system to the Marketplace ERP Tools.
 
 ### New Features:
 1. **Settings & Configuration Management** - Runtime configuration via UI

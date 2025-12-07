@@ -17,7 +17,7 @@ This is a quick start guide for developers. For comprehensive deployment instruc
 
 ```bash
 git clone <repository-url>
-cd farm2-app-fast-api
+cd marketplace-tools-fast-api
 ```
 
 ### 2. Database Setup
@@ -31,10 +31,10 @@ cd farm2-app-fast-api
 **Option B: Local PostgreSQL**
 ```bash
 # Create database
-createdb farm_management
+createdb marketplace_db
 
 # Run schema script
-psql farm_management < sql_scripts/v1.0.0_initial_schema.sql
+psql marketplace_db < sql_scripts/v1.0.0_initial_schema.sql
 ```
 
 ### 3. Backend Setup
@@ -56,7 +56,7 @@ cp .env.example .env
 
 **Required .env variables:**
 ```env
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/farm_management
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/marketplace_db
 JWT_SECRET_KEY=your-super-secret-key-min-32-chars
 JWT_REFRESH_SECRET_KEY=your-super-secret-refresh-key
 ALLOWED_ORIGINS=http://localhost:3000
@@ -132,7 +132,7 @@ Once backend is running, visit:
 ## Project Structure
 
 ```
-farm2-app-fast-api/
+marketplace-tools-fast-api/
 ├── backend/              # FastAPI backend
 │   ├── app/
 │   │   ├── routes/      # API endpoints

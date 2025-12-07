@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SMTP username (string, default: "")
 - SMTP password (string, encrypted, default: "")
 - From email address (string, default: "noreply@farmapp.com")
-- From name (string, default: "Farm Management System")
+- From name (string, default: "Marketplace ERP Tools")
 
 **Webhooks (4 settings):**
 - Webhooks enabled (boolean, default: true)
@@ -96,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Request timeout (5-120 seconds, default: 30)
 
 **Application (5 settings):**
-- Application name (string, public, default: "Farm Management System")
+- Application name (string, public, default: "Marketplace ERP Tools")
 - Support email (string, public, default: "support@farmapp.com")
 - Timezone (string, public, default: "UTC")
 - Date format (string, public, default: "DD/MM/YYYY")
@@ -238,10 +238,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Contributors
 - Implementation: Claude AI Assistant
-- Testing: Farm Management System Team
+- Testing: Marketplace ERP Tools Team
 - Documentation: Claude AI Assistant
 
 ---
 
 **Last Updated:** November 22, 2025
-**Maintained By:** Farm Management System Team
+**Maintained By:** Marketplace ERP Tools Team

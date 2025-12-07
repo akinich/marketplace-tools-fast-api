@@ -1,5 +1,5 @@
 -- ============================================================================
--- Farm Management System - Admin Sub-Modules
+-- Marketplace ERP Tools - Admin Sub-Modules
 -- ============================================================================
 -- Version: 1.12.0
 -- Purpose: Add admin panel sub-modules for better navigation

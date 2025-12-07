@@ -57,7 +57,7 @@ The Communication Module provides multiple channels for notifications, integrati
    | SMTP User | `your-email@gmail.com` | Email account username |
    | SMTP Password | `your-app-password` | App-specific password (not regular password) |
    | From Email | `notifications@yourfarm.com` | Sender email address |
-   | From Name | `Farm Management System` | Display name for emails |
+   | From Name | `Marketplace ERP Tools` | Display name for emails |
    | Use TLS | ✅ Yes | Enable TLS encryption |
 
 3. Click **Save Changes**
@@ -271,7 +271,7 @@ if not verify_signature(payload, signature, secret):
 
 ## API Key Administration
 
-API Keys allow programmatic access to the Farm Management System API without user credentials.
+API Keys allow programmatic access to the Marketplace ERP Tools API without user credentials.
 
 ### Creating an API Key
 
@@ -643,7 +643,7 @@ Use `{{variable_name}}` syntax in templates:
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
         <tr>
             <td style="background: #4CAF50; padding: 20px; text-align: center;">
-                <h1 style="color: white; margin: 0;">Farm Management System</h1>
+                <h1 style="color: white; margin: 0;">Marketplace ERP Tools</h1>
             </td>
         </tr>
         <tr>
@@ -675,7 +675,7 @@ Use `{{variable_name}}` syntax in templates:
         </tr>
         <tr>
             <td style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 12px; color: #666;">
-                <p>© 2025 Farm Management System. All rights reserved.</p>
+                <p>© 2025 Marketplace ERP Tools. All rights reserved.</p>
             </td>
         </tr>
     </table>
@@ -963,7 +963,7 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-16-char-app-password
 FROM_EMAIL=notifications@yourfarm.com
-FROM_NAME=Farm Management System
+FROM_NAME=Marketplace ERP Tools
 USE_TLS=true
 ```
 

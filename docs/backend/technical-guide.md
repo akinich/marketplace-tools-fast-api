@@ -67,7 +67,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Application
-    APP_NAME: str = "Farm Management System"
+    APP_NAME: str = "Marketplace ERP Tools"
     APP_ENV: str = "development"
     DEBUG: bool = False
     
