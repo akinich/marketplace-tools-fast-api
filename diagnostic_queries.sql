@@ -1,5 +1,5 @@
 -- ============================================================================
--- ORDERS MODULE DIAGNOSTIC QUERIES
+-- ORDERS MODULE DIAGNOSTIC QUERIES (API Sync Only)
 -- Run these in your database to identify issues
 -- ============================================================================
 
@@ -10,8 +10,9 @@ FROM pg_tables
 WHERE tablename IN ('orders', 'order_items')
   AND schemaname = 'public';
 
--- QUERY 2: Check WooCommerce settings configuration
--- Expected: 4 rows (api_url, consumer_key, consumer_secret, webhook_secret)
+-- QUERY 2: Check WooCommerce API settings configuration
+-- Expected: 3 rows (api_url, consumer_key, consumer_secret)
+-- Note: webhook_secret is NOT needed for API-only sync
 SELECT
     setting_key,
     CASE
@@ -25,34 +26,22 @@ FROM system_settings
 WHERE setting_key LIKE 'woocommerce.%'
 ORDER BY setting_key;
 
--- QUERY 3: Check webhook secret specifically
--- Expected: 1 row with the UUID secret
-SELECT
-    setting_key,
-    setting_value,
-    is_encrypted,
-    updated_at
-FROM system_settings
-WHERE setting_key = 'woocommerce.webhook_secret';
-
--- QUERY 4: Check if orders table has any data
--- Expected: Shows count of orders
+-- QUERY 3: Check if orders table has any data
+-- Expected: Shows count of orders (all from API sync)
 SELECT
     COUNT(*) as total_orders,
-    COUNT(*) FILTER (WHERE sync_source = 'webhook') as from_webhooks,
     COUNT(*) FILTER (WHERE sync_source = 'api') as from_api,
-    COUNT(*) FILTER (WHERE sync_source = 'manual') as from_manual,
     MAX(created_at) as latest_order,
     MAX(last_synced_at) as last_sync
 FROM orders;
 
--- QUERY 5: Check order_items table
+-- QUERY 4: Check order_items table
 -- Expected: Shows count of line items
 SELECT COUNT(*) as total_line_items
 FROM order_items;
 
--- QUERY 6: If orders exist, show recent ones
--- Expected: Shows last 5 orders
+-- QUERY 5: If orders exist, show recent ones
+-- Expected: Shows last 10 orders with details
 SELECT
     id,
     woo_order_id,
@@ -64,12 +53,34 @@ SELECT
     created_at
 FROM orders
 ORDER BY created_at DESC
-LIMIT 5;
+LIMIT 10;
 
--- QUERY 7: Check if woo_customers table exists and has data
+-- QUERY 6: Check if woo_customers table exists and has data
 -- Expected: Shows customer count
 SELECT COUNT(*) as total_customers
 FROM woo_customers;
+
+-- QUERY 7: Check order status distribution
+-- Expected: Shows count of orders by status
+SELECT
+    status,
+    COUNT(*) as order_count,
+    SUM(total) as total_revenue
+FROM orders
+GROUP BY status
+ORDER BY order_count DESC;
+
+-- QUERY 8: Check most recent sync activity
+-- Expected: Shows when orders were last synced
+SELECT
+    DATE(last_synced_at) as sync_date,
+    COUNT(*) as orders_synced,
+    MIN(last_synced_at) as earliest_sync,
+    MAX(last_synced_at) as latest_sync
+FROM orders
+WHERE last_synced_at >= NOW() - INTERVAL '7 days'
+GROUP BY DATE(last_synced_at)
+ORDER BY sync_date DESC;
 
 -- ============================================================================
 -- MISSING CREDENTIALS FIX
