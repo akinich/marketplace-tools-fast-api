@@ -31,7 +31,7 @@ Authentication:
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import StreamingResponse
-from typing import List, Optional
+from typing import List, Optional, Dict
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
