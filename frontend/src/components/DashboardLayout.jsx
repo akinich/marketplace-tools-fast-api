@@ -398,6 +398,8 @@ export default function DashboardLayout() {
 
     // B2C Management sub-modules
     const b2cManagementRoutes = {
+      b2c_dashboard: '/b2c_ops/dashboard',
+      subscription_management: '/b2c_ops/subscriptions',
       woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
       stock_price_updater: '/b2c-ops/stock-price-updater',
       order_place_test: '/b2c-ops/order-place-test',
@@ -421,8 +423,10 @@ export default function DashboardLayout() {
       com_websockets: '/communication/websockets',
     };
 
-    // Inventory sub-modules
+
     const inventoryRoutes = {
+      inventory_dashboard: '/inventory/dashboard',
+      stock_management: '/inventory/stock',
       batch_tracking: '/inventory/batch-tracking',
       wastage_tracking: '/inventory/wastage-tracking',
     };
