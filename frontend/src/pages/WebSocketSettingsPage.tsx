@@ -58,7 +58,7 @@ function WebSocketSettingsPage() {
 
         if (module && module.default) {
           const ws = module.default;
-          const connected = ws.ws && ws.ws.readyState === WebSocket.OPEN;
+          const connected = ws.isConnected();
           setIsConnected(connected);
           setConnectionStatus(connected ? 'connected' : 'disconnected');
         } else {
