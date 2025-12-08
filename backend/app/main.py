@@ -309,7 +309,6 @@ from app.routes import (
     woo_checkout,
     batch_tracking,
     wastage_tracking,
-    wastage_tracking,
     po,
     grn,
     sales_orders,
