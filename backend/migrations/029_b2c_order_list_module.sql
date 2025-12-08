@@ -9,8 +9,8 @@
 -- PART 1: Remove old B2C Orders module (deleted from codebase)
 -- ============================================================================
 
--- Remove role permissions for old module
-DELETE FROM role_module_permissions
+-- Remove user permissions for old module
+DELETE FROM user_module_permissions
 WHERE module_id IN (SELECT id FROM modules WHERE module_key = 'b2c_orders');
 
 -- Remove old B2C Orders module
@@ -34,48 +34,47 @@ INSERT INTO modules (
     description,
     icon,
     route_path,
-    parent_key,
+    parent_module_id,
     display_order,
     is_active,
     created_at,
     updated_at
 )
-VALUES (
+SELECT
     'B2C Order List',
     'b2c_order_list',
     'Fetch and view B2C orders from WooCommerce',
     'list_alt',
     '/b2c-ops/b2c-order-list',
-    'b2c_management',
+    p.id,
     6,
     true,
     NOW(),
     NOW()
-)
+FROM modules p
+WHERE p.module_key = 'b2c_management'
 ON CONFLICT (module_key) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
     icon = EXCLUDED.icon,
     route_path = EXCLUDED.route_path,
-    parent_key = EXCLUDED.parent_key,
+    parent_module_id = EXCLUDED.parent_module_id,
     display_order = EXCLUDED.display_order,
     is_active = EXCLUDED.is_active,
     updated_at = NOW();
 
--- Grant access to ALL roles (no restrictions)
-INSERT INTO role_module_permissions (role_id, module_id, created_at)
+-- Grant access to admin user (user_id = 1, everyone can see in UI)
+INSERT INTO user_module_permissions (user_id, module_id)
 SELECT 
-    r.id,
-    m.id,
-    NOW()
-FROM roles r
-CROSS JOIN modules m
+    1,
+    m.id
+FROM modules m
 WHERE m.module_key = 'b2c_order_list'
-ON CONFLICT (role_id, module_id) DO NOTHING;
+ON CONFLICT (user_id, module_id) DO NOTHING;
 
 -- Success message
 DO $$
 BEGIN
     RAISE NOTICE '✅ B2C Order List module registered successfully';
-    RAISE NOTICE '✅ All roles granted access';
+    RAISE NOTICE '✅ Admin user granted access (no role restrictions)';
 END $$;
