@@ -18,6 +18,7 @@ import WooToZohoExport from './WooToZohoExport';
 import StockPriceUpdater from './StockPriceUpdater';
 import OrderPlaceTest from './OrderPlaceTest';
 import SubscriptionManagement from './SubscriptionManagement';
+import B2COrderList from './B2COrderList';
 
 export default function B2COpsModule() {
     return (
@@ -25,6 +26,7 @@ export default function B2COpsModule() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<B2CManagementDashboard />} />
             <Route path="order-extractor" element={<OrderExtractor />} />
+            <Route path="b2c-order-list" element={<B2COrderList />} />
             <Route path="label-generator" element={<LabelGenerator />} />
             <Route path="mrp-label-generator" element={<MrpLabelGenerator />} />
             <Route path="woo-to-zoho-export" element={<WooToZohoExport />} />
