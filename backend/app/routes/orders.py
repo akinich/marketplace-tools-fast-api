@@ -29,7 +29,7 @@ Note: Webhooks removed - using API sync only (like Order Extractor)
 ================================================================================
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict
 import pandas as pd
@@ -111,7 +111,7 @@ async def list_orders(
     except Exception as e:
         logger.error(f"Error listing orders: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch orders"
         )
 
@@ -136,7 +136,7 @@ async def get_order_stats(
     except Exception as e:
         logger.error(f"Error fetching order stats: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch order statistics"
         )
 
@@ -156,7 +156,7 @@ async def get_order(
 
         if not order:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Order {order_id} not found"
             )
 
@@ -167,7 +167,7 @@ async def get_order(
     except Exception as e:
         logger.error(f"Error fetching order {order_id}: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch order"
         )
 
@@ -186,7 +186,7 @@ async def update_order_status(
     try:
         if not status_update.status:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="Status field is required"
             )
 
@@ -212,13 +212,13 @@ async def update_order_status(
 
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
         logger.error(f"Error updating order status: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update order status"
         )
 
@@ -275,7 +275,7 @@ async def sync_orders(
     except Exception as e:
         logger.error(f"Error during manual sync: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sync orders: {str(e)}"
         )
 
@@ -327,7 +327,7 @@ async def export_orders(
 
         if not orders:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="No orders found matching criteria"
             )
 
@@ -366,7 +366,7 @@ async def export_orders(
     except Exception as e:
         logger.error(f"Error exporting orders: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to export orders"
         )
 
