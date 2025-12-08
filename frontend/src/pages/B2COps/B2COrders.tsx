@@ -1,28 +1,30 @@
 /**
- * B2C Orders Management Page
- * Version: 1.0.0
- * Created: 2025-12-07
+ * B2C Orders Component (Simplified)
+ * Version: 3.0.0
+ * Created: 2025-12-08
  *
  * Description:
- *   Manage WooCommerce B2C orders synced via webhooks and API
- *   - View orders list with filtering
- *   - Order statistics dashboard
- *   - Manual sync from WooCommerce
- *   - Export orders to Excel
- *   - View order details
+ *   Simple order management interface modeled after Order Extractor
+ *   - Two sync options: Quick (last 3 days) + Custom date range
+ *   - Order listing with pagination
+ *   - Order details dialog
+ *   - No stats, no export, no automated sync
  */
 
 import { useState } from 'react';
 import {
     Box,
-    Paper,
     Typography,
     Button,
+    Paper,
+    Alert,
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     TextField,
     MenuItem,
-    Grid,
-    Card,
-    CardContent,
     Table,
     TableBody,
     TableCell,
@@ -32,19 +34,12 @@ import {
     TablePagination,
     Chip,
     IconButton,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    CircularProgress,
-    Alert,
+    Grid,
 } from '@mui/material';
 import {
     Refresh as RefreshIcon,
-    Download as DownloadIcon,
     Visibility as ViewIcon,
-    ShoppingCart as OrdersIcon,
-    TrendingUp as RevenueIcon,
+    CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useSnackbar } from 'notistack';
@@ -82,16 +77,6 @@ interface Order {
     }>;
 }
 
-interface OrderStats {
-    total_orders: number;
-    pending_orders: number;
-    processing_orders: number;
-    completed_orders: number;
-    cancelled_orders: number;
-    total_revenue: number;
-    average_order_value: number;
-}
-
 export default function B2COrders() {
     const { enqueueSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
@@ -101,11 +86,12 @@ export default function B2COrders() {
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
-    const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-    const [syncDays, setSyncDays] = useState(3);
+    const [customSyncOpen, setCustomSyncOpen] = useState(false);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
-    // Fetch orders
-    const { data: ordersData, isLoading: ordersLoading, error: ordersError, refetch: refetchOrders } = useQuery(
+    // Fetch orders from database
+    const { data: ordersData, isLoading, error, refetch } = useQuery(
         ['b2c-orders', statusFilter, page, rowsPerPage],
         async () => {
             const params = new URLSearchParams({
@@ -132,58 +118,25 @@ export default function B2COrders() {
         }
     );
 
-    // Fetch stats
-    const { data: stats, error: statsError } = useQuery<OrderStats>(
-        'b2c-orders-stats',
+    // Quick sync: last 3 days
+    const quickSyncMutation = useMutation(
         async () => {
-            const response = await axios.get(`${API_BASE_URL}/orders/stats`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-            });
-            return response.data;
-        },
-        {
-            retry: 1,
-            refetchOnWindowFocus: false,
-            onError: (error: any) => {
-                console.error('Error fetching stats:', error);
-                // Don't show error for stats, just log it
-            },
-        }
-    );
-
-    // Sync orders mutation
-    const syncMutation = useMutation(
-        async (days: number) => {
-            console.log('[B2C Orders] Starting sync, days:', days);
-            console.log('[B2C Orders] API URL:', `${API_BASE_URL}/orders/sync`);
-
             const response = await axios.post(
                 `${API_BASE_URL}/orders/sync`,
-                { days, force_full_sync: false },
+                {},  // Empty body = defaults to last 3 days
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
-
-            console.log('[B2C Orders] Sync response:', response.data);
             return response.data;
         },
         {
             onSuccess: (data) => {
-                const synced = data?.synced || 0;
-                const created = data?.created || 0;
-                const updated = data?.updated || 0;
-
-                console.log('[B2C Orders] Sync success:', { synced, created, updated });
-
                 enqueueSnackbar(
-                    `Synced ${synced} orders (${created} created, ${updated} updated)`,
+                    `Synced ${data.synced} orders (${data.created} created, ${data.updated} updated)`,
                     { variant: 'success' }
                 );
                 queryClient.invalidateQueries('b2c-orders');
-                queryClient.invalidateQueries('b2c-orders-stats');
-                setSyncDialogOpen(false);
             },
             onError: (error: any) => {
-                console.error('[B2C Orders] Sync error:', error);
                 enqueueSnackbar(error.response?.data?.detail || 'Failed to sync orders', {
                     variant: 'error',
                 });
@@ -191,32 +144,32 @@ export default function B2COrders() {
         }
     );
 
-    // Export orders
-    const handleExport = async () => {
-        try {
-            const params: any = {};
-            if (statusFilter) params.status = statusFilter;
-
-            const response = await axios.post(`${API_BASE_URL}/orders/export`, params, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-                responseType: 'blob',
-            });
-
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `orders_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-
-            enqueueSnackbar('Orders exported successfully', { variant: 'success' });
-        } catch (error: any) {
-            enqueueSnackbar(error.response?.data?.detail || 'Failed to export orders', {
-                variant: 'error',
-            });
+    // Custom range sync
+    const customSyncMutation = useMutation(
+        async () => {
+            const response = await axios.post(
+                `${API_BASE_URL}/orders/sync`,
+                { start_date: startDate, end_date: endDate },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+            );
+            return response.data;
+        },
+        {
+            onSuccess: (data) => {
+                enqueueSnackbar(
+                    `Synced ${data.synced} orders (${data.created} created, ${data.updated} updated)`,
+                    { variant: 'success' }
+                );
+                queryClient.invalidateQueries('b2c-orders');
+                setCustomSyncOpen(false);
+            },
+            onError: (error: any) => {
+                enqueueSnackbar(error.response?.data?.detail || 'Failed to sync orders', {
+                    variant: 'error',
+                });
+            },
         }
-    };
+    );
 
     // View order details
     const handleViewDetails = async (orderId: number) => {
@@ -231,7 +184,7 @@ export default function B2COrders() {
         }
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): 'default' | 'primary' | 'success' | 'warning' | 'error' => {
         const colors: Record<string, 'default' | 'primary' | 'success' | 'warning' | 'error'> = {
             pending: 'warning',
             processing: 'primary',
@@ -253,86 +206,31 @@ export default function B2COrders() {
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                     <Button
-                        variant="outlined"
+                        variant="contained"
                         startIcon={<RefreshIcon />}
-                        onClick={() => setSyncDialogOpen(true)}
+                        onClick={() => quickSyncMutation.mutate()}
+                        disabled={quickSyncMutation.isLoading}
                     >
-                        Sync from WooCommerce
+                        {quickSyncMutation.isLoading ? 'Syncing...' : 'Sync Last 3 Days'}
                     </Button>
                     <Button
                         variant="outlined"
-                        startIcon={<DownloadIcon />}
-                        onClick={handleExport}
-                        disabled={!ordersData?.orders?.length}
+                        startIcon={<CalendarIcon />}
+                        onClick={() => setCustomSyncOpen(true)}
                     >
-                        Export to Excel
+                        Custom Range
                     </Button>
-                    <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => refetchOrders()}>
+                    <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => refetch()}>
                         Refresh
                     </Button>
                 </Box>
             </Box>
 
             {/* Error State */}
-            {ordersError && (
+            {error && (
                 <Alert severity="error" sx={{ mb: 3 }}>
-                    Failed to load orders. Please try refreshing the page or contact support if the issue persists.
+                    Failed to load orders. Please try refreshing the page.
                 </Alert>
-            )}
-
-            {/* Statistics Cards */}
-            {stats && (
-                <Grid container spacing={3} sx={{ mb: 3 }}>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <OrdersIcon color="primary" sx={{ fontSize: 40 }} />
-                                    <Box>
-                                        <Typography variant="h4">{stats.total_orders}</Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Total Orders
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <RevenueIcon color="success" sx={{ fontSize: 40 }} />
-                                    <Box>
-                                        <Typography variant="h4">₹{(stats.total_revenue || 0).toLocaleString()}</Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Total Revenue
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Typography variant="h6">Pending: {stats.pending_orders}</Typography>
-                                <Typography variant="body2">Processing: {stats.processing_orders}</Typography>
-                                <Typography variant="body2">Completed: {stats.completed_orders}</Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
-                        <Card>
-                            <CardContent>
-                                <Typography variant="h4">₹{(stats.average_order_value || 0).toFixed(2)}</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Avg Order Value
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                </Grid>
             )}
 
             {/* Filters */}
@@ -378,7 +276,7 @@ export default function B2COrders() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {ordersLoading ? (
+                            {isLoading ? (
                                 <TableRow>
                                     <TableCell colSpan={7} align="center">
                                         <CircularProgress />
@@ -443,31 +341,44 @@ export default function B2COrders() {
                 />
             </Paper>
 
-            {/* Sync Dialog */}
-            <Dialog open={syncDialogOpen} onClose={() => setSyncDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>Sync Orders from WooCommerce</DialogTitle>
+            {/* Custom Range Sync Dialog */}
+            <Dialog open={customSyncOpen} onClose={() => setCustomSyncOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Sync Custom Date Range</DialogTitle>
                 <DialogContent>
                     <Alert severity="info" sx={{ mb: 2 }}>
-                        This will fetch recent orders from WooCommerce and update the database.
+                        Select a date range to fetch orders from WooCommerce.
                     </Alert>
-                    <TextField
-                        fullWidth
-                        type="number"
-                        label="Number of days to sync"
-                        value={syncDays}
-                        onChange={(e) => setSyncDays(parseInt(e.target.value) || 3)}
-                        inputProps={{ min: 1, max: 90 }}
-                        helperText="Sync orders from the last N days (1-90)"
-                    />
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                        <Grid item xs={6}>
+                            <TextField
+                                fullWidth
+                                type="date"
+                                label="Start Date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                fullWidth
+                                type="date"
+                                label="End Date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                    </Grid>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setSyncDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={() => setCustomSyncOpen(false)}>Cancel</Button>
                     <Button
                         variant="contained"
-                        onClick={() => syncMutation.mutate(syncDays)}
-                        disabled={syncMutation.isLoading}
+                        onClick={() => customSyncMutation.mutate()}
+                        disabled={!startDate || !endDate || customSyncMutation.isLoading}
                     >
-                        {syncMutation.isLoading ? 'Syncing...' : 'Start Sync'}
+                        {customSyncMutation.isLoading ? 'Syncing...' : 'Sync'}
                     </Button>
                 </DialogActions>
             </Dialog>
