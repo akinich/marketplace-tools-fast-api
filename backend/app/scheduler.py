@@ -46,7 +46,7 @@ from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
-from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service, orders_service
+from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service
 from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
