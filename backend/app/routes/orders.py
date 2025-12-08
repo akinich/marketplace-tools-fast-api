@@ -23,7 +23,7 @@ Authentication:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import logging
 
@@ -36,6 +36,7 @@ from app.schemas.orders import (
     SyncOrdersResponse,
 )
 from app.services.orders_service import OrdersService
+from app.database import fetch_one
 
 logger = logging.getLogger(__name__)
 
@@ -207,3 +208,59 @@ async def sync_orders_test(
             detail=f"Failed to sync orders: {str(e)}"
         )
 
+
+# Batch save endpoint - saves orders fetched from Order Extractor endpoint
+@router.post("/save-batch")
+async def save_orders_batch(
+    orders_data: Dict[str, List[Dict[str, Any]]],
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    Save multiple orders to database from frontend
+    
+    This endpoint receives orders fetched via Order Extractor endpoint
+    and saves them to the database using our existing save logic.
+    """
+    try:
+        orders = orders_data.get('orders', [])
+        logger.info(f"Batch save triggered by user {current_user.id} for {len(orders)} orders")
+        
+        created = 0
+        updated = 0
+        errors = 0
+        
+        for order in orders:
+            try:
+                # Check if exists
+                existing = await fetch_one(
+                    "SELECT id FROM orders WHERE woo_order_id = $1",
+                    order.get('id')
+                )
+                
+                # Save order
+                await OrdersService._save_order_to_database(order)
+                
+                if existing:
+                    updated += 1
+                else:
+                    created += 1
+                    
+            except Exception as e:
+                logger.error(f"Error saving order {order.get('id')}: {e}")
+                errors += 1
+        
+        logger.info(f"Batch save completed: {created} created, {updated} updated, {errors} errors")
+        
+        return {
+            "synced": len(orders),
+            "created": created,
+            "updated": updated,
+            "errors": errors
+        }
+        
+    except Exception as e:
+        logger.error(f"Batch save error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save orders: {str(e)}"
+        )
