@@ -118,17 +118,43 @@ export default function B2COrders() {
         }
     );
 
-    // Quick sync: last 3 days
+    // Quick sync: last 3 days using WORKING Order Extractor endpoint
     const quickSyncMutation = useMutation(
         async () => {
-            console.log('[B2C Orders] Starting quick sync...');
+            console.log('[B2C Orders] Starting quick sync with proven endpoint...');
+
+            // Calculate last 3 days
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 3);
+
+            const startStr = startDate.toISOString().split('T')[0];
+            const endStr = endDate.toISOString().split('T')[0];
+
+            // Call the WORKING Order Extractor endpoint
             const response = await axios.post(
-                `${API_BASE_URL}/orders/sync`,
-                {},  // Empty body = defaults to last 3 days
+                `${API_BASE_URL}/b2c-ops/orders/fetch`,
+                {
+                    start_date: startStr,
+                    end_date: endStr,
+                    status: 'any'
+                },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
-            console.log('[B2C Orders] Sync response:', response.data);
-            return response.data;
+
+            console.log('[B2C Orders] Fetch response:', response.data);
+
+            // Now save to database
+            if (response.data.orders && response.data.orders.length > 0) {
+                const saveResponse = await axios.post(
+                    `${API_BASE_URL}/orders/save-batch`,
+                    { orders: response.data.orders },
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+                );
+                return saveResponse.data;
+            }
+
+            return { synced: response.data.orders?.length || 0, created: 0, updated: 0 };
         },
         {
             onSuccess: (data) => {
@@ -152,17 +178,35 @@ export default function B2COrders() {
         }
     );
 
-    // Custom range sync
+    // Custom range sync using WORKING Order Extractor endpoint
     const customSyncMutation = useMutation(
         async () => {
             console.log('[B2C Orders] Starting custom sync:', startDate, 'to', endDate);
+
+            // Call the WORKING Order Extractor endpoint
             const response = await axios.post(
-                `${API_BASE_URL}/orders/sync`,
-                { start_date: startDate, end_date: endDate },
+                `${API_BASE_URL}/b2c-ops/orders/fetch`,
+                {
+                    start_date: startDate,
+                    end_date: endDate,
+                    status: 'any'
+                },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
-            console.log('[B2C Orders] Custom sync response:', response.data);
-            return response.data;
+
+            console.log('[B2C Orders] Custom sync fetch response:', response.data);
+
+            // Now save to database
+            if (response.data.orders && response.data.orders.length > 0) {
+                const saveResponse = await axios.post(
+                    `${API_BASE_URL}/orders/save-batch`,
+                    { orders: response.data.orders },
+                    { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+                );
+                return saveResponse.data;
+            }
+
+            return { synced: response.data.orders?.length || 0, created: 0, updated: 0 };
         },
         {
             onSuccess: (data) => {
