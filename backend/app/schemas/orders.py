@@ -16,7 +16,7 @@ Note: Simplified version - removed stats, export, webhook schemas
 ================================================================================
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 from decimal import Decimal
@@ -28,6 +28,8 @@ from decimal import Decimal
 
 class OrderItemResponse(BaseModel):
     """Response schema for order items"""
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     order_id: int
     product_id: Optional[int] = None
@@ -43,9 +45,6 @@ class OrderItemResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 # ============================================================================
 # Order Schemas
@@ -53,6 +52,8 @@ class OrderItemResponse(BaseModel):
 
 class OrderResponse(BaseModel):
     """Response schema with all order details"""
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     woo_order_id: int
     order_number: str
@@ -88,9 +89,6 @@ class OrderResponse(BaseModel):
     updated_at: datetime
     line_items: Optional[List[OrderItemResponse]] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
-
 
 class OrderListResponse(BaseModel):
     """Paginated list of orders"""
@@ -109,11 +107,12 @@ class SyncOrdersRequest(BaseModel):
     start_date: Optional[date] = Field(None, description="Start date (optional, defaults to 3 days ago)")
     end_date: Optional[date] = Field(None, description="End date (optional, defaults to today)")
     
-    @validator('end_date')
-    def validate_date_range(cls, v, values):
+    @field_validator('end_date')
+    @classmethod
+    def validate_date_range(cls, v, info):
         """Validate that end_date is after start_date"""
-        if v and 'start_date' in values and values['start_date']:
-            if v < values['start_date']:
+        if v and 'start_date' in info.data and info.data['start_date']:
+            if v < info.data['start_date']:
                 raise ValueError('end_date must be after start_date')
         return v
 
@@ -129,3 +128,4 @@ class SyncOrdersResponse(BaseModel):
     sync_source: str = "api"
     start_date: date
     end_date: date
+
