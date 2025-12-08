@@ -1,8 +1,30 @@
 -- ============================================================================
 -- Migration: 029_b2c_order_list_module.sql
--- Description: Register B2C Order List module under B2C Management
+-- Description: Remove old B2C Orders module and register new B2C Order List
 -- Author: System
 -- Date: 2025-12-08
+-- ============================================================================
+
+-- ============================================================================
+-- PART 1: Remove old B2C Orders module (deleted from codebase)
+-- ============================================================================
+
+-- Remove role permissions for old module
+DELETE FROM role_module_permissions
+WHERE module_id IN (SELECT id FROM modules WHERE module_key = 'b2c_orders');
+
+-- Remove old B2C Orders module
+DELETE FROM modules WHERE module_key = 'b2c_orders';
+
+-- Success message for removal
+DO $$
+BEGIN
+    RAISE NOTICE '🗑️  Removed old B2C Orders module';
+END $$;
+
+
+-- ============================================================================
+-- PART 2: Register new B2C Order List module
 -- ============================================================================
 
 -- Register B2C Order List module
@@ -41,7 +63,6 @@ ON CONFLICT (module_key) DO UPDATE SET
     updated_at = NOW();
 
 -- Grant access to ALL roles (no restrictions)
--- This ensures everyone who has access to B2C Management can see B2C Order List
 INSERT INTO role_module_permissions (role_id, module_id, created_at)
 SELECT 
     r.id,
