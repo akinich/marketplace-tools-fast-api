@@ -172,3 +172,31 @@ async def sync_orders(
             detail=f"Failed to sync orders: {str(e)}"
         )
 
+
+# Temporary test endpoint to bypass Cloudflare cache
+@router.post("/sync-test", response_model=SyncOrdersResponse)
+async def sync_orders_test(
+    sync_request: SyncOrdersRequest,
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """
+    TEST ENDPOINT - Same as /sync but with different path to bypass Cloudflare cache
+    """
+    try:
+        logger.info(f"TEST SYNC triggered by user {current_user.id}")
+
+        result = await OrdersService.sync_orders_from_woocommerce(
+            start_date=sync_request.start_date,
+            end_date=sync_request.end_date
+        )
+
+        logger.info(f"TEST SYNC completed: {result.synced} orders")
+        return result
+
+    except Exception as e:
+        logger.error(f"TEST SYNC error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to sync orders: {str(e)}"
+        )
+
