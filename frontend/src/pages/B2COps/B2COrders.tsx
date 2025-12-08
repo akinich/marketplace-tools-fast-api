@@ -121,22 +121,30 @@ export default function B2COrders() {
     // Quick sync: last 3 days
     const quickSyncMutation = useMutation(
         async () => {
+            console.log('[B2C Orders] Starting quick sync...');
             const response = await axios.post(
                 `${API_BASE_URL}/orders/sync`,
                 {},  // Empty body = defaults to last 3 days
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
+            console.log('[B2C Orders] Sync response:', response.data);
             return response.data;
         },
         {
             onSuccess: (data) => {
+                console.log('[B2C Orders] Sync success data:', data);
+                const synced = data?.synced || 0;
+                const created = data?.created || 0;
+                const updated = data?.updated || 0;
+
                 enqueueSnackbar(
-                    `Synced ${data.synced} orders (${data.created} created, ${data.updated} updated)`,
+                    `Synced ${synced} orders (${created} created, ${updated} updated)`,
                     { variant: 'success' }
                 );
                 queryClient.invalidateQueries('b2c-orders');
             },
             onError: (error: any) => {
+                console.error('[B2C Orders] Sync error:', error);
                 enqueueSnackbar(error.response?.data?.detail || 'Failed to sync orders', {
                     variant: 'error',
                 });
@@ -147,23 +155,31 @@ export default function B2COrders() {
     // Custom range sync
     const customSyncMutation = useMutation(
         async () => {
+            console.log('[B2C Orders] Starting custom sync:', startDate, 'to', endDate);
             const response = await axios.post(
                 `${API_BASE_URL}/orders/sync`,
                 { start_date: startDate, end_date: endDate },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
+            console.log('[B2C Orders] Custom sync response:', response.data);
             return response.data;
         },
         {
             onSuccess: (data) => {
+                console.log('[B2C Orders] Custom sync success:', data);
+                const synced = data?.synced || 0;
+                const created = data?.created || 0;
+                const updated = data?.updated || 0;
+
                 enqueueSnackbar(
-                    `Synced ${data.synced} orders (${data.created} created, ${data.updated} updated)`,
+                    `Synced ${synced} orders (${created} created, ${updated} updated)`,
                     { variant: 'success' }
                 );
                 queryClient.invalidateQueries('b2c-orders');
                 setCustomSyncOpen(false);
             },
             onError: (error: any) => {
+                console.error('[B2C Orders] Custom sync error:', error);
                 enqueueSnackbar(error.response?.data?.detail || 'Failed to sync orders', {
                     variant: 'error',
                 });
