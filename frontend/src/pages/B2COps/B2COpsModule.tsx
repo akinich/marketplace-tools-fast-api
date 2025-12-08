@@ -18,7 +18,6 @@ import WooToZohoExport from './WooToZohoExport';
 import StockPriceUpdater from './StockPriceUpdater';
 import OrderPlaceTest from './OrderPlaceTest';
 import SubscriptionManagement from './SubscriptionManagement';
-import B2COrders from './B2COrders';
 
 export default function B2COpsModule() {
     return (
@@ -32,7 +31,6 @@ export default function B2COpsModule() {
             <Route path="stock-price-updater" element={<StockPriceUpdater />} />
             <Route path="order-place-test" element={<OrderPlaceTest />} />
             <Route path="subscriptions" element={<SubscriptionManagement />} />
-            <Route path="b2c-orders" element={<B2COrders />} />
         </Routes>
     );
 }
