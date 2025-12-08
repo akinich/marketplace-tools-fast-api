@@ -173,6 +173,13 @@ async def sync_orders(
         )
 
 
+# Ultra-simple test - just return hardcoded response
+@router.get("/test-json")
+async def test_json_response():
+    """Test if FastAPI can return JSON at all"""
+    return {"message": "Hello", "value": 123}
+
+
 # Temporary test endpoint to bypass Cloudflare cache
 @router.post("/sync-test", response_model=SyncOrdersResponse)
 async def sync_orders_test(
