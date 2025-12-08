@@ -159,6 +159,9 @@ async def sync_orders(
         )
 
         logger.info(f"Sync completed: {result.synced} orders synced")
+        logger.info(f"Result object: {result}")
+        logger.info(f"Result type: {type(result)}")
+        logger.info(f"Result dict: {result.model_dump()}")
 
         return result
 
@@ -168,3 +171,4 @@ async def sync_orders(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to sync orders: {str(e)}"
         )
+
