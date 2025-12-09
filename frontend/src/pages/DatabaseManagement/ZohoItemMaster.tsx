@@ -18,7 +18,7 @@ import {
     Card,
     CardContent,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
@@ -76,6 +76,7 @@ interface SyncResult {
 
 function ZohoItemMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<ZohoItem[]>([]);
@@ -507,6 +508,7 @@ function ZohoItemMaster() {
                                 </Box>
                                 <Box sx={{ height: 600, width: '100%' }}>
                                     <DataGrid
+                                        apiRef={apiRef}
                                         rows={items}
                                         columns={columns}
                                         initialState={{
@@ -518,6 +520,16 @@ function ZohoItemMaster() {
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleItemUpdate}
                                         editMode="cell"
+                                        onCellClick={(params, event) => {
+                                            // Enable single-click editing for editable cells
+                                            if (params.isEditable && apiRef.current) {
+                                                event.defaultMuiPrevented = true;
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
                                         sx={{
                                             '& .editable-column-header': {
                                                 backgroundColor: '#e3f2fd',
