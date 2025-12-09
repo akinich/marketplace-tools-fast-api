@@ -18,7 +18,7 @@ import {
     Card,
     CardContent,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
@@ -44,6 +44,7 @@ interface ZohoCustomer {
     credit_limit: number;
     status: string;
     notes: string | null;
+    customer_segment: string[] | null;  // Changed to array for multi-select
     last_sync_at?: string;
 }
 
@@ -76,6 +77,7 @@ interface SyncResult {
 
 function ZohoCustomerMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState<ZohoCustomer[]>([]);
@@ -303,7 +305,7 @@ function ZohoCustomerMaster() {
     // Export to CSV
     const handleExport = () => {
         const csvContent = [
-            ['ID', 'Contact ID', 'Contact Name', 'Company Name', 'Email', 'Phone', 'Mobile', 'Customer Type', 'GST No', 'PAN No', 'Payment Terms', 'Outstanding', 'Credit Limit', 'Status', 'Notes'],
+            ['ID', 'Contact ID', 'Contact Name', 'Company Name', 'Email', 'Phone', 'Mobile', 'Customer Type', 'GST No', 'PAN No', 'Payment Terms', 'Outstanding', 'Credit Limit', 'Status', 'Notes', 'Customer Segment'],
             ...customers.map((customer) => [
                 customer.id,
                 customer.contact_id,
@@ -320,6 +322,7 @@ function ZohoCustomerMaster() {
                 customer.credit_limit || '',
                 customer.status,
                 customer.notes || '',
+                (customer.customer_segment && customer.customer_segment.length > 0) ? customer.customer_segment.join('; ') : '',  // Join array with semicolon
             ]),
         ]
             .map((row) => row.join(','))
@@ -350,7 +353,68 @@ function ZohoCustomerMaster() {
         { field: 'outstanding_receivable_amount', headerName: 'Outstanding', width: 120, editable: false, type: 'number' },
         { field: 'credit_limit', headerName: 'Credit Limit', width: 120, editable: false, type: 'number' },
         { field: 'status', headerName: 'Status', width: 100, editable: false },
-        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
+        {
+            field: 'notes',
+            headerName: '✏️ Notes',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'customer_segment',
+            headerName: '✏️ Customer Segment',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header',
+            renderCell: (params) => {
+                const segments = params.value as string[] | null;
+                return (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {segments && segments.length > 0 ? (
+                            segments.map((seg) => (
+                                <span key={seg} style={{
+                                    backgroundColor: '#e3f2fd',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem'
+                                }}>
+                                    {seg}
+                                </span>
+                            ))
+                        ) : (
+                            <span style={{ color: '#999' }}>-</span>
+                        )}
+                    </Box>
+                );
+            },
+            renderEditCell: (params) => {
+                const currentValue = (params.value as string[] | null) || [];
+                const options = ['B2B', 'B2C', 'B2R'];
+
+                const handleToggle = (option: string) => {
+                    const newValue = currentValue.includes(option)
+                        ? currentValue.filter(v => v !== option)
+                        : [...currentValue, option];
+                    params.api.setEditCellValue({ id: params.id, field: params.field, value: newValue });
+                };
+
+                return (
+                    <Box sx={{ p: 1 }}>
+                        {options.map((option) => (
+                            <Box key={option} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={currentValue.includes(option)}
+                                    onChange={() => handleToggle(option)}
+                                    style={{ marginRight: '8px' }}
+                                />
+                                <label>{option}</label>
+                            </Box>
+                        ))}
+                    </Box>
+                );
+            }
+        },
     ];
 
     return (
@@ -446,6 +510,7 @@ function ZohoCustomerMaster() {
                                 </Box>
                                 <Box sx={{ height: 600, width: '100%' }}>
                                     <DataGrid
+                                        apiRef={apiRef}
                                         rows={customers}
                                         columns={columns}
                                         initialState={{
@@ -456,6 +521,23 @@ function ZohoCustomerMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleItemUpdate}
+                                        editMode="cell"
+                                        onCellClick={(params, event) => {
+                                            // Enable single-click editing for editable cells
+                                            if (params.isEditable && apiRef.current) {
+                                                event.defaultMuiPrevented = true;
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
+                                        sx={{
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
+                                            }
+                                        }}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
