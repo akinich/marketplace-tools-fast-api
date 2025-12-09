@@ -85,6 +85,7 @@ function ZohoItemMaster() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterActive, setFilterActive] = useState('active');
     const [filterProductType, setFilterProductType] = useState('all');
+    const [filterSegment, setFilterSegment] = useState('all');
     const [stats, setStats] = useState<ZohoStats | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
@@ -129,7 +130,16 @@ function ZohoItemMaster() {
             };
 
             const response = await zohoItemAPI.getItems(params);
-            setItems(response.items || []);
+            let fetchedItems = response.items || [];
+
+            // Client-side filtering by segment
+            if (filterSegment !== 'all') {
+                fetchedItems = fetchedItems.filter((item: ZohoItem) =>
+                    item.segment && item.segment.includes(filterSegment)
+                );
+            }
+
+            setItems(fetchedItems);
 
             // Calculate last sync time from items
             if (response.items && response.items.length > 0) {
@@ -168,7 +178,7 @@ function ZohoItemMaster() {
 
         // Check if sync is already in progress
         checkForOngoingSync();
-    }, [refreshTrigger, searchTerm, filterActive, filterProductType]);
+    }, [refreshTrigger, searchTerm, filterActive, filterProductType, filterSegment]);
 
     // Check for ongoing sync on mount
     const checkForOngoingSync = async () => {
@@ -449,7 +459,7 @@ function ZohoItemMaster() {
                 {currentTab === 0 && (
                     <Box sx={{ p: 3 }}>
                         <Grid container spacing={2} sx={{ mb: 2 }}>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={3}>
                                 <TextField
                                     fullWidth
                                     label="🔍 Search items"
@@ -458,9 +468,9 @@ function ZohoItemMaster() {
                                     placeholder="Search by name, SKU, or HSN/SAC"
                                 />
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
-                                    <InputLabel>Filter</InputLabel>
+                                    <InputLabel>Status</InputLabel>
                                     <Select value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
                                         <MenuItem value="active">Active only</MenuItem>
                                         <MenuItem value="inactive">Inactive only</MenuItem>
@@ -468,7 +478,7 @@ function ZohoItemMaster() {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
                                     <InputLabel>Product Type</InputLabel>
                                     <Select value={filterProductType} onChange={(e) => setFilterProductType(e.target.value)}>
@@ -479,6 +489,17 @@ function ZohoItemMaster() {
                                 </FormControl>
                             </Grid>
                             <Grid item xs={12} md={2}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Segment</InputLabel>
+                                    <Select value={filterSegment} onChange={(e) => setFilterSegment(e.target.value)}>
+                                        <MenuItem value="all">All</MenuItem>
+                                        <MenuItem value="b2b">b2b</MenuItem>
+                                        <MenuItem value="b2c">b2c</MenuItem>
+                                        <MenuItem value="others">others</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} md={3}>
                                 <Button
                                     fullWidth
                                     variant="outlined"
