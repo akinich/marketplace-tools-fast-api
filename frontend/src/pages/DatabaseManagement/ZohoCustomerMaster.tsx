@@ -86,6 +86,7 @@ function ZohoCustomerMaster() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterActive, setFilterActive] = useState('active');
     const [filterProductType, setFilterProductType] = useState('all');
+    const [filterSegment, setFilterSegment] = useState('all');
     const [stats, setStats] = useState<ZohoCustomerStats | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
@@ -130,7 +131,16 @@ function ZohoCustomerMaster() {
             };
 
             const response = await zohoCustomerAPI.getItems(params);
-            setCustomers(response.customers || []);
+            let fetchedCustomers = response.customers || [];
+
+            // Client-side filtering by customer segment
+            if (filterSegment !== 'all') {
+                fetchedCustomers = fetchedCustomers.filter((customer: ZohoCustomer) =>
+                    customer.customer_segment && customer.customer_segment.includes(filterSegment)
+                );
+            }
+
+            setCustomers(fetchedCustomers);
 
             // Calculate last sync time from customers
             if (response.customers && response.customers.length > 0) {
@@ -169,7 +179,7 @@ function ZohoCustomerMaster() {
 
         // Check if sync is already in progress
         checkForOngoingSync();
-    }, [refreshTrigger, searchTerm, filterActive, filterProductType]);
+    }, [refreshTrigger, searchTerm, filterActive, filterProductType, filterSegment]);
 
     // Check for ongoing sync on mount
     const checkForOngoingSync = async () => {
@@ -451,7 +461,7 @@ function ZohoCustomerMaster() {
                 {currentTab === 0 && (
                     <Box sx={{ p: 3 }}>
                         <Grid container spacing={2} sx={{ mb: 2 }}>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={3}>
                                 <TextField
                                     fullWidth
                                     label="🔍 Search customers"
@@ -460,9 +470,9 @@ function ZohoCustomerMaster() {
                                     placeholder="Search by name, SKU, or HSN/SAC"
                                 />
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
-                                    <InputLabel>Filter</InputLabel>
+                                    <InputLabel>Status</InputLabel>
                                     <Select value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
                                         <MenuItem value="active">Active only</MenuItem>
                                         <MenuItem value="inactive">Inactive only</MenuItem>
@@ -470,9 +480,9 @@ function ZohoCustomerMaster() {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
-                                    <InputLabel>Product Type</InputLabel>
+                                    <InputLabel>Customer Type</InputLabel>
                                     <Select value={filterProductType} onChange={(e) => setFilterProductType(e.target.value)}>
                                         <MenuItem value="all">All</MenuItem>
                                         <MenuItem value="goods">Goods</MenuItem>
@@ -481,6 +491,17 @@ function ZohoCustomerMaster() {
                                 </FormControl>
                             </Grid>
                             <Grid item xs={12} md={2}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Customer Segment</InputLabel>
+                                    <Select value={filterSegment} onChange={(e) => setFilterSegment(e.target.value)}>
+                                        <MenuItem value="all">All</MenuItem>
+                                        <MenuItem value="B2B">B2B</MenuItem>
+                                        <MenuItem value="B2C">B2C</MenuItem>
+                                        <MenuItem value="B2R">B2R</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} md={3}>
                                 <Button
                                     fullWidth
                                     variant="outlined"
