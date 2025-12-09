@@ -17,6 +17,8 @@ import {
     Grid,
     Card,
     CardContent,
+    Checkbox,
+    ListItemText,
 } from '@mui/material';
 import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
@@ -391,27 +393,33 @@ function ZohoCustomerMaster() {
                 const currentValue = (params.value as string[] | null) || [];
                 const options = ['B2B', 'B2C', 'B2R'];
 
-                const handleToggle = (option: string) => {
-                    const newValue = currentValue.includes(option)
-                        ? currentValue.filter(v => v !== option)
-                        : [...currentValue, option];
-                    params.api.setEditCellValue({ id: params.id, field: params.field, value: newValue });
+                const handleChange = (event: any) => {
+                    const value = event.target.value;
+                    params.api.setEditCellValue({ id: params.id, field: params.field, value });
                 };
 
                 return (
-                    <Box sx={{ p: 1 }}>
+                    <Select
+                        multiple
+                        value={currentValue}
+                        onChange={handleChange}
+                        renderValue={(selected) => (selected as string[]).join(', ')}
+                        sx={{ width: '100%', fontSize: '0.875rem' }}
+                        MenuProps={{
+                            PaperProps: {
+                                style: {
+                                    maxHeight: 300,
+                                },
+                            },
+                        }}
+                    >
                         {options.map((option) => (
-                            <Box key={option} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                                <input
-                                    type="checkbox"
-                                    checked={currentValue.includes(option)}
-                                    onChange={() => handleToggle(option)}
-                                    style={{ marginRight: '8px' }}
-                                />
-                                <label>{option}</label>
-                            </Box>
+                            <MenuItem key={option} value={option}>
+                                <Checkbox checked={currentValue.includes(option)} />
+                                <ListItemText primary={option} />
+                            </MenuItem>
                         ))}
-                    </Box>
+                    </Select>
                 );
             }
         },
