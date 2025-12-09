@@ -120,7 +120,7 @@ async def get_items(
                 id, item_id, name, sku, description,
                 rate, purchase_rate, item_type, product_type, status,
                 hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                unit, account_id,
+                unit, account_id, for_purchase, segment,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_items
@@ -368,7 +368,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                 }
                 
                 if existing:
-                    # Update existing item
+                    # Update existing item (preserve user-edited fields: for_purchase, segment)
                     await execute_query(
                         """
                         UPDATE zoho_items SET
@@ -379,6 +379,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                             created_time = $17, last_modified_time = $18,
                             raw_json = $19, last_sync_at = $20, updated_at = NOW()
                         WHERE id = $1
+                        -- Note: for_purchase and segment are NOT updated to preserve user edits
                         """,
                         existing['id'],
                         item_data['name'], item_data['sku'], item_data['description'],
@@ -392,19 +393,19 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                     updated += 1
                     _sync_progress["updated"] = updated
                 else:
-                    # Insert new item
+                    # Insert new item with default values for user-editable fields
                     await execute_query(
                         """
                         INSERT INTO zoho_items (
                             item_id, name, sku, description,
                             rate, purchase_rate, item_type, product_type, status,
                             hsn_or_sac, tax_id, tax_name, tax_percentage, is_taxable,
-                            unit, account_id,
+                            unit, account_id, for_purchase, segment,
                             created_time, last_modified_time,
                             raw_json, last_sync_at
                         ) VALUES (
                             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+                            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
                         )
                         """,
                         item_data['item_id'], item_data['name'], item_data['sku'],
@@ -412,7 +413,8 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         item_data['item_type'], item_data['product_type'], item_data['status'],
                         item_data['hsn_or_sac'], item_data['tax_id'], item_data['tax_name'],
                         item_data['tax_percentage'], item_data['is_taxable'], item_data['unit'],
-                        item_data['account_id'], item_data['created_time'],
+                        item_data['account_id'], False, None,  # for_purchase=False, segment=None
+                        item_data['created_time'],
                         item_data['last_modified_time'], item_data['raw_json'],
                         item_data['last_sync_at']
                     )

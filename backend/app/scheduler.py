@@ -46,7 +46,7 @@ from datetime import datetime
 
 from app.database import fetch_one, fetch_all, execute_query, get_db
 from app.services import telegram_service, webhook_service, email_service, zoho_item_service, product_service
-from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service, orders_service
+from app.services import zoho_vendor_service, zoho_customer_service, woo_customer_service
 from app.schemas.product import WooCommerceSyncRequest
 
 logger = logging.getLogger(__name__)
@@ -184,30 +184,6 @@ async def sync_woo_customers_daily():
     except Exception as e:
         logger.error(f"❌ Error in scheduled WooCommerce Customers sync: {e}", exc_info=True)
 
-
-
-
-async def sync_orders_from_woocommerce():
-    """
-    Sync orders from WooCommerce every 3 hours (API sync only).
-    Fetches orders from the last 3 days to keep database up-to-date.
-    """
-    try:
-        logger.info("🔄 Starting scheduled WooCommerce Orders sync...")
-
-        result = await orders_service.OrdersService.sync_orders_from_woocommerce(
-            days=3,  # Last 3 days
-            force_full_sync=False
-        )
-
-        logger.info(
-            f"✅ Scheduled Orders sync completed: "
-            f"{result.synced} synced ({result.created} created, {result.updated} updated), "
-            f"{result.errors} errors in {result.sync_duration_seconds}s"
-        )
-
-    except Exception as e:
-        logger.error(f"❌ Error in scheduled Orders sync: {e}", exc_info=True)
 
 
 async def process_webhook_queue():
@@ -357,15 +333,6 @@ def start_scheduler():
             max_instances=1,
         )
 
-        # Task 9: Sync WooCommerce Orders every 3 hours
-        scheduler.add_job(
-            sync_orders_from_woocommerce,
-            trigger=IntervalTrigger(hours=3),
-            id="sync_woo_orders",
-            name="Sync WooCommerce Orders (last 3 days)",
-            replace_existing=True,
-            max_instances=1,
-        )
 
         scheduler.start()
         logger.info("✅ Background scheduler started successfully")
@@ -375,7 +342,6 @@ def start_scheduler():
         logger.info("   - Sync Zoho Vendors: Daily at 4:00 AM IST")
         logger.info("   - Sync Zoho Customers: Daily at 4:00 AM IST")
         logger.info("   - Sync WooCommerce Customers: Daily at 4:00 AM IST")
-        logger.info("   - Sync WooCommerce Orders: Every 3 hours (last 3 days)")
         logger.info("   - Process webhook queue: Every 1 minute")
         logger.info("   - Process email queue: Every 5 minutes")
         logger.info("   - Check wastage thresholds: Every hour")
