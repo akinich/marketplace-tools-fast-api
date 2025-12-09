@@ -43,7 +43,7 @@ interface ZohoItem {
     status: string;
     is_taxable: boolean;
     for_purchase: boolean;
-    segment: string | null;
+    segment: string[] | null;  // Changed to array for multi-select
     last_sync_at?: string;
 }
 
@@ -319,7 +319,7 @@ function ZohoItemMaster() {
                 item.status,
                 item.is_taxable ? 'Yes' : 'No',
                 item.for_purchase ? 'Yes' : 'No',
-                item.segment || '',
+                (item.segment && item.segment.length > 0) ? item.segment.join('; ') : '',  // Join array with semicolon
             ]),
         ]
             .map((row) => row.join(','))
@@ -349,8 +349,69 @@ function ZohoItemMaster() {
         { field: 'unit', headerName: 'Unit', width: 100, editable: isAdmin },
         { field: 'status', headerName: 'Status', width: 100, editable: isAdmin },
         { field: 'is_taxable', headerName: 'Taxable', width: 100, editable: isAdmin, type: 'boolean' },
-        { field: 'for_purchase', headerName: 'For Purchase', width: 120, editable: true, type: 'boolean' },
-        { field: 'segment', headerName: 'Segment', width: 150, editable: true, type: 'singleSelect', valueOptions: ['b2b', 'b2c', 'others'] },
+        {
+            field: 'for_purchase',
+            headerName: '✏️ For Purchase',
+            width: 140,
+            editable: true,
+            type: 'boolean',
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'segment',
+            headerName: '✏️ Segment',
+            width: 180,
+            editable: true,
+            headerClassName: 'editable-column-header',
+            renderCell: (params) => {
+                const segments = params.value as string[] | null;
+                return (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {segments && segments.length > 0 ? (
+                            segments.map((seg) => (
+                                <span key={seg} style={{
+                                    backgroundColor: '#e3f2fd',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem'
+                                }}>
+                                    {seg}
+                                </span>
+                            ))
+                        ) : (
+                            <span style={{ color: '#999' }}>-</span>
+                        )}
+                    </Box>
+                );
+            },
+            renderEditCell: (params) => {
+                const currentValue = (params.value as string[] | null) || [];
+                const options = ['b2b', 'b2c', 'others'];
+
+                const handleToggle = (option: string) => {
+                    const newValue = currentValue.includes(option)
+                        ? currentValue.filter(v => v !== option)
+                        : [...currentValue, option];
+                    params.api.setEditCellValue({ id: params.id, field: params.field, value: newValue });
+                };
+
+                return (
+                    <Box sx={{ p: 1 }}>
+                        {options.map((option) => (
+                            <Box key={option} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={currentValue.includes(option)}
+                                    onChange={() => handleToggle(option)}
+                                    style={{ marginRight: '8px' }}
+                                />
+                                <label>{option}</label>
+                            </Box>
+                        ))}
+                    </Box>
+                );
+            }
+        },
     ];
 
     return (
@@ -456,6 +517,13 @@ function ZohoItemMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleItemUpdate}
+                                        editMode="cell"
+                                        sx={{
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
+                                            }
+                                        }}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
