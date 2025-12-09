@@ -311,7 +311,8 @@ from app.routes import (
     wastage_tracking,
     po,
     grn,
-    sales_orders
+    sales_orders,
+    inventory
 )
 from app.routes import settings as settings_router
 
@@ -344,6 +345,7 @@ app.include_router(woo_checkout.router, prefix=f"{settings.API_PREFIX}", tags=["
 # Inventory & Batch Tracking
 app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batches", tags=["Batch Tracking"])
 app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}", tags=["Wastage Tracking"])
+app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory Management"])
 
 # Purchase Orders
 # Purchase Orders
