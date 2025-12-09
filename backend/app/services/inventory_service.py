@@ -489,7 +489,7 @@ async def record_stock_movement(
             
             return {
                 'id': result['id'],
-                **movement.dict(),
+                **movement.model_dump(),
                 'created_by': user_id,
                 'created_at': result['created_at']
             }
