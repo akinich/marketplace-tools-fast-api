@@ -323,6 +323,11 @@ app.include_router(security.router, prefix=f"{settings.API_PREFIX}/security", ta
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
 app.include_router(api_keys.router, prefix=f"{settings.API_PREFIX}/api-keys", tags=["API Keys"])
 
+# Core
+app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
+app.include_router(tickets.router, prefix=f"{settings.API_PREFIX}/tickets", tags=["Tickets"])
+app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settings", tags=["Settings"])
+
 # Communication
 app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram"])
 app.include_router(email.router, prefix=f"{settings.API_PREFIX}/email", tags=["Email"])
