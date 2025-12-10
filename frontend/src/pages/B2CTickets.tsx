@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Container,
@@ -29,6 +28,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Home as B2CIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
+import { ticketsAPI } from '../api';
 
 interface Ticket {
     id: number;
@@ -58,7 +58,6 @@ const statusColors: Record<string, 'default' | 'info' | 'warning' | 'success' | 
 };
 
 export default function B2CTickets() {
-    const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
@@ -80,12 +79,7 @@ export default function B2CTickets() {
 
     const fetchTickets = async () => {
         try {
-            const response = await fetch('/api/tickets?ticket_category=b2c', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-            });
-            const data = await response.json();
+            const data = await ticketsAPI.getTickets({ ticket_category: 'b2c' });
             setTickets(data.tickets || []);
         } catch (error) {
             console.error('Failed to fetch B2C tickets:', error);
@@ -97,35 +91,24 @@ export default function B2CTickets() {
 
     const handleCreateTicket = async () => {
         try {
-            const response = await fetch('/api/tickets', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    ticket_category: 'b2c',
-                }),
+            await ticketsAPI.createTicket({
+                ...formData,
+                ticket_category: 'b2c',
             });
 
-            if (response.ok) {
-                enqueueSnackbar('B2C ticket created successfully', { variant: 'success' });
-                setCreateDialogOpen(false);
-                setFormData({
-                    title: '',
-                    description: '',
-                    ticket_type: 'quality_issue',
-                    customer_name: '',
-                    customer_email: '',
-                    customer_phone: '',
-                    woocommerce_order_id: '',
-                    delivery_date: '',
-                });
-                fetchTickets();
-            } else {
-                throw new Error('Failed to create ticket');
-            }
+            enqueueSnackbar('B2C ticket created successfully', { variant: 'success' });
+            setCreateDialogOpen(false);
+            setFormData({
+                title: '',
+                description: '',
+                ticket_type: 'quality_issue',
+                customer_name: '',
+                customer_email: '',
+                customer_phone: '',
+                woocommerce_order_id: '',
+                delivery_date: '',
+            });
+            fetchTickets();
         } catch (error) {
             console.error('Failed to create B2C ticket:', error);
             enqueueSnackbar('Failed to create B2C ticket', { variant: 'error' });
@@ -187,8 +170,6 @@ export default function B2CTickets() {
                                 <TableRow
                                     key={ticket.id}
                                     hover
-                                    sx={{ cursor: 'pointer' }}
-                                    onClick={() => navigate(`/tickets/${ticket.id}`)}
                                 >
                                     <TableCell>#{ticket.id}</TableCell>
                                     <TableCell>{ticket.title}</TableCell>

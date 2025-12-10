@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Container,
@@ -29,6 +28,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Business as B2BIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
+import { ticketsAPI } from '../api';
 
 interface Ticket {
     id: number;
@@ -57,7 +57,6 @@ const statusColors: Record<string, 'default' | 'info' | 'warning' | 'success' | 
 };
 
 export default function B2BTickets() {
-    const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,12 +76,7 @@ export default function B2BTickets() {
 
     const fetchTickets = async () => {
         try {
-            const response = await fetch('/api/tickets?ticket_category=b2b', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-            });
-            const data = await response.json();
+            const data = await ticketsAPI.getTickets({ ticket_category: 'b2b' });
             setTickets(data.tickets || []);
         } catch (error) {
             console.error('Failed to fetch B2B tickets:', error);
@@ -94,34 +88,23 @@ export default function B2BTickets() {
 
     const handleCreateTicket = async () => {
         try {
-            const response = await fetch('/api/tickets', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    ticket_category: 'b2b',
-                    sales_order_id: formData.sales_order_id ? parseInt(formData.sales_order_id) : null,
-                }),
+            await ticketsAPI.createTicket({
+                ...formData,
+                ticket_category: 'b2b',
+                sales_order_id: formData.sales_order_id ? parseInt(formData.sales_order_id) : null,
             });
 
-            if (response.ok) {
-                enqueueSnackbar('B2B ticket created successfully', { variant: 'success' });
-                setCreateDialogOpen(false);
-                setFormData({
-                    title: '',
-                    description: '',
-                    ticket_type: 'quality_issue',
-                    customer_name: '',
-                    sales_order_id: '',
-                    batch_number: '',
-                });
-                fetchTickets();
-            } else {
-                throw new Error('Failed to create ticket');
-            }
+            enqueueSnackbar('B2B ticket created successfully', { variant: 'success' });
+            setCreateDialogOpen(false);
+            setFormData({
+                title: '',
+                description: '',
+                ticket_type: 'quality_issue',
+                customer_name: '',
+                sales_order_id: '',
+                batch_number: '',
+            });
+            fetchTickets();
         } catch (error) {
             console.error('Failed to create B2B ticket:', error);
             enqueueSnackbar('Failed to create B2B ticket', { variant: 'error' });
@@ -183,8 +166,6 @@ export default function B2BTickets() {
                                 <TableRow
                                     key={ticket.id}
                                     hover
-                                    sx={{ cursor: 'pointer' }}
-                                    onClick={() => navigate(`/tickets/${ticket.id}`)}
                                 >
                                     <TableCell>#{ticket.id}</TableCell>
                                     <TableCell>{ticket.title}</TableCell>
