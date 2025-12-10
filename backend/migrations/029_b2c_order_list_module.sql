@@ -19,7 +19,7 @@ DELETE FROM modules WHERE module_key = 'b2c_orders';
 -- Success message for removal
 DO $$
 BEGIN
-    RAISE NOTICE '🗑️  Removed old B2C Orders module';
+    RAISE NOTICE '🗑️  Removed old B2C Orders module and permissions';
 END $$;
 
 
@@ -29,52 +29,43 @@ END $$;
 
 -- Register B2C Order List module
 INSERT INTO modules (
-    name,
     module_key,
+    module_name,
     description,
     icon,
-    route_path,
     parent_module_id,
-    display_order,
     is_active,
-    created_at,
-    updated_at
-)
-SELECT
-    'B2C Order List',
+    display_order
+) VALUES (
     'b2c_order_list',
+    'B2C Order List',
     'Fetch and view B2C orders from WooCommerce',
     'list_alt',
-    '/b2c-ops/b2c-order-list',
-    p.id,
-    6,
+    (SELECT id FROM modules WHERE module_key = 'b2c_management'),
     true,
-    NOW(),
-    NOW()
-FROM modules p
-WHERE p.module_key = 'b2c_management'
-ON CONFLICT (module_key) DO UPDATE SET
-    name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    icon = EXCLUDED.icon,
-    route_path = EXCLUDED.route_path,
-    parent_module_id = EXCLUDED.parent_module_id,
-    display_order = EXCLUDED.display_order,
-    is_active = EXCLUDED.is_active,
-    updated_at = NOW();
+    6
+) ON CONFLICT (module_key) DO UPDATE SET
+    module_name = 'B2C Order List',
+    description = 'Fetch and view B2C orders from WooCommerce',
+    icon = 'list_alt',
+    parent_module_id = (SELECT id FROM modules WHERE module_key = 'b2c_management'),
+    display_order = 6,
+    is_active = true;
 
--- Grant access to admin user (user_id = 1, everyone can see in UI)
+-- Grant access to all Admin users
 INSERT INTO user_module_permissions (user_id, module_id)
 SELECT 
-    1,
+    up.id,
     m.id
-FROM modules m
-WHERE m.module_key = 'b2c_order_list'
+FROM user_profiles up
+CROSS JOIN modules m
+WHERE up.role_id = (SELECT id FROM roles WHERE role_name = 'Admin')
+  AND m.module_key = 'b2c_order_list'
 ON CONFLICT (user_id, module_id) DO NOTHING;
 
 -- Success message
 DO $$
 BEGIN
     RAISE NOTICE '✅ B2C Order List module registered successfully';
-    RAISE NOTICE '✅ Admin user granted access (no role restrictions)';
+    RAISE NOTICE '✅ Admin users granted access';
 END $$;
