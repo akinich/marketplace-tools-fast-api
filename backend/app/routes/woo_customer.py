@@ -31,7 +31,7 @@ router = APIRouter()
 # CUSTOMER CRUD ENDPOINTS
 # ============================================================================
 
-@router.get("/woo-customers", response_model=WooCustomerListResponse)
+@router.get("/", response_model=WooCustomerListResponse)
 async def list_woo_customers(
     search: Optional[str] = Query(None, description="Search by name, email, or company"),
     paying_only: bool = Query(False, description="Filter paying customers only"),
@@ -61,7 +61,7 @@ async def list_woo_customers(
 # SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/woo-customers/sync")
+@router.post("/sync")
 async def sync_woo_customers(
     sync_request: WooCustomerSyncRequest,
     background_tasks: BackgroundTasks,
@@ -100,7 +100,7 @@ async def sync_woo_customers(
     }
 
 
-@router.get("/woo-customers/sync-progress")
+@router.get("/sync-progress")
 async def get_sync_progress(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -118,7 +118,7 @@ async def get_sync_progress(
 # STATISTICS ENDPOINTS
 # ============================================================================
 
-@router.get("/woo-customers/stats", response_model=WooCustomerStatsResponse)
+@router.get("/stats", response_model=WooCustomerStatsResponse)
 async def get_woo_customer_stats(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -135,7 +135,7 @@ async def get_woo_customer_stats(
 # CUSTOMER DETAIL ENDPOINTS (Must come after specific routes like /sync, /stats)
 # ============================================================================
 
-@router.get("/woo-customers/{customer_id}", response_model=WooCustomerResponse)
+@router.get("/{customer_id}", response_model=WooCustomerResponse)
 async def get_woo_customer(
     customer_id: int,
     current_user: CurrentUser = Depends(get_current_user)
@@ -156,7 +156,7 @@ async def get_woo_customer(
     return customer
 
 
-@router.patch("/woo-customers/{customer_id}", response_model=WooCustomerResponse)
+@router.patch("/{customer_id}", response_model=WooCustomerResponse)
 async def update_woo_customer(
     customer_id: int,
     customer_data: WooCustomerUpdate,

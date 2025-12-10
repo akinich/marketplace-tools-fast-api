@@ -343,20 +343,21 @@ app.include_router(b2c_ops.router, prefix=f"{settings.API_PREFIX}/b2c-ops", tags
 app.include_router(woo_checkout.router, prefix=f"{settings.API_PREFIX}/woo-checkout", tags=["WooCommerce Checkout"])
 
 # Zoho Integration
-app.include_router(zoho_item.router, prefix=f"{settings.API_PREFIX}/zoho-item", tags=["Zoho Items"])
-app.include_router(zoho_vendor.router, prefix=f"{settings.API_PREFIX}/zoho-vendor", tags=["Zoho Vendors"])
-app.include_router(zoho_customer.router, prefix=f"{settings.API_PREFIX}/zoho-customer", tags=["Zoho Customers"])
+app.include_router(zoho_item.router, prefix=f"{settings.API_PREFIX}/zoho-items", tags=["Zoho Items"])
+app.include_router(zoho_vendor.router, prefix=f"{settings.API_PREFIX}/zoho-vendors", tags=["Zoho Vendors"])
+app.include_router(zoho_customer.router, prefix=f"{settings.API_PREFIX}/zoho-customers", tags=["Zoho Customers"])
 
 # WooCommerce Integration
-app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}/woo-customer", tags=["WooCommerce Customers"])
+app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}/woo-customers", tags=["WooCommerce Customers"])
 app.include_router(woo_to_zoho.router, prefix=f"{settings.API_PREFIX}/woo-to-zoho", tags=["WooCommerce to Zoho"])
-app.include_router(product.router, prefix=f"{settings.API_PREFIX}/product", tags=["Products"])
+app.include_router(product.router, prefix=f"{settings.API_PREFIX}/products", tags=["Products"])
 app.include_router(stock_price.router, prefix=f"{settings.API_PREFIX}/stock-price", tags=["Stock & Pricing"])
 
 # Inventory Management
 app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batch-tracking", tags=["Batch Tracking"])
 app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}/wastage-tracking", tags=["Wastage Tracking"])
 app.include_router(po.router, prefix=f"{settings.API_PREFIX}/purchase-orders", tags=["Purchase Orders"])
+app.include_router(po.router, prefix=f"{settings.API_PREFIX}", tags=["Vendor Pricing"])  # For vendor-pricing routes
 app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["Goods Receipt Note"])
 app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
 

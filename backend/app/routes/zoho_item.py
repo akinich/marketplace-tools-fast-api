@@ -31,7 +31,7 @@ router = APIRouter()
 # ZOHO ITEM CRUD ENDPOINTS
 # ============================================================================
 
-@router.get("/zoho-items", response_model=ZohoItemListResponse)
+@router.get("/", response_model=ZohoItemListResponse)
 async def list_zoho_items(
     search: Optional[str] = Query(None, description="Search by item name, SKU, or HSN/SAC"),
     active_only: bool = Query(True, description="Filter active items only"),
@@ -65,7 +65,7 @@ async def list_zoho_items(
 # ZOHO BOOKS SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/zoho-items/sync")
+@router.post("/sync")
 async def sync_zoho_items(
     sync_request: ZohoSyncRequest,
     background_tasks: BackgroundTasks,
@@ -105,7 +105,7 @@ async def sync_zoho_items(
     }
 
 
-@router.get("/zoho-items/sync-progress")
+@router.get("/sync-progress")
 async def get_sync_progress(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -123,7 +123,7 @@ async def get_sync_progress(
 # STATISTICS ENDPOINTS
 # ============================================================================
 
-@router.get("/zoho-items/stats", response_model=ZohoItemStatsResponse)
+@router.get("/stats", response_model=ZohoItemStatsResponse)
 async def get_zoho_item_stats(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -140,7 +140,7 @@ async def get_zoho_item_stats(
 # ZOHO ITEM DETAIL ENDPOINTS (Must come after specific routes like /sync, /stats)
 # ============================================================================
 
-@router.get("/zoho-items/{item_id}", response_model=ZohoItemResponse)
+@router.get("/{item_id}", response_model=ZohoItemResponse)
 async def get_zoho_item(
     item_id: int,
     current_user: CurrentUser = Depends(get_current_user)
@@ -161,7 +161,7 @@ async def get_zoho_item(
     return item
 
 
-@router.patch("/zoho-items/{item_id}", response_model=ZohoItemResponse)
+@router.patch("/{item_id}", response_model=ZohoItemResponse)
 async def update_zoho_item(
     item_id: int,
     item_data: ZohoItemUpdate,
