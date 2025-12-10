@@ -253,9 +253,28 @@ class B2COrdersService:
             LIMIT ${param_count} OFFSET ${param_count + 1}
         """
         
+        
         params.extend([limit, offset])
         rows = await fetch_all(query, *params)
-        return [dict(row) for row in rows]
+        
+        # Parse JSON strings to actual objects
+        orders = []
+        for row in rows:
+            order_dict = dict(row)
+            
+            # Parse billing and shipping from JSON strings to dicts
+            if isinstance(order_dict.get('billing'), str):
+                order_dict['billing'] = json.loads(order_dict['billing'])
+            if isinstance(order_dict.get('shipping'), str):
+                order_dict['shipping'] = json.loads(order_dict['shipping'])
+            
+            # Parse line_items from JSON string to array
+            if isinstance(order_dict.get('line_items'), str):
+                order_dict['line_items'] = json.loads(order_dict['line_items'])
+            
+            orders.append(order_dict)
+        
+        return orders
 
     @staticmethod
     async def count_orders(status: Optional[str] = None) -> int:
