@@ -22,9 +22,6 @@ import {
     Paper,
     Alert,
     CircularProgress,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     FormControl,
     InputLabel,
     Select,
@@ -34,7 +31,6 @@ import {
 import {
     Search as SearchIcon,
     Download as DownloadIcon,
-    ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
@@ -137,7 +133,7 @@ export default function B2COrderList() {
 
             const transformedOrders = response.data.orders.map(transformDatabaseOrder);
             setOrders(transformedOrders);
-            setSelectedOrders(transformedOrders.map((o: OrderRow) => o.id));
+            setSelectedOrders([]); // Don't auto-select all
         } catch (error: any) {
             console.error('Error loading orders from database:', error);
         } finally {
@@ -446,35 +442,7 @@ export default function B2COrderList() {
                 </Paper>
             )}
 
-            {/* Help Section */}
-            <Accordion sx={{ mt: 3 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography>ℹ️ Help & Instructions</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Typography variant="body2" component="div">
-                        <strong>How to use Order Extractor:</strong>
-                        <ol>
-                            <li><strong>Select Date Range</strong>: Choose start and end dates (max 31 days)</li>
-                            <li><strong>Fetch Orders</strong>: Click to retrieve orders from WooCommerce</li>
-                            <li><strong>Review Orders</strong>: Check the order list and select which ones to download</li>
-                            <li><strong>Download Excel</strong>: Export selected orders to Excel with two sheets:
-                                <ul>
-                                    <li><strong>Orders Sheet</strong>: Customer details and order information</li>
-                                    <li><strong>Item Summary Sheet</strong>: Aggregated item quantities</li>
-                                </ul>
-                            </li>
-                        </ol>
 
-                        <strong>Troubleshooting:</strong>
-                        <ul>
-                            <li><strong>No orders found</strong>: Check date range and WooCommerce order dates</li>
-                            <li><strong>API errors</strong>: Contact admin to verify WooCommerce API credentials</li>
-                            <li><strong>Timeout</strong>: Try a shorter date range (fewer orders)</li>
-                        </ul>
-                    </Typography>
-                </AccordionDetails>
-            </Accordion>
         </Box>
     );
 }
