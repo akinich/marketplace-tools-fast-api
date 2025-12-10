@@ -25,6 +25,9 @@ import {
     MenuItem,
     CircularProgress,
     Alert,
+    Grid,
+    Card,
+    CardContent,
 } from '@mui/material';
 import { Add as AddIcon, Business as B2BIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
@@ -33,12 +36,24 @@ import { ticketsAPI } from '../api';
 interface Ticket {
     id: number;
     title: string;
+    description: string;
     ticket_type: string;
     status: string;
     priority: string | null;
     customer_name: string | null;
+    sales_order_id: number | null;
+    invoice_id: number | null;
     batch_number: string | null;
     created_at: string;
+    updated_at: string;
+}
+
+interface TicketStats {
+    total: number;
+    open: number;
+    in_progress: number;
+    resolved: number;
+    closed: number;
 }
 
 const ticketTypes = [
@@ -59,14 +74,18 @@ const statusColors: Record<string, 'default' | 'info' | 'warning' | 'success' | 
 export default function B2BTickets() {
     const { enqueueSnackbar } = useSnackbar();
     const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [stats, setStats] = useState<TicketStats>({ total: 0, open: 0, in_progress: 0, resolved: 0, closed: 0 });
     const [loading, setLoading] = useState(true);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [viewDialogOpen, setViewDialogOpen] = useState(false);
+    const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
         ticket_type: 'quality_issue',
         customer_name: '',
         sales_order_id: '',
+        invoice_id: '',
         batch_number: '',
     });
 
@@ -74,10 +93,22 @@ export default function B2BTickets() {
         fetchTickets();
     }, []);
 
+    const calculateStats = (ticketList: Ticket[]): TicketStats => {
+        return {
+            total: ticketList.length,
+            open: ticketList.filter(t => t.status === 'open').length,
+            in_progress: ticketList.filter(t => t.status === 'in_progress').length,
+            resolved: ticketList.filter(t => t.status === 'resolved').length,
+            closed: ticketList.filter(t => t.status === 'closed').length,
+        };
+    };
+
     const fetchTickets = async () => {
         try {
             const data = await ticketsAPI.getTickets({ ticket_category: 'b2b' });
-            setTickets(data.tickets || []);
+            const ticketList = data.tickets || [];
+            setTickets(ticketList);
+            setStats(calculateStats(ticketList));
         } catch (error) {
             console.error('Failed to fetch B2B tickets:', error);
             enqueueSnackbar('Failed to load B2B tickets', { variant: 'error' });
@@ -86,12 +117,18 @@ export default function B2BTickets() {
         }
     };
 
+    const handleViewTicket = (ticket: Ticket) => {
+        setSelectedTicket(ticket);
+        setViewDialogOpen(true);
+    };
+
     const handleCreateTicket = async () => {
         try {
             await ticketsAPI.createTicket({
                 ...formData,
                 ticket_category: 'b2b',
                 sales_order_id: formData.sales_order_id ? parseInt(formData.sales_order_id) : null,
+                invoice_id: formData.invoice_id ? parseInt(formData.invoice_id) : null,
             });
 
             enqueueSnackbar('B2B ticket created successfully', { variant: 'success' });
@@ -102,6 +139,7 @@ export default function B2BTickets() {
                 ticket_type: 'quality_issue',
                 customer_name: '',
                 sales_order_id: '',
+                invoice_id: '',
                 batch_number: '',
             });
             fetchTickets();
@@ -142,6 +180,71 @@ export default function B2BTickets() {
                 </Button>
             </Box>
 
+            {/* Stats Cards */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <Card>
+                        <CardContent>
+                            <Typography color="text.secondary" gutterBottom variant="body2">
+                                TOTAL
+                            </Typography>
+                            <Typography variant="h4">
+                                {stats.total}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <Card sx={{ bgcolor: '#e3f2fd' }}>
+                        <CardContent>
+                            <Typography color="text.secondary" gutterBottom variant="body2">
+                                OPEN
+                            </Typography>
+                            <Typography variant="h4" color="primary">
+                                {stats.open}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <Card sx={{ bgcolor: '#fff3e0' }}>
+                        <CardContent>
+                            <Typography color="text.secondary" gutterBottom variant="body2">
+                                IN PROGRESS
+                            </Typography>
+                            <Typography variant="h4" color="warning.main">
+                                {stats.in_progress}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <Card sx={{ bgcolor: '#e8f5e9' }}>
+                        <CardContent>
+                            <Typography color="text.secondary" gutterBottom variant="body2">
+                                RESOLVED
+                            </Typography>
+                            <Typography variant="h4" color="success.main">
+                                {stats.resolved}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2.4}>
+                    <Card>
+                        <CardContent>
+                            <Typography color="text.secondary" gutterBottom variant="body2">
+                                CLOSED
+                            </Typography>
+                            <Typography variant="h4">
+                                {stats.closed}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+
             {tickets.length === 0 ? (
                 <Alert severity="info">
                     No B2B tickets found. Click "Create B2B Ticket" to create your first one.
@@ -166,6 +269,8 @@ export default function B2BTickets() {
                                 <TableRow
                                     key={ticket.id}
                                     hover
+                                    sx={{ cursor: 'pointer' }}
+                                    onClick={() => handleViewTicket(ticket)}
                                 >
                                     <TableCell>#{ticket.id}</TableCell>
                                     <TableCell>{ticket.title}</TableCell>
@@ -234,17 +339,27 @@ export default function B2BTickets() {
                             ))}
                         </TextField>
                         <TextField
-                            label="Customer Name"
+                            label="Customer Name *"
                             value={formData.customer_name}
                             onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                            required
                             fullWidth
                         />
                         <TextField
-                            label="Sales Order ID (optional)"
+                            label="Sales Order ID"
                             value={formData.sales_order_id}
                             onChange={(e) => setFormData({ ...formData, sales_order_id: e.target.value })}
                             type="number"
                             fullWidth
+                            helperText="Enter either Sales Order ID or Invoice ID"
+                        />
+                        <TextField
+                            label="Invoice ID"
+                            value={formData.invoice_id}
+                            onChange={(e) => setFormData({ ...formData, invoice_id: e.target.value })}
+                            type="number"
+                            fullWidth
+                            helperText="Enter either Sales Order ID or Invoice ID"
                         />
                         <TextField
                             label="Batch Number (optional)"
@@ -260,10 +375,76 @@ export default function B2BTickets() {
                     <Button
                         onClick={handleCreateTicket}
                         variant="contained"
-                        disabled={!formData.title || !formData.description}
+                        disabled={!formData.title || !formData.description || !formData.customer_name || (!formData.sales_order_id && !formData.invoice_id)}
                     >
                         Create Ticket
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* View Ticket Dialog */}
+            <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>B2B Ticket Details</DialogTitle>
+                <DialogContent>
+                    {selectedTicket && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary">Ticket ID</Typography>
+                                <Typography variant="body1">#{selectedTicket.id}</Typography>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary">Title</Typography>
+                                <Typography variant="body1">{selectedTicket.title}</Typography>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary">Description</Typography>
+                                <Typography variant="body1">{selectedTicket.description}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" color="text.secondary">Type</Typography>
+                                    <Typography variant="body1">
+                                        {ticketTypes.find(t => t.value === selectedTicket.ticket_type)?.label || selectedTicket.ticket_type}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                                    <Chip label={selectedTicket.status.replace('_', ' ')} color={statusColors[selectedTicket.status]} size="small" />
+                                </Box>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary">Customer Name</Typography>
+                                <Typography variant="body1">{selectedTicket.customer_name || '-'}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" color="text.secondary">Sales Order ID</Typography>
+                                    <Typography variant="body1">{selectedTicket.sales_order_id || '-'}</Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" color="text.secondary">Invoice ID</Typography>
+                                    <Typography variant="body1">{selectedTicket.invoice_id || '-'}</Typography>
+                                </Box>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary">Batch Number</Typography>
+                                <Typography variant="body1">{selectedTicket.batch_number || '-'}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" color="text.secondary">Created At</Typography>
+                                    <Typography variant="body1">{new Date(selectedTicket.created_at).toLocaleString()}</Typography>
+                                </Box>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" color="text.secondary">Updated At</Typography>
+                                    <Typography variant="body1">{new Date(selectedTicket.updated_at).toLocaleString()}</Typography>
+                                </Box>
+                            </Box>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
         </Container>
