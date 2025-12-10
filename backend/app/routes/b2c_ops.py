@@ -50,7 +50,8 @@ from app.database import fetch_one, execute_query
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/b2c-ops", tags=["B2C Operations"])
+# Initialize router (prefix added in main.py)
+router = APIRouter(tags=["B2C Operations"])
 
 
 # ============================================================================
