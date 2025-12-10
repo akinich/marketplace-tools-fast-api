@@ -61,7 +61,7 @@ class OrderResponse(BaseModel):
     shipping: Dict[str, Any]
     last_synced_at: datetime
     sync_source: str
-    line_items: Optional[List[OrderItemResponse]] = []
+    line_items: List[Dict[str, Any]] = []
 
 
 class OrderListResponse(BaseModel):
