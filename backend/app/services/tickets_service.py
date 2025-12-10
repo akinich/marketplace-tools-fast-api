@@ -257,6 +257,18 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
     Create a new ticket. Any user can create tickets.
     Priority is not set at creation - only admins can set it later.
     """
+    # Convert delivery_date string to date object if provided
+    delivery_date_obj = None
+    if request.delivery_date:
+        try:
+            from datetime import datetime
+            # Parse the date string (format: YYYY-MM-DD)
+            delivery_date_obj = datetime.strptime(request.delivery_date, "%Y-%m-%d").date()
+        except (ValueError, AttributeError):
+            # If parsing fails, leave as None
+            logger.warning(f"Invalid delivery_date format: {request.delivery_date}")
+            delivery_date_obj = None
+    
     insert_query = """
         INSERT INTO tickets (
             title,
@@ -294,7 +306,7 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
         request.sales_order_id,
         request.invoice_id,
         request.batch_number,
-        request.delivery_date,
+        delivery_date_obj,  # Use the converted date object
         request.photo_urls
     )
 
