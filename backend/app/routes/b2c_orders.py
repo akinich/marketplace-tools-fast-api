@@ -35,7 +35,7 @@ router = APIRouter()
 
 @router.get("", response_model=OrderListResponse)
 async def list_orders(
-    status: Optional[str] = Query(None, description="Filter by order status"),
+    order_status: Optional[str] = Query(None, description="Filter by order status", alias="status"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(25, ge=1, le=100, description="Items per page"),
     current_user: CurrentUser = Depends(get_current_user)
@@ -51,12 +51,12 @@ async def list_orders(
         offset = (page - 1) * limit
         
         orders = await B2COrdersService.get_orders(
-            status=status,
+            status=order_status,
             limit=limit,
             offset=offset
         )
         
-        total = await B2COrdersService.count_orders(status=status)
+        total = await B2COrdersService.count_orders(status=order_status)
         
         return OrderListResponse(
             orders=orders,
