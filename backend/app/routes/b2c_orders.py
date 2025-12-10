@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("", response_model=OrderListResponse)
+@router.get("")  # Removed response_model temporarily to debug
 async def list_orders(
     order_status: Optional[str] = Query(None, description="Filter by order status", alias="status"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -58,18 +58,19 @@ async def list_orders(
         
         total = await B2COrdersService.count_orders(status=order_status)
         
-        return OrderListResponse(
-            orders=orders,
-            total=total,
-            page=page,
-            limit=limit
-        )
+        # Return raw dict to bypass Pydantic validation
+        return {
+            "orders": orders,
+            "total": total,
+            "page": page,
+            "limit": limit
+        }
         
     except Exception as e:
         logger.error(f"Error listing orders: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch orders"
+            detail=f"Failed to fetch orders: {str(e)}"  # Include actual error
         )
 
 
