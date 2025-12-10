@@ -326,7 +326,7 @@ export default function TicketsModule() {
             Tickets
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage support tickets across Internal, B2B, and B2C categories
+            Manage internal support tickets for ERP issues and features
           </Typography>
         </Box>
         <Button

@@ -28,8 +28,13 @@ import {
     Grid,
     Card,
     CardContent,
+    FormControl,
+    InputLabel,
+    Select,
+    IconButton,
+    SelectChangeEvent,
 } from '@mui/material';
-import { Add as AddIcon, Business as B2BIcon } from '@mui/icons-material';
+import { Add as AddIcon, Business as B2BIcon, Visibility as ViewIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { ticketsAPI } from '../api';
 
@@ -88,10 +93,13 @@ export default function B2BTickets() {
         invoice_id: '',
         batch_number: '',
     });
+    const [typeFilter, setTypeFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [priorityFilter, setPriorityFilter] = useState('');
 
     useEffect(() => {
         fetchTickets();
-    }, []);
+    }, [typeFilter, statusFilter, priorityFilter]);
 
     const calculateStats = (ticketList: Ticket[]): TicketStats => {
         return {
@@ -105,7 +113,12 @@ export default function B2BTickets() {
 
     const fetchTickets = async () => {
         try {
-            const data = await ticketsAPI.getTickets({ ticket_category: 'b2b' });
+            const params: any = { ticket_category: 'b2b' };
+            if (typeFilter) params.ticket_type = typeFilter;
+            if (statusFilter) params.status = statusFilter;
+            if (priorityFilter) params.priority = priorityFilter;
+
+            const data = await ticketsAPI.getTickets(params);
             const ticketList = data.tickets || [];
             setTickets(ticketList);
             setStats(calculateStats(ticketList));
@@ -244,6 +257,61 @@ export default function B2BTickets() {
                 </Grid>
             </Grid>
 
+            {/* Filters */}
+            <Card sx={{ mb: 3, p: 2 }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={4}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Type</InputLabel>
+                            <Select
+                                value={typeFilter}
+                                onChange={(e: SelectChangeEvent) => setTypeFilter(e.target.value)}
+                                label="Type"
+                            >
+                                <MenuItem value="">All Types</MenuItem>
+                                {ticketTypes.map((type) => (
+                                    <MenuItem key={type.value} value={type.value}>
+                                        {type.label}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Status</InputLabel>
+                            <Select
+                                value={statusFilter}
+                                onChange={(e: SelectChangeEvent) => setStatusFilter(e.target.value)}
+                                label="Status"
+                            >
+                                <MenuItem value="">All Statuses</MenuItem>
+                                <MenuItem value="open">Open</MenuItem>
+                                <MenuItem value="in_progress">In Progress</MenuItem>
+                                <MenuItem value="resolved">Resolved</MenuItem>
+                                <MenuItem value="closed">Closed</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Priority</InputLabel>
+                            <Select
+                                value={priorityFilter}
+                                onChange={(e: SelectChangeEvent) => setPriorityFilter(e.target.value)}
+                                label="Priority"
+                            >
+                                <MenuItem value="">All Priorities</MenuItem>
+                                <MenuItem value="low">Low</MenuItem>
+                                <MenuItem value="medium">Medium</MenuItem>
+                                <MenuItem value="high">High</MenuItem>
+                                <MenuItem value="critical">Critical</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                </Grid>
+            </Card>
+
 
             {tickets.length === 0 ? (
                 <Alert severity="info">
@@ -262,6 +330,7 @@ export default function B2BTickets() {
                                 <TableCell>Status</TableCell>
                                 <TableCell>Priority</TableCell>
                                 <TableCell>Created</TableCell>
+                                <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -269,8 +338,6 @@ export default function B2BTickets() {
                                 <TableRow
                                     key={ticket.id}
                                     hover
-                                    sx={{ cursor: 'pointer' }}
-                                    onClick={() => handleViewTicket(ticket)}
                                 >
                                     <TableCell>#{ticket.id}</TableCell>
                                     <TableCell>{ticket.title}</TableCell>
@@ -288,13 +355,31 @@ export default function B2BTickets() {
                                     </TableCell>
                                     <TableCell>
                                         {ticket.priority ? (
-                                            <Chip label={ticket.priority} size="small" />
+                                            <Chip
+                                                label={ticket.priority}
+                                                size="small"
+                                                color={
+                                                    ticket.priority === 'critical' ? 'error' :
+                                                        ticket.priority === 'high' ? 'warning' :
+                                                            ticket.priority === 'medium' ? 'info' :
+                                                                'default'
+                                                }
+                                            />
                                         ) : (
-                                            '-'
+                                            <Chip label="Unassigned" size="small" />
                                         )}
                                     </TableCell>
                                     <TableCell>
                                         {new Date(ticket.created_at).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        <IconButton
+                                            size="small"
+                                            color="primary"
+                                            onClick={() => handleViewTicket(ticket)}
+                                        >
+                                            <ViewIcon />
+                                        </IconButton>
                                     </TableCell>
                                 </TableRow>
                             ))}
