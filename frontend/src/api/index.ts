@@ -186,6 +186,11 @@ export const ticketsAPI = {
         return response.data;
     },
 
+    getDashboardStats: async (): Promise<any> => {
+        const response = await apiClient.get('/tickets/dashboard-stats');
+        return response.data;
+    },
+
     getTicket: async (ticketId: string | number): Promise<any> => {
         const response = await apiClient.get(`/tickets/${ticketId}`);
         return response.data;

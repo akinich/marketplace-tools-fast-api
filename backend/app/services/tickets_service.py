@@ -872,65 +872,6 @@ async def get_ticket_stats() -> Dict:
     }
 
 
-async def get_dashboard_stats() -> Dict:
-    """
-    Get dashboard statistics broken down by category (Internal/B2B/B2C).
-    Returns status breakdown for each category plus overall totals.
-    """
-    # Get stats for each category
-    dashboard_query = """
-        SELECT
-            ticket_category,
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE status = 'open') as open,
-            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
-            COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
-            COUNT(*) FILTER (WHERE status = 'closed') as closed
-        FROM tickets
-        GROUP BY ticket_category
-    """
-    category_stats = await fetch_all(dashboard_query)
-
-    # Initialize category data
-    internal_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
-    b2b_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
-    b2c_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
-
-    # Fill in category data
-    for row in category_stats:
-        category = row["ticket_category"]
-        stats = {
-            "total": row["total"],
-            "open": row["open"],
-            "in_progress": row["in_progress"],
-            "resolved": row["resolved"],
-            "closed": row["closed"],
-        }
-
-        if category == "internal":
-            internal_stats = stats
-        elif category == "b2b":
-            b2b_stats = stats
-        elif category == "b2c":
-            b2c_stats = stats
-
-    # Calculate total across all categories
-    total_across_categories = {
-        "total": internal_stats["total"] + b2b_stats["total"] + b2c_stats["total"],
-        "open": internal_stats["open"] + b2b_stats["open"] + b2c_stats["open"],
-        "in_progress": internal_stats["in_progress"] + b2b_stats["in_progress"] + b2c_stats["in_progress"],
-        "resolved": internal_stats["resolved"] + b2b_stats["resolved"] + b2c_stats["resolved"],
-        "closed": internal_stats["closed"] + b2b_stats["closed"] + b2c_stats["closed"],
-    }
-
-    return {
-        "internal": internal_stats,
-        "b2b": b2b_stats,
-        "b2c": b2c_stats,
-        "total_across_categories": total_across_categories,
-    }
-
-
 async def get_my_tickets(
     user_id: str,
     ticket_status: Optional[TicketStatus] = None,
