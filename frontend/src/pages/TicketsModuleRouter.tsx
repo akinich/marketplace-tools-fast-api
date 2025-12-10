@@ -26,19 +26,18 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import TicketsDashboard from './TicketsDashboard';
+import TicketsModule from './TicketsModule';
 import B2BTickets from './B2BTickets';
 import B2CTickets from './B2CTickets';
-// Internal tickets will use the existing TicketsModule component
 
 export default function TicketsModuleRouter() {
     return (
         <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<TicketsDashboard />} />
+            <Route path="internal" element={<TicketsModule />} />
             <Route path="b2b" element={<B2BTickets />} />
             <Route path="b2c" element={<B2CTickets />} />
-            {/* Internal tickets route - for now redirects to root tickets */}
-            <Route path="internal" element={<Navigate to="/tickets" replace />} />
         </Routes>
     );
 }
