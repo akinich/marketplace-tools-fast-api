@@ -12,7 +12,7 @@
  * ============================================================================
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box,
@@ -27,7 +27,6 @@ import {
     FormControl,
     InputLabel,
     Chip,
-    IconButton,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -185,8 +184,8 @@ export default function TicketDetailPage() {
     });
     const [closeComment, setCloseComment] = useState('');
 
-    // Fetch ticket
-    const fetchTicket = async () => {
+    // Fetch ticket with useCallback to avoid dependency issues
+    const fetchTicket = useCallback(async () => {
         if (!id) return;
 
         setLoading(true);
@@ -203,11 +202,11 @@ export default function TicketDetailPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, enqueueSnackbar, navigate]);
 
     useEffect(() => {
         fetchTicket();
-    }, [id]);
+    }, [fetchTicket]);
 
     // Add comment
     const handleAddComment = async () => {
@@ -734,4 +733,3 @@ export default function TicketDetailPage() {
         </Box>
     );
 }
-"
