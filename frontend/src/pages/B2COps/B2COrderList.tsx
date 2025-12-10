@@ -131,7 +131,7 @@ export default function B2COrderList() {
         try {
             setInitialLoading(true);
             const response = await axios.get(
-                `${API_BASE_URL}/b2c-orders?page=1&limit=100`,
+                `${API_BASE_URL}/api/v1/b2c-orders?page=1&limit=100`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
 
@@ -245,7 +245,7 @@ export default function B2COrderList() {
             // Save to database
             setFetchProgress({ current: 95, total: 100, estimatedTime: 1 });
             const saveResponse = await axios.post(
-                `${API_BASE_URL}/b2c-orders/save`,
+                `${API_BASE_URL}/api/v1/b2c-orders/save`,
                 { orders: response.orders },
                 { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
             );
