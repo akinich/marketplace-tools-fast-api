@@ -283,7 +283,7 @@ export default function B2CTickets() {
                                     <TableCell>
                                         <Chip
                                             label={ticket.status.replace('_', ' ')}
-                                            color={statusColors[ticket.status]}
+                                            color={statusColors[ticket.status] || 'default'}
                                             size="small"
                                         />
                                     </TableCell>
@@ -416,7 +416,7 @@ export default function B2CTickets() {
                                 </Box>
                                 <Box sx={{ flex: 1 }}>
                                     <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-                                    <Chip label={selectedTicket.status.replace('_', ' ')} color={statusColors[selectedTicket.status]} size="small" />
+                                    <Chip label={selectedTicket.status.replace('_', ' ')} color={statusColors[selectedTicket.status] || 'default'} size="small" />
                                 </Box>
                             </Box>
                             <Box>
