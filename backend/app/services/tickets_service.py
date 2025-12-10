@@ -928,4 +928,18 @@ async def get_dashboard_stats() -> Dict:
                 "closed": row["closed"],
             }
     
-    return stats
+    # Calculate total across all categories
+    total_across_categories = {
+        "total": stats["internal"]["total"] + stats["b2b"]["total"] + stats["b2c"]["total"],
+        "open": stats["internal"]["open"] + stats["b2b"]["open"] + stats["b2c"]["open"],
+        "in_progress": stats["internal"]["in_progress"] + stats["b2b"]["in_progress"] + stats["b2c"]["in_progress"],
+        "resolved": stats["internal"]["resolved"] + stats["b2b"]["resolved"] + stats["b2c"]["resolved"],
+        "closed": stats["internal"]["closed"] + stats["b2b"]["closed"] + stats["b2c"]["closed"],
+    }
+    
+    return {
+        "internal": stats["internal"],
+        "b2b": stats["b2b"],
+        "b2c": stats["b2c"],
+        "total_across_categories": total_across_categories,
+    }
