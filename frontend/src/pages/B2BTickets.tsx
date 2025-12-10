@@ -3,7 +3,8 @@
  * Full ticket list and creation for B2B customer issues
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Container,
@@ -77,13 +78,12 @@ const statusColors: Record<string, 'default' | 'info' | 'warning' | 'success' | 
 };
 
 export default function B2BTickets() {
+    const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [stats, setStats] = useState<TicketStats>({ total: 0, open: 0, in_progress: 0, resolved: 0, closed: 0 });
     const [loading, setLoading] = useState(true);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
-    const [viewDialogOpen, setViewDialogOpen] = useState(false);
-    const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -131,8 +131,7 @@ export default function B2BTickets() {
     };
 
     const handleViewTicket = (ticket: Ticket) => {
-        setSelectedTicket(ticket);
-        setViewDialogOpen(true);
+        navigate(`/tickets/${ticket.id}`);
     };
 
     const handleCreateTicket = async () => {
@@ -466,72 +465,6 @@ export default function B2BTickets() {
                     </Button>
                 </DialogActions>
             </Dialog>
-
-            {/* View Ticket Dialog */}
-            <Dialog open={viewDialogOpen} onClose={() => setViewDialogOpen(false)} maxWidth="md" fullWidth>
-                <DialogTitle>B2B Ticket Details</DialogTitle>
-                <DialogContent>
-                    {selectedTicket && (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                            <Box>
-                                <Typography variant="subtitle2" color="text.secondary">Ticket ID</Typography>
-                                <Typography variant="body1">#{selectedTicket.id}</Typography>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2" color="text.secondary">Title</Typography>
-                                <Typography variant="body1">{selectedTicket.title}</Typography>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2" color="text.secondary">Description</Typography>
-                                <Typography variant="body1">{selectedTicket.description}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">Type</Typography>
-                                    <Typography variant="body1">
-                                        {ticketTypes.find(t => t.value === selectedTicket.ticket_type)?.label || selectedTicket.ticket_type}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-                                    <Chip label={selectedTicket.status.replace('_', ' ')} color={statusColors[selectedTicket.status] || 'default'} size="small" />
-                                </Box>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2" color="text.secondary">Customer Name</Typography>
-                                <Typography variant="body1">{selectedTicket.customer_name || '-'}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">Sales Order ID</Typography>
-                                    <Typography variant="body1">{selectedTicket.sales_order_id || '-'}</Typography>
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">Invoice ID</Typography>
-                                    <Typography variant="body1">{selectedTicket.invoice_id || '-'}</Typography>
-                                </Box>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2" color="text.secondary">Batch Number</Typography>
-                                <Typography variant="body1">{selectedTicket.batch_number || '-'}</Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">Created At</Typography>
-                                    <Typography variant="body1">{new Date(selectedTicket.created_at).toLocaleString()}</Typography>
-                                </Box>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle2" color="text.secondary">Updated At</Typography>
-                                    <Typography variant="body1">{new Date(selectedTicket.updated_at).toLocaleString()}</Typography>
-                                </Box>
-                            </Box>
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
-                </DialogActions>
-            </Dialog>
-        </Container>
+        </Container >
     );
 }

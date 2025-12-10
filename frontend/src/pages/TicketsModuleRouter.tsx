@@ -29,6 +29,7 @@ import TicketsDashboard from './TicketsDashboard';
 import TicketsModule from './TicketsModule';
 import B2BTickets from './B2BTickets';
 import B2CTickets from './B2CTickets';
+import TicketDetailPage from './TicketDetailPage';
 
 export default function TicketsModuleRouter() {
     return (
@@ -38,6 +39,7 @@ export default function TicketsModuleRouter() {
             <Route path="internal" element={<TicketsModule />} />
             <Route path="b2b" element={<B2BTickets />} />
             <Route path="b2c" element={<B2CTickets />} />
+            <Route path=":id" element={<TicketDetailPage />} />
         </Routes>
     );
 }
