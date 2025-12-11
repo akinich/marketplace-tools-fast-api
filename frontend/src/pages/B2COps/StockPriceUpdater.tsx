@@ -25,7 +25,8 @@ import {
     GridToolbarFilterButton,
     GridToolbarQuickFilter,
     GridColDef,
-    GridRenderCellParams
+    GridRenderCellParams,
+    useGridApiRef
 } from '@mui/x-data-grid';
 import {
     Refresh as RefreshIcon,
@@ -36,6 +37,8 @@ import {
     LockOpen as LockOpenIcon,
     Restore as RestoreIcon,
     Visibility as VisibilityIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import stockPriceAPI from '../../api/stockPrice';
@@ -89,10 +92,12 @@ interface UploadResult {
 }
 
 function StockPriceUpdater() {
+    const apiRef = useGridApiRef();
     const { enqueueSnackbar } = useSnackbar();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Product lists
     const [updatableProducts, setUpdatableProducts] = useState<Product[]>([]);
@@ -354,9 +359,9 @@ function StockPriceUpdater() {
             { field: 'stock_quantity', headerName: 'Current Stock', width: 120, type: 'number' },
             { field: 'regular_price', headerName: 'Current Regular Price', width: 150, type: 'number' },
             { field: 'sale_price', headerName: 'Current Sale Price', width: 150, type: 'number' },
-            { field: 'updated_stock', headerName: 'New Stock', width: 120, type: 'number', editable: true },
-            { field: 'updated_regular_price', headerName: 'New Regular Price', width: 150, type: 'number', editable: true },
-            { field: 'updated_sale_price', headerName: 'New Sale Price', width: 150, type: 'number', editable: true },
+            { field: 'updated_stock', headerName: '✏️ New Stock', width: 120, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'updated_regular_price', headerName: '✏️ New Regular Price', width: 150, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'updated_sale_price', headerName: '✏️ New Sale Price', width: 150, type: 'number', editable: true, headerClassName: 'editable-column-header' },
         ];
 
         return (
@@ -403,16 +408,34 @@ function StockPriceUpdater() {
                 </Typography>
 
                 <DataGrid
+                    apiRef={apiRef}
                     rows={updatableProducts}
                     columns={columns}
                     initialState={{
                         pagination: { paginationModel: { pageSize: 25, page: 0 } },
                     }}
                     pageSizeOptions={[25, 50, 100]}
-                    autoHeight
+                    autoHeight={!isFullscreen}
                     disableRowSelectionOnClick
                     loading={loading}
-                    processRowUpdate={(newRow) => newRow}
+                    editMode="cell"
+                    processRowUpdate={(newRow) => {
+                        // Update the row in state
+                        setUpdatableProducts((prev) =>
+                            prev.map((row) => (row.id === newRow.id ? newRow : row))
+                        );
+                        return newRow;
+                    }}
+                    onCellClick={(params, event) => {
+                        // Enable single-click editing for editable cells
+                        if (params.isEditable && apiRef.current) {
+                            event.defaultMuiPrevented = true;
+                            apiRef.current.startCellEditMode({
+                                id: params.id,
+                                field: params.field,
+                            });
+                        }
+                    }}
                     slots={{
                         toolbar: () => (
                             <GridToolbarContainer>
@@ -420,6 +443,13 @@ function StockPriceUpdater() {
                                 <GridToolbarFilterButton />
                                 <GridToolbarExport />
                                 <Box sx={{ flexGrow: 1 }} />
+                                <Button
+                                    startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                    onClick={() => setIsFullscreen(!isFullscreen)}
+                                    size="small"
+                                >
+                                    {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                </Button>
                                 <Button
                                     startIcon={<VisibilityIcon />}
                                     onClick={() => handlePreviewChanges(updatableProducts)}
@@ -429,6 +459,36 @@ function StockPriceUpdater() {
                                 </Button>
                             </GridToolbarContainer>
                         ),
+                    }}
+                    sx={{
+                        border: '1px solid #e0e0e0',
+                        ...(isFullscreen && {
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            bgcolor: 'background.paper',
+                            height: '100vh !important',
+                        }),
+                        '& .MuiDataGrid-cell': {
+                            borderRight: '1px solid #e0e0e0',
+                        },
+                        '& .MuiDataGrid-columnHeaders': {
+                            borderBottom: '2px solid #e0e0e0',
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 1,
+                            backgroundColor: '#fafafa',
+                        },
+                        '& .MuiDataGrid-columnHeader': {
+                            borderRight: '1px solid #e0e0e0',
+                        },
+                        '& .editable-column-header': {
+                            backgroundColor: '#e3f2fd',
+                            fontWeight: 'bold',
+                        },
                     }}
                 />
 
