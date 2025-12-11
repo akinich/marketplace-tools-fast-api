@@ -412,7 +412,13 @@ function StockPriceUpdater() {
                     autoHeight
                     disableRowSelectionOnClick
                     loading={loading}
-                    processRowUpdate={(newRow) => newRow}
+                    processRowUpdate={(newRow) => {
+                        // Update the row in state
+                        setUpdatableProducts((prev) =>
+                            prev.map((row) => (row.id === newRow.id ? newRow : row))
+                        );
+                        return newRow;
+                    }}
                     slots={{
                         toolbar: () => (
                             <GridToolbarContainer>
