@@ -104,8 +104,8 @@ function ExcelImportDialog({ open, priceListId, onClose }: ExcelImportDialogProp
                     </Typography>
                     <ol style={{ margin: '8px 0', paddingLeft: '20px' }}>
                         <li>Download the template if you haven't already</li>
-                        <li>Fill in <strong>SKU</strong>, <strong>Price</strong>, and optional Notes columns</li>
-                        <li><strong>⚠️ SKUs must EXACTLY match those in your item database</strong></li>
+                        <li>Fill in <strong>Item Name</strong>, <strong>Price</strong>, and optional Notes columns</li>
+                        <li><strong>⚠️ Item names must EXACTLY match those in your item database</strong></li>
                         <li>Upload the completed file here</li>
                     </ol>
                 </Alert>
@@ -180,7 +180,7 @@ function ExcelImportDialog({ open, priceListId, onClose }: ExcelImportDialogProp
                                     {result.errors.map((err, idx) => (
                                         <ListItem key={idx}>
                                             <ListItemText
-                                                primary={`Row ${err.row_number}: SKU "${err.sku}"`}
+                                                primary={`Row ${err.row_number}: Item "${err.sku}"`}
                                                 secondary={err.error}
                                                 secondaryTypographyProps={{ color: 'error' }}
                                             />
