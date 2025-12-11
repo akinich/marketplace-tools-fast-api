@@ -501,7 +501,7 @@ async def generate_excel_template() -> bytes:
     header_font = Font(bold=True, color="FFFFFF")
     
     # Headers
-    headers = ["SKU", "Item Name (Read-Only)", "Price (INR)", "Notes (Optional)"]
+    headers = ["Item Name", "SKU (Read-Only)", "Price (INR)", "Notes (Optional)"]
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.fill = header_fill
@@ -509,14 +509,14 @@ async def generate_excel_template() -> bytes:
         cell.alignment = Alignment(horizontal="center")
     
     # Sample row
-    ws.cell(row=2, column=1, value="SKU001")
-    ws.cell(row=2, column=2, value="Example Item Name")
+    ws.cell(row=2, column=1, value="BASIL THAI")
+    ws.cell(row=2, column=2, value="HH")
     ws.cell(row=2, column=3, value=100.00)
     ws.cell(row=2, column=4, value="Sample notes")
     
     # Column widths
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 15
     ws.column_dimensions['C'].width = 15
     ws.column_dimensions['D'].width = 25
     
@@ -548,7 +548,7 @@ async def import_from_excel(price_list_id: int, file: UploadFile) -> Dict:
             if not row[0]:  # Skip empty rows
                 continue
             
-            sku = str(row[0]).strip()
+            item_name = str(row[0]).strip()
             
             try:
                 price = float(row[2]) if row[2] else None
@@ -557,22 +557,22 @@ async def import_from_excel(price_list_id: int, file: UploadFile) -> Dict:
                 if not price or price <= 0:
                     errors.append({
                         "row_number": row_num,
-                        "sku": sku,
+                        "sku": item_name,  # Changed to item_name for consistency with error display
                         "error": "Price must be greater than 0"
                     })
                     continue
                 
-                # Find item by SKU
+                # Find item by exact name match
                 item = await fetch_one(
-                    "SELECT id FROM zoho_items WHERE sku = $1",
-                    sku
+                    "SELECT id FROM zoho_items WHERE name = $1",
+                    item_name
                 )
                 
                 if not item:
                     errors.append({
                         "row_number": row_num,
-                        "sku": sku,
-                        "error": "SKU not found in items database"
+                        "sku": item_name,  # Changed to item_name for consistency with error display
+                        "error": "Item name not found in items database"
                     })
                     continue
                 
@@ -599,7 +599,7 @@ async def import_from_excel(price_list_id: int, file: UploadFile) -> Dict:
             except Exception as e:
                 errors.append({
                     "row_number": row_num,
-                    "sku": sku,
+                    "sku": item_name,  # Changed to item_name for consistency with error display
                     "error": str(e)
                 })
         
