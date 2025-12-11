@@ -29,6 +29,16 @@ from app.services.woocommerce_service import WooCommerceService
 
 logger = logging.getLogger(__name__)
 
+def safe_float(value, default=0.0):
+    """Safely convert value to float, handling empty strings and None"""
+    if value is None or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+
 class StockPriceService:
     """Service for stock and price management"""
     
@@ -428,16 +438,16 @@ class StockPriceService:
                 
                 # Check if values changed
                 if (local_prod['stock_quantity'] != wc_prod.get('stock_quantity', 0) or
-                    float(local_prod['regular_price']) != float(wc_prod.get('regular_price', 0)) or
-                    float(local_prod['sale_price']) != float(wc_prod.get('sale_price', 0))):
+                    safe_float(local_prod['regular_price']) != safe_float(wc_prod.get('regular_price', 0)) or
+                    safe_float(local_prod['sale_price']) != safe_float(wc_prod.get('sale_price', 0))):
                     
                     updates_needed.append({
                         'id': local_prod['id'],
                         'product_id': local_prod['product_id'],
                         'variation_id': local_prod.get('variation_id'),
                         'stock_quantity': wc_prod.get('stock_quantity', 0),
-                        'regular_price': wc_prod.get('regular_price', 0),
-                        'sale_price': wc_prod.get('sale_price', 0)
+                        'regular_price': safe_float(wc_prod.get('regular_price', 0)),
+                        'sale_price': safe_float(wc_prod.get('sale_price', 0))
                     })
             else:
                 # Product not found in WooCommerce - mark as deleted
