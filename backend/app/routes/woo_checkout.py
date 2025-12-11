@@ -38,7 +38,7 @@ from app.database import execute_query
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/woo-checkout", tags=["WooCommerce Checkout"])
+router = APIRouter(tags=["WooCommerce Checkout"])
 
 
 # ============================================================================
