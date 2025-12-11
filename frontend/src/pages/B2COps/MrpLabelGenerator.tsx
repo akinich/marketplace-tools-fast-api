@@ -35,8 +35,10 @@ import {
     Delete as DeleteIcon,
     Refresh as RefreshIcon,
     PictureAsPdf as PdfIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { b2cOpsAPI } from '../../api';
 
@@ -124,6 +126,8 @@ interface LibraryFile {
 
 export default function MrpLabelGenerator() {
     const { enqueueSnackbar } = useSnackbar();
+    const previewGridRef = useGridApiRef();
+    const libraryGridRef = useGridApiRef();
     const [tabValue, setTabValue] = useState(0);
 
     // --- Tab 1 State: Generation ---
@@ -131,12 +135,14 @@ export default function MrpLabelGenerator() {
     const [previewData, setPreviewData] = useState<MRPPreviewData | null>(null);
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
 
     // --- Tab 2 State: Library ---
     const [libraryFiles, setLibraryFiles] = useState<LibraryFile[]>([]);
     const [loadingLibrary, setLoadingLibrary] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [isLibraryFullscreen, setIsLibraryFullscreen] = useState(false);
 
     // Fetch library on tab change
     useEffect(() => {
@@ -375,12 +381,54 @@ export default function MrpLabelGenerator() {
                                 )}
 
                                 <Typography variant="h6" gutterBottom>Data Preview</Typography>
-                                <Box sx={{ height: 400, width: '100%', mb: 3 }}>
+                                <Box sx={{
+                                    height: isPreviewFullscreen ? '100vh' : 400,
+                                    width: '100%',
+                                    ...(isPreviewFullscreen && {
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 9999,
+                                        bgcolor: 'background.paper',
+                                    }),
+                                    mb: 3,
+                                }}>
                                     <DataGrid
+                                        apiRef={previewGridRef}
                                         rows={previewData.data?.map((row, i) => ({ id: i, ...row })) || []}
                                         columns={previewColumns}
                                         pageSizeOptions={[10, 25, 50]}
                                         initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+                                        slots={{
+                                            toolbar: () => (
+                                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                    <Box sx={{ flexGrow: 1 }} />
+                                                    <Button
+                                                        startIcon={isPreviewFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                        onClick={() => setIsPreviewFullscreen(!isPreviewFullscreen)}
+                                                        size="small"
+                                                    >
+                                                        {isPreviewFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                    </Button>
+                                                </Box>
+                                            ),
+                                        }}
+                                        sx={{
+                                            border: '1px solid #e0e0e0',
+                                            height: '100%',
+                                            '& .MuiDataGrid-cell': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .MuiDataGrid-columnHeaders': {
+                                                borderBottom: '2px solid #e0e0e0',
+                                                backgroundColor: '#fafafa',
+                                            },
+                                            '& .MuiDataGrid-columnHeader': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                        }}
                                     />
                                 </Box>
 
@@ -416,13 +464,54 @@ export default function MrpLabelGenerator() {
                             />
                         </Box>
 
-                        <Box sx={{ height: 500, width: '100%' }}>
+                        <Box sx={{
+                            height: isLibraryFullscreen ? '100vh' : 500,
+                            width: '100%',
+                            ...(isLibraryFullscreen && {
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                zIndex: 9999,
+                                bgcolor: 'background.paper',
+                            })
+                        }}>
                             <DataGrid
+                                apiRef={libraryGridRef}
                                 rows={libraryFiles.map((f, i) => ({ id: i, ...f }))}
                                 columns={libraryColumns}
                                 loading={loadingLibrary}
                                 pageSizeOptions={[10, 25, 50]}
                                 initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+                                slots={{
+                                    toolbar: () => (
+                                        <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                            <Box sx={{ flexGrow: 1 }} />
+                                            <Button
+                                                startIcon={isLibraryFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                onClick={() => setIsLibraryFullscreen(!isLibraryFullscreen)}
+                                                size="small"
+                                            >
+                                                {isLibraryFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                            </Button>
+                                        </Box>
+                                    ),
+                                }}
+                                sx={{
+                                    border: '1px solid #e0e0e0',
+                                    height: '100%',
+                                    '& .MuiDataGrid-cell': {
+                                        borderRight: '1px solid #e0e0e0',
+                                    },
+                                    '& .MuiDataGrid-columnHeaders': {
+                                        borderBottom: '2px solid #e0e0e0',
+                                        backgroundColor: '#fafafa',
+                                    },
+                                    '& .MuiDataGrid-columnHeader': {
+                                        borderRight: '1px solid #e0e0e0',
+                                    },
+                                }}
                             />
                         </Box>
                     </Box>
