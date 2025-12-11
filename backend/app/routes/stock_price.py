@@ -19,7 +19,6 @@ from app.auth.dependencies import get_current_user
 from app.schemas.auth import CurrentUser
 
 router = APIRouter(
-    prefix="/stock-price",
     tags=["Stock & Price Updater"],
     responses={404: {"description": "Not found"}},
 )

@@ -22,7 +22,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api-keys", tags=["API Keys"])
+router = APIRouter(tags=["API Keys"])
 
 
 # ============================================================================
