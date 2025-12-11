@@ -20,7 +20,7 @@ import {
     DialogContent,
     DialogActions,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -30,6 +30,8 @@ import {
     Delete as DeleteIcon,
     ContentCopy as CopyIcon,
     Visibility as ViewIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import priceListAPI, { PriceList } from '../../api/priceList';
 import PriceListDialog from './components/PriceListDialog';
@@ -37,6 +39,7 @@ import PriceListDialog from './components/PriceListDialog';
 function PriceListManagement() {
     const { enqueueSnackbar } = useSnackbar();
     const navigate = useNavigate();
+    const gridRef = useGridApiRef();
 
     const [loading, setLoading] = useState(false);
     const [priceLists, setPriceLists] = useState<PriceList[]>([]);
@@ -44,6 +47,7 @@ function PriceListManagement() {
     const [limit, setLimit] = useState(50);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingPriceList, setEditingPriceList] = useState<PriceList | null>(null);
@@ -346,8 +350,21 @@ function PriceListManagement() {
                                 ✅ Found {priceLists.length} price list{priceLists.length !== 1 ? 's' : ''}
                             </Typography>
                         </Box>
-                        <Box sx={{ height: 600, width: '100%' }}>
+                        <Box sx={{
+                            height: isFullscreen ? '100vh' : 600,
+                            width: '100%',
+                            ...(isFullscreen && {
+                                position: 'fixed',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                zIndex: 9999,
+                                bgcolor: 'background.paper',
+                            })
+                        }}>
                             <DataGrid
+                                apiRef={gridRef}
                                 rows={priceLists}
                                 columns={columns}
                                 paginationModel={{ page: page - 1, pageSize: limit }}
@@ -358,6 +375,34 @@ function PriceListManagement() {
                                 pageSizeOptions={[25, 50, 100]}
                                 disableRowSelectionOnClick
                                 rowHeight={60}
+                                slots={{
+                                    toolbar: () => (
+                                        <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                            <Box sx={{ flexGrow: 1 }} />
+                                            <Button
+                                                startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                onClick={() => setIsFullscreen(!isFullscreen)}
+                                                size="small"
+                                            >
+                                                {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                            </Button>
+                                        </Box>
+                                    ),
+                                }}
+                                sx={{
+                                    border: '1px solid #e0e0e0',
+                                    height: '100%',
+                                    '& .MuiDataGrid-cell': {
+                                        borderRight: '1px solid #e0e0e0',
+                                    },
+                                    '& .MuiDataGrid-columnHeaders': {
+                                        borderBottom: '2px solid #e0e0e0',
+                                        backgroundColor: '#fafafa',
+                                    },
+                                    '& .MuiDataGrid-columnHeader': {
+                                        borderRight: '1px solid #e0e0e0',
+                                    },
+                                }}
                             />
                         </Box>
                     </>

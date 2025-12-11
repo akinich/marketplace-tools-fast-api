@@ -21,12 +21,14 @@ import {
     IconButton,
     Tooltip,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import {
     Add as AddIcon,
     Visibility as ViewIcon,
     Send as SendIcon,
     PictureAsPdf as PdfIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -36,10 +38,12 @@ import { formatDateForDisplay } from '../../../utils/dateUtils';
 const POListPage: React.FC = () => {
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
+    const gridRef = useGridApiRef();
 
     const [pos, setPOs] = useState<POResponse[]>([]);
     const [loading, setLoading] = useState(false);
     const [total, setTotal] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [filters, setFilters] = useState<POListParams>({
         page: 1,
         limit: 20,
@@ -269,25 +273,66 @@ const POListPage: React.FC = () => {
 
             {/* DataGrid */}
             <Card>
-                <DataGrid
-                    rows={pos}
-                    columns={columns}
-                    loading={loading}
-                    pageSizeOptions={[20, 50, 100]}
-                    paginationMode="server"
-                    rowCount={total}
-                    paginationModel={{ page: filters.page! - 1, pageSize: filters.limit! }}
-                    onPaginationModelChange={(model) =>
-                        setFilters({ ...filters, page: model.page + 1, limit: model.pageSize })
-                    }
-                    autoHeight
-                    disableRowSelectionOnClick
-                    sx={{
-                        '& .MuiDataGrid-cell:focus': {
-                            outline: 'none',
-                        },
-                    }}
-                />
+                <Box sx={{
+                    height: isFullscreen ? '100vh' : 'auto',
+                    width: '100%',
+                    ...(isFullscreen && {
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 9999,
+                        bgcolor: 'background.paper',
+                    })
+                }}>
+                    <DataGrid
+                        apiRef={gridRef}
+                        rows={pos}
+                        columns={columns}
+                        loading={loading}
+                        pageSizeOptions={[20, 50, 100]}
+                        paginationMode="server"
+                        rowCount={total}
+                        paginationModel={{ page: filters.page! - 1, pageSize: filters.limit! }}
+                        onPaginationModelChange={(model) =>
+                            setFilters({ ...filters, page: model.page + 1, limit: model.pageSize })
+                        }
+                        autoHeight={!isFullscreen}
+                        disableRowSelectionOnClick
+                        slots={{
+                            toolbar: () => (
+                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                    <Box sx={{ flexGrow: 1 }} />
+                                    <Button
+                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                        size="small"
+                                    >
+                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                    </Button>
+                                </Box>
+                            ),
+                        }}
+                        sx={{
+                            border: '1px solid #e0e0e0',
+                            height: isFullscreen ? '100%' : 'auto',
+                            '& .MuiDataGrid-cell': {
+                                borderRight: '1px solid #e0e0e0',
+                            },
+                            '& .MuiDataGrid-columnHeaders': {
+                                borderBottom: '2px solid #e0e0e0',
+                                backgroundColor: '#fafafa',
+                            },
+                            '& .MuiDataGrid-columnHeader': {
+                                borderRight: '1px solid #e0e0e0',
+                            },
+                            '& .MuiDataGrid-cell:focus': {
+                                outline: 'none',
+                            },
+                        }}
+                    />
+                </Box>
             </Card>
         </Box>
     );
