@@ -108,6 +108,8 @@ async def get_price_lists(
     today = date.today()
     for pl in price_lists_raw:
         pl_dict = dict(pl)
+        # Convert UUID to string (ALWAYS convert, even if None)
+        pl_dict['created_by'] = str(pl_dict.get('created_by')) if pl_dict.get('created_by') is not None else None
         # Determine status
         if pl_dict['valid_from'] > today:
             pl_dict['status'] = 'upcoming'
@@ -146,6 +148,9 @@ async def get_price_list_by_id(price_list_id: int) -> Dict:
         )
     
     pl_dict = dict(result)
+    
+    # Convert UUID to string for Pydantic
+    pl_dict['created_by'] = str(pl_dict.get('created_by')) if pl_dict.get('created_by') is not None else None
     
     # Add status
     today = date.today()
@@ -191,7 +196,27 @@ async def create_price_list(data: Dict, created_by: str) -> Dict:
         created_by
     )
     
-    return await get_price_list_by_id(result['id'])
+    result = dict(result)
+    
+    # Convert UUID to string for Pydantic
+    result['created_by'] = str(created_by) if created_by is not None else None
+    
+    # Determine status
+    today = date.today()
+    if result['valid_from'] > today:
+        result['status'] = 'upcoming'
+    elif result['valid_to'] and result['valid_to'] < today:
+        result['status'] = 'expired'
+    elif result['is_active']:
+        result['status'] = 'active'
+    else:
+        result['status'] = 'inactive'
+    
+    # Add counts (will be 0 for a new price list)
+    result['items_count'] = 0
+    result['customers_count'] = 0
+    
+    return result
 
 
 async def update_price_list(price_list_id: int, data: Dict, updated_by: str) -> Dict:
