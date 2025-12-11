@@ -25,7 +25,7 @@ class ProductBase(BaseModel):
     sku: Optional[str] = None
     product_name: str
     parent_product: Optional[str] = None
-    stock_quantity: int = 0
+    stock_quantity: Optional[int] = 0
     regular_price: Optional[float] = None
     sale_price: Optional[float] = None
     hsn: Optional[str] = None

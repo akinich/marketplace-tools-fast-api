@@ -313,19 +313,19 @@ function ItemMaster() {
         { field: 'id', headerName: 'DB ID', width: 80, editable: false },
         { field: 'product_id', headerName: 'Product ID', width: 100, editable: false },
         { field: 'variation_id', headerName: 'Variation ID', width: 120, editable: false },
-        { field: 'product_name', headerName: 'Product Name', width: 250, editable: isAdmin },
-        { field: 'parent_product', headerName: 'Parent Name', width: 200, editable: isAdmin },
-        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin },
-        { field: 'stock_quantity', headerName: 'Stock', width: 100, editable: isAdmin, type: 'number' },
-        { field: 'regular_price', headerName: 'Regular Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'sale_price', headerName: 'Sale Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'hsn', headerName: 'HSN', width: 120, editable: true },
-        { field: 'zoho_name', headerName: 'Zoho Name', width: 200, editable: true },
-        { field: 'usage_units', headerName: 'Usage Units', width: 120, editable: true },
-        { field: 'categories', headerName: 'Categories', width: 200, editable: isAdmin },
-        { field: 'attribute', headerName: 'Attributes', width: 200, editable: isAdmin },
-        { field: 'is_active', headerName: 'Active', width: 100, editable: isAdmin, type: 'boolean' },
-        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
+        { field: 'product_name', headerName: 'Product Name', width: 250, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'parent_product', headerName: 'Parent Name', width: 200, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'stock_quantity', headerName: 'Stock', width: 100, editable: isAdmin, type: 'number', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'regular_price', headerName: 'Regular Price', width: 120, editable: isAdmin, type: 'number', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'sale_price', headerName: 'Sale Price', width: 120, editable: isAdmin, type: 'number', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'hsn', headerName: '✏️ HSN', width: 120, editable: true, headerClassName: 'editable-column-header' },
+        { field: 'zoho_name', headerName: '✏️ Zoho Name', width: 200, editable: true, headerClassName: 'editable-column-header' },
+        { field: 'usage_units', headerName: '✏️ Usage Units', width: 120, editable: true, headerClassName: 'editable-column-header' },
+        { field: 'categories', headerName: 'Categories', width: 200, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'attribute', headerName: 'Attributes', width: 200, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'is_active', headerName: 'Active', width: 100, editable: isAdmin, type: 'boolean', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'notes', headerName: '✏️ Notes', width: 200, editable: true, headerClassName: 'editable-column-header' },
     ];
 
     return (
@@ -422,6 +422,15 @@ function ItemMaster() {
                                         apiRef={apiRef}
                                         rows={items}
                                         columns={columns}
+                                        editMode="cell"
+                                        onCellClick={(params) => {
+                                            if (params.field && columns.find(col => col.field === params.field)?.editable) {
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
                                         initialState={{
                                             pagination: {
                                                 paginationModel: { pageSize: 25, page: 0 },
@@ -456,6 +465,10 @@ function ItemMaster() {
                                             },
                                             '& .MuiDataGrid-columnHeader': {
                                                 borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
                                             },
                                         }}
                                         // @ts-ignore - newEditingApi is valid but might not be in older TS defs
