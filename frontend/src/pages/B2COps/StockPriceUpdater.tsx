@@ -233,7 +233,11 @@ function StockPriceUpdater() {
         const changes: any[] = [];
 
         editedRows.forEach((row) => {
-            const change: any = { db_id: row.id };
+            const change: any = {
+                db_id: row.id,
+                product_id: row.product_id,
+                variation_id: row.variation_id || null
+            };
             let hasChanges = false;
 
             if (row.updated_stock !== null && row.updated_stock !== undefined) {
