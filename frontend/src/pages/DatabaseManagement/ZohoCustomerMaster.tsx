@@ -28,6 +28,7 @@ import {
     Download as DownloadIcon,
 } from '@mui/icons-material';
 import { zohoCustomerAPI } from '../../api/zohoCustomer';
+import priceListAPI, { PriceList } from '../../api/priceList';
 
 // Interfaces
 interface ZohoCustomer {
@@ -47,6 +48,8 @@ interface ZohoCustomer {
     status: string;
     notes: string | null;
     customer_segment: string[] | null;  // Changed to array for multi-select
+    price_list_id?: number | null;
+    price_list_name?: string | null;
     last_sync_at?: string;
 }
 
@@ -98,6 +101,7 @@ function ZohoCustomerMaster() {
         const stored = localStorage.getItem('zoho_customer_last_sync_run');
         return stored ? stored : null;
     });
+    const [priceLists, setPriceLists] = useState<PriceList[]>([]);
 
     // Get user role
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -172,10 +176,21 @@ function ZohoCustomerMaster() {
         }
     };
 
+    // Fetch price lists
+    const fetchPriceLists = async () => {
+        try {
+            const response = await priceListAPI.list({ limit: 500 });
+            setPriceLists(response.price_lists);
+        } catch (error) {
+            console.error('Failed to fetch price lists:', error);
+        }
+    };
+
     // Initial load
     useEffect(() => {
         fetchCustomers();
         fetchStats();
+        fetchPriceLists();
 
         // Check if sync is already in progress
         checkForOngoingSync();
@@ -429,6 +444,67 @@ function ZohoCustomerMaster() {
                                 <ListItemText primary={option} />
                             </MenuItem>
                         ))}
+                    </Select>
+                );
+            }
+        },
+        {
+            field: 'price_list_name',
+            headerName: '✏️ Price List',
+            width: 200,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : '',
+            renderCell: (params) => (
+                params.value ? (
+                    <span style={{
+                        backgroundColor: '#f0f7ff',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem'
+                    }}>
+                        💰 {params.value}
+                    </span>
+                ) : (
+                    <span style={{ color: '#999' }}>No price list</span>
+                )
+            ),
+            renderEditCell: (params) => {
+                const currentValue = params.row.price_list_id || '';
+
+                const handleChange = (event: any) => {
+                    const priceListId = event.target.value === '' ? null : parseInt(event.target.value);
+                    const priceListName = priceListId
+                        ? priceLists.find(pl => pl.id === priceListId)?.price_list_name || null
+                        : null;
+
+                    // Update both fields
+                    params.api.setEditCellValue({
+                        id: params.id,
+                        field: 'price_list_id',
+                        value: priceListId
+                    });
+                    params.api.setEditCellValue({
+                        id: params.id,
+                        field: 'price_list_name',
+                        value: priceListName
+                    });
+                };
+
+                return (
+                    <Select
+                        value={currentValue}
+                        onChange={handleChange}
+                        sx={{ width: '100%', fontSize: '0.875rem' }}
+                        displayEmpty
+                    >
+                        <MenuItem value="">None</MenuItem>
+                        {priceLists
+                            .filter(pl => pl.is_active)
+                            .map((pl) => (
+                                <MenuItem key={pl.id} value={pl.id}>
+                                    {pl.price_list_name} {pl.status === 'active' ? '🟢' : '🟡'}
+                                </MenuItem>
+                            ))}
                     </Select>
                 );
             }

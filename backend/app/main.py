@@ -313,7 +313,8 @@ from app.routes import (
     grn,
     sales_orders,
     inventory,
-    b2c_orders
+    b2c_orders,
+    price_list
 )
 from app.routes import settings as settings_router
 
@@ -352,6 +353,7 @@ app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}/woo-custo
 app.include_router(woo_to_zoho.router, prefix=f"{settings.API_PREFIX}/woo-to-zoho", tags=["WooCommerce to Zoho"])
 app.include_router(product.router, prefix=f"{settings.API_PREFIX}/products", tags=["Products"])
 app.include_router(stock_price.router, prefix=f"{settings.API_PREFIX}/stock-price", tags=["Stock & Pricing"])
+app.include_router(price_list.router, prefix=f"{settings.API_PREFIX}/price-lists", tags=["Price Lists"])
 
 # Inventory Management
 app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batches", tags=["Batch Tracking"])
