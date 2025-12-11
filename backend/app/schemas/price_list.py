@@ -10,7 +10,7 @@ items, history tracking, and Excel import/export.
 ================================================================================
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, field_serializer
 from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 from decimal import Decimal
@@ -62,6 +62,11 @@ class PriceListResponse(PriceListBase):
 
     class Config:
         from_attributes = True
+    
+    @field_serializer('created_by')
+    def serialize_created_by(self, value):
+        """Convert UUID to string"""
+        return str(value) if value else None
 
 
 class PriceListListResponse(BaseModel):
