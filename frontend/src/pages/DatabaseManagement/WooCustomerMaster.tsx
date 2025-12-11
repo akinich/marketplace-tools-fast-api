@@ -18,12 +18,14 @@ import {
     Card,
     CardContent,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
     Sync as SyncIcon,
     Download as DownloadIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { wooCustomerAPI } from '../../api/wooCustomer';
 
@@ -76,6 +78,7 @@ interface SyncResult {
 
 function WooCustomerMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState<WooCustomer[]>([]);
@@ -86,6 +89,7 @@ function WooCustomerMaster() {
     const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastSyncRunTime, setLastSyncRunTime] = useState<string | null>(() => {
         // Load from localStorage on mount
@@ -435,8 +439,21 @@ function WooCustomerMaster() {
                                         </Typography>
                                     )}
                                 </Box>
-                                <Box sx={{ height: 600, width: '100%' }}>
+                                <Box sx={{
+                                    height: isFullscreen ? '100vh' : 600,
+                                    width: '100%',
+                                    ...(isFullscreen && {
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 9999,
+                                        bgcolor: 'background.paper',
+                                    })
+                                }}>
                                     <DataGrid
+                                        apiRef={apiRef}
                                         rows={customers}
                                         columns={columns}
                                         initialState={{
@@ -447,6 +464,34 @@ function WooCustomerMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleCustomerUpdate}
+                                        slots={{
+                                            toolbar: () => (
+                                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                    <Box sx={{ flexGrow: 1 }} />
+                                                    <Button
+                                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                                        size="small"
+                                                    >
+                                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                    </Button>
+                                                </Box>
+                                            ),
+                                        }}
+                                        sx={{
+                                            border: '1px solid #e0e0e0',
+                                            height: '100%',
+                                            '& .MuiDataGrid-cell': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .MuiDataGrid-columnHeaders': {
+                                                borderBottom: '2px solid #e0e0e0',
+                                                backgroundColor: '#fafafa',
+                                            },
+                                            '& .MuiDataGrid-columnHeader': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                        }}
                                     />
                                 </Box>
                             </>
