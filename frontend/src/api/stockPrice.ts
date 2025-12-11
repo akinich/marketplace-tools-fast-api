@@ -33,7 +33,9 @@ const stockPriceAPI = {
 
     // Sync from WooCommerce
     syncFromWooCommerce: async (): Promise<any> => {
-        const response = await apiClient.post('/stock-price/sync', {});
+        const response = await apiClient.post('/stock-price/sync', {}, {
+            timeout: 300000, // 5 minutes for large product syncs
+        });
         return response.data;
     },
 
