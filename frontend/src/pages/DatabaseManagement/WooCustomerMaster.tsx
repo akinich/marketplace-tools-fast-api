@@ -342,7 +342,13 @@ function WooCustomerMaster() {
         { field: 'shipping_city', headerName: 'Ship City', width: 130, editable: false },
         { field: 'shipping_country', headerName: 'Ship Country', width: 80, editable: false },
         { field: 'is_paying_customer', headerName: 'Paying', width: 80, editable: false, type: 'boolean' },
-        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
+        {
+            field: 'notes',
+            headerName: '✏️ Notes',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
     ];
 
     return (
@@ -464,6 +470,17 @@ function WooCustomerMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleCustomerUpdate}
+                                        editMode="cell"
+                                        onCellClick={(params, event) => {
+                                            // Enable single-click editing for editable cells
+                                            if (params.isEditable && apiRef.current) {
+                                                event.defaultMuiPrevented = true;
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
                                         slots={{
                                             toolbar: () => (
                                                 <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
@@ -490,6 +507,10 @@ function WooCustomerMaster() {
                                             },
                                             '& .MuiDataGrid-columnHeader': {
                                                 borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
                                             },
                                         }}
                                     />
