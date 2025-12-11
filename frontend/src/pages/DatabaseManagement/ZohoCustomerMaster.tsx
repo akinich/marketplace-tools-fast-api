@@ -453,7 +453,7 @@ function ZohoCustomerMaster() {
             field: 'price_list_name',
             headerName: '✏️ Price List',
             width: 200,
-            editable: isAdmin,
+            editable: false,  // Changed to false - we edit price_list_id instead
             headerClassName: isAdmin ? 'editable-column-header' : '',
             renderCell: (params) => (
                 params.value ? (
@@ -469,6 +469,14 @@ function ZohoCustomerMaster() {
                     <span style={{ color: '#999' }}>No price list</span>
                 )
             ),
+        },
+        {
+            field: 'price_list_id',
+            headerName: 'Price List ID',
+            width: 0,  // Hidden column
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : '',
+            renderCell: () => null,  // Hidden
             renderEditCell: (params) => {
                 const currentValue = params.row.price_list_id || '';
 
@@ -478,17 +486,18 @@ function ZohoCustomerMaster() {
                         ? priceLists.find(pl => pl.id === priceListId)?.price_list_name || null
                         : null;
 
-                    // Update both fields
+                    // Update both fields in the row data
                     params.api.setEditCellValue({
                         id: params.id,
                         field: 'price_list_id',
                         value: priceListId
                     });
-                    params.api.setEditCellValue({
+
+                    // Also update the display field
+                    params.api.updateRows([{
                         id: params.id,
-                        field: 'price_list_name',
-                        value: priceListName
-                    });
+                        price_list_name: priceListName
+                    }]);
                 };
 
                 return (
