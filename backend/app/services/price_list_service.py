@@ -108,9 +108,8 @@ async def get_price_lists(
     today = date.today()
     for pl in price_lists_raw:
         pl_dict = dict(pl)
-        # Convert UUID to string
-        if 'created_by' in pl_dict and pl_dict['created_by']:
-            pl_dict['created_by'] = str(pl_dict['created_by'])
+        # Convert UUID to string (ALWAYS convert, even if None)
+        pl_dict['created_by'] = str(pl_dict.get('created_by')) if pl_dict.get('created_by') is not None else None
         # Determine status
         if pl_dict['valid_from'] > today:
             pl_dict['status'] = 'upcoming'
@@ -151,9 +150,7 @@ async def get_price_list_by_id(price_list_id: int) -> Dict:
     pl_dict = dict(result)
     
     # Convert UUID to string for Pydantic
-    pl_dict['created_by'] = str(pl_dict['created_by']) if pl_dict['created_by'] else None
-    if 'updated_by' in pl_dict and pl_dict['updated_by']:
-        pl_dict['updated_by'] = str(pl_dict['updated_by'])
+    pl_dict['created_by'] = str(pl_dict.get('created_by')) if pl_dict.get('created_by') is not None else None
     
     # Add status
     today = date.today()
@@ -202,7 +199,7 @@ async def create_price_list(data: Dict, created_by: str) -> Dict:
     result = dict(result)
     
     # Convert UUID to string for Pydantic
-    result['created_by'] = str(result['created_by']) if result['created_by'] else None
+    result['created_by'] = str(created_by) if created_by is not None else None
     
     # Determine status
     today = date.today()
