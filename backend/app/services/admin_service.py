@@ -831,7 +831,10 @@ async def get_activity_logs(
     offset = (page - 1) * limit
     logs_query = f"""
         SELECT
-            id, user_email, user_role, action_type, module_key,
+            id, 
+            COALESCE(user_email, 'System') as user_email,
+            COALESCE(user_role, 'System') as user_role,
+            action_type, module_key,
             description, metadata, success, created_at
         FROM activity_logs
         {where_clause}
