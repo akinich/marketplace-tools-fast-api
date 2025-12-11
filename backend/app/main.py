@@ -354,8 +354,8 @@ app.include_router(product.router, prefix=f"{settings.API_PREFIX}/products", tag
 app.include_router(stock_price.router, prefix=f"{settings.API_PREFIX}/stock-price", tags=["Stock & Pricing"])
 
 # Inventory Management
-app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batch-tracking", tags=["Batch Tracking"])
-app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}/wastage-tracking", tags=["Wastage Tracking"])
+app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batches", tags=["Batch Tracking"])
+app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}/wastage", tags=["Wastage Tracking"])
 app.include_router(po.router, prefix=f"{settings.API_PREFIX}/purchase-orders", tags=["Purchase Orders"])
 app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["Goods Receipt Note"])
 app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
