@@ -18,12 +18,14 @@ import {
     Edit as EditIcon,
     Download as DownloadIcon,
     Upload as UploadIcon,
+    Add as AddIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import priceListAPI, { PriceList, PriceHistoryItem, CustomerPriceListInfo } from '../../api/priceList';
 import PriceListDialog from './components/PriceListDialog';
 import PriceListItemsGrid from './components/PriceListItemsGrid';
 import ExcelImportDialog from './components/ExcelImportDialog';
+import AddItemDialog from './components/AddItemDialog';
 
 function PriceListDetail() {
     const { id } = useParams<{ id: string }>();
@@ -35,6 +37,7 @@ function PriceListDetail() {
     const [currentTab, setCurrentTab] = useState(0);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
     const [history, setHistory] = useState<PriceHistoryItem[]>([]);
     const [customers, setCustomers] = useState<CustomerPriceListInfo[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
@@ -240,6 +243,13 @@ function PriceListDetail() {
                             {isAdmin && (
                                 <>
                                     <Button
+                                        variant="contained"
+                                        startIcon={<AddIcon />}
+                                        onClick={() => setAddItemDialogOpen(true)}
+                                    >
+                                        Add Item
+                                    </Button>
+                                    <Button
                                         variant="outlined"
                                         startIcon={<UploadIcon />}
                                         onClick={() => setImportDialogOpen(true)}
@@ -366,6 +376,15 @@ function PriceListDetail() {
                 priceListId={priceList.id}
                 onClose={(refresh?: boolean) => {
                     setImportDialogOpen(false);
+                    if (refresh) fetchPriceList();
+                }}
+            />
+
+            <AddItemDialog
+                open={addItemDialogOpen}
+                priceListId={priceList.id}
+                onClose={(refresh?: boolean) => {
+                    setAddItemDialogOpen(false);
                     if (refresh) fetchPriceList();
                 }}
             />
