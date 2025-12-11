@@ -13,9 +13,9 @@ class ProductItem(BaseModel):
     product_name: str
     parent_product: Optional[str]
     sku: Optional[str]
-    stock_quantity: int
-    regular_price: float
-    sale_price: float
+    stock_quantity: Optional[int] = 0
+    regular_price: Optional[float] = 0.0
+    sale_price: Optional[float] = 0.0
     is_updatable: bool
     is_deleted: bool
     setting_notes: Optional[str]
