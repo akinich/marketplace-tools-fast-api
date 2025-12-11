@@ -179,7 +179,7 @@ function ZohoCustomerMaster() {
     // Fetch price lists
     const fetchPriceLists = async () => {
         try {
-            const response = await priceListAPI.list({ limit: 500 });
+            const response = await priceListAPI.list({ limit: 200 });
             console.log('✅ Price Lists Fetched:', response.price_lists);
             setPriceLists(response.price_lists);
         } catch (error) {
