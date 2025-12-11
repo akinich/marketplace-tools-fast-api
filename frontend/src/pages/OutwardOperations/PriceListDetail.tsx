@@ -53,7 +53,7 @@ function PriceListDetail() {
             setPriceList(data);
         } catch (error: any) {
             enqueueSnackbar(error.response?.data?.detail || 'Failed to load price list', { variant: 'error' });
-            navigate('/outward-operations/price-lists');
+            navigate('/outward/price-lists');
         } finally {
             setLoading(false);
         }
@@ -176,7 +176,7 @@ function PriceListDetail() {
         <Box sx={{ p: 3 }}>
             {/* Header */}
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <IconButton onClick={() => navigate('/outward-operations/price-lists')}>
+                <IconButton onClick={() => navigate('/outward/price-lists')}>
                     <BackIcon />
                 </IconButton>
                 <Box sx={{ ml: 2, flex: 1 }}>

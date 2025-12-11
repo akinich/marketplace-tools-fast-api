@@ -60,7 +60,7 @@ function UpcomingPriceChangesWidget() {
     };
 
     const handleClick = (priceListId: number) => {
-        navigate(`/outward-operations/price-lists/${priceListId}`);
+        navigate(`/outward/price-lists/${priceListId}`);
     };
 
     if (loading) {
