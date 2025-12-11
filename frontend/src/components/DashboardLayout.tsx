@@ -455,6 +455,7 @@ export default function DashboardLayout() {
             invoice_management: '/outward/invoices',
             order_allocation: '/outward/allocation',
             customer_pricing: '/outward/customer-pricing',
+            price_lists: '/outward/price-lists',
         };
 
         // Reporting sub-modules

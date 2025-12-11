@@ -148,7 +148,7 @@ function PriceListManagement() {
 
     // Handle view details
     const handleView = (priceList: PriceList) => {
-        navigate(`/outward-operations/price-lists/${priceList.id}`);
+        navigate(`/outward/price-lists/${priceList.id}`);
     };
 
     // Status badge component
