@@ -342,12 +342,13 @@ function StockPriceUpdater() {
 
     const renderUpdateTab = () => {
         const columns: GridColDef[] = [
-            { field: 'product_id', headerName: 'Product ID', width: 100 },
-            { field: 'variation_id', headerName: 'Variation ID', width: 110 },
+            { field: 'product_id', headerName: 'Product ID', flex: 0.6, minWidth: 90 },
+            { field: 'variation_id', headerName: 'Variation ID', flex: 0.7, minWidth: 100 },
             {
                 field: 'product_name',
                 headerName: 'Product Name',
-                width: 300,
+                flex: 2,
+                minWidth: 200,
                 renderCell: (params: GridRenderCellParams) => {
                     const displayName = params.row.parent_product && params.row.variation_id
                         ? `${params.row.parent_product} - ${params.row.product_name}`
@@ -355,13 +356,13 @@ function StockPriceUpdater() {
                     return <Typography variant="body2">{displayName}</Typography>;
                 },
             },
-            { field: 'sku', headerName: 'SKU', width: 120 },
-            { field: 'stock_quantity', headerName: 'Current Stock', width: 120, type: 'number' },
-            { field: 'regular_price', headerName: 'Current Regular Price', width: 150, type: 'number' },
-            { field: 'sale_price', headerName: 'Current Sale Price', width: 150, type: 'number' },
-            { field: 'updated_stock', headerName: '✏️ New Stock', width: 120, type: 'number', editable: true, headerClassName: 'editable-column-header' },
-            { field: 'updated_regular_price', headerName: '✏️ New Regular Price', width: 150, type: 'number', editable: true, headerClassName: 'editable-column-header' },
-            { field: 'updated_sale_price', headerName: '✏️ New Sale Price', width: 150, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'sku', headerName: 'SKU', flex: 0.8, minWidth: 100 },
+            { field: 'stock_quantity', headerName: 'Current Stock', flex: 0.8, minWidth: 100, type: 'number' },
+            { field: 'regular_price', headerName: 'Current Regular Price', flex: 1, minWidth: 120, type: 'number' },
+            { field: 'sale_price', headerName: 'Current Sale Price', flex: 1, minWidth: 120, type: 'number' },
+            { field: 'updated_stock', headerName: '✏️ New Stock', flex: 0.8, minWidth: 100, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'updated_regular_price', headerName: '✏️ New Regular Price', flex: 1, minWidth: 130, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'updated_sale_price', headerName: '✏️ New Sale Price', flex: 1, minWidth: 130, type: 'number', editable: true, headerClassName: 'editable-column-header' },
         ];
 
         return (
