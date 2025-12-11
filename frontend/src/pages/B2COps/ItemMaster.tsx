@@ -17,12 +17,14 @@ import {
     Card,
     CardContent,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
     Sync as SyncIcon,
     Download as DownloadIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { productAPI } from '../../api';
 
@@ -58,6 +60,7 @@ interface ProductStats {
 
 function ItemMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState<Product[]>([]);
@@ -68,6 +71,7 @@ function ItemMaster() {
     const [syncLimit, setSyncLimit] = useState(100);
     const [updateExisting, setUpdateExisting] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Get user role
@@ -191,19 +195,101 @@ function ItemMaster() {
         { field: 'id', headerName: 'DB ID', width: 80, editable: false },
         { field: 'product_id', headerName: 'Product ID', width: 100, editable: false },
         { field: 'variation_id', headerName: 'Variation ID', width: 120, editable: false },
-        { field: 'product_name', headerName: 'Product Name', width: 250, editable: isAdmin },
-        { field: 'parent_product', headerName: 'Parent Name', width: 200, editable: isAdmin },
-        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin },
-        { field: 'stock_quantity', headerName: 'Stock', width: 100, editable: isAdmin, type: 'number' },
-        { field: 'regular_price', headerName: 'Regular Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'sale_price', headerName: 'Sale Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'hsn', headerName: 'HSN', width: 120, editable: true },
-        { field: 'zoho_name', headerName: 'Zoho Name', width: 200, editable: true },
-        { field: 'usage_units', headerName: 'Usage Units', width: 120, editable: true },
-        { field: 'categories', headerName: 'Categories', width: 200, editable: isAdmin },
-        { field: 'attribute', headerName: 'Attributes', width: 200, editable: isAdmin },
-        { field: 'is_active', headerName: 'Active', width: 100, editable: isAdmin, type: 'boolean' },
-        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
+        {
+            field: 'product_name',
+            headerName: isAdmin ? '✏️ Product Name' : 'Product Name',
+            width: 250,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'parent_product',
+            headerName: isAdmin ? '✏️ Parent Name' : 'Parent Name',
+            width: 200,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'sku',
+            headerName: isAdmin ? '✏️ SKU' : 'SKU',
+            width: 150,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'stock_quantity',
+            headerName: isAdmin ? '✏️ Stock' : 'Stock',
+            width: 100,
+            editable: isAdmin,
+            type: 'number',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'regular_price',
+            headerName: isAdmin ? '✏️ Regular Price' : 'Regular Price',
+            width: 120,
+            editable: isAdmin,
+            type: 'number',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'sale_price',
+            headerName: isAdmin ? '✏️ Sale Price' : 'Sale Price',
+            width: 120,
+            editable: isAdmin,
+            type: 'number',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'hsn',
+            headerName: '✏️ HSN',
+            width: 120,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'zoho_name',
+            headerName: '✏️ Zoho Name',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'usage_units',
+            headerName: '✏️ Usage Units',
+            width: 120,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'categories',
+            headerName: isAdmin ? '✏️ Categories' : 'Categories',
+            width: 200,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'attribute',
+            headerName: isAdmin ? '✏️ Attributes' : 'Attributes',
+            width: 200,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'is_active',
+            headerName: isAdmin ? '✏️ Active' : 'Active',
+            width: 100,
+            editable: isAdmin,
+            type: 'boolean',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'notes',
+            headerName: '✏️ Notes',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
     ];
 
     return (
@@ -283,8 +369,21 @@ function ItemMaster() {
                                 <Typography variant="body2" sx={{ mb: 2 }}>
                                     ✅ Found {products.length} products
                                 </Typography>
-                                <Box sx={{ height: 600, width: '100%' }}>
+                                <Box sx={{
+                                    height: isFullscreen ? '100vh' : 600,
+                                    width: '100%',
+                                    ...(isFullscreen && {
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 9999,
+                                        bgcolor: 'background.paper',
+                                    })
+                                }}>
                                     <DataGrid
+                                        apiRef={apiRef}
                                         rows={products}
                                         columns={columns}
                                         initialState={{
@@ -295,6 +394,49 @@ function ItemMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleProductUpdate}
+                                        editMode="cell"
+                                        onCellClick={(params, event) => {
+                                            // Enable single-click editing for editable cells
+                                            if (params.isEditable && apiRef.current) {
+                                                event.defaultMuiPrevented = true;
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
+                                        slots={{
+                                            toolbar: () => (
+                                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                    <Box sx={{ flexGrow: 1 }} />
+                                                    <Button
+                                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                                        size="small"
+                                                    >
+                                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                    </Button>
+                                                </Box>
+                                            ),
+                                        }}
+                                        sx={{
+                                            border: '1px solid #e0e0e0',
+                                            height: '100%',
+                                            '& .MuiDataGrid-cell': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .MuiDataGrid-columnHeaders': {
+                                                borderBottom: '2px solid #e0e0e0',
+                                                backgroundColor: '#fafafa',
+                                            },
+                                            '& .MuiDataGrid-columnHeader': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
+                                            },
+                                        }}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>

@@ -31,8 +31,10 @@ import {
 import {
     Search as SearchIcon,
     Download as DownloadIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRowSelectionModel, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { b2cOpsAPI } from '../../api';
 import axios from 'axios';
@@ -64,6 +66,7 @@ interface OrderRow {
 
 export default function B2COrderList() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
 
     // State
     const [startDate, setStartDate] = useState('');
@@ -73,6 +76,7 @@ export default function B2COrderList() {
     const [selectedOrders, setSelectedOrders] = useState<GridRowSelectionModel>([]);
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [fetchProgress, setFetchProgress] = useState<FetchProgress>({ current: 0, total: 0, estimatedTime: 0 });
     const [initialLoading, setInitialLoading] = useState(true);
 
@@ -425,8 +429,21 @@ export default function B2COrderList() {
                         </Button>
                     </Box>
 
-                    <Box sx={{ height: 600, width: '100%' }}>
+                    <Box sx={{
+                        height: isFullscreen ? '100vh' : 600,
+                        width: '100%',
+                        ...(isFullscreen && {
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            bgcolor: 'background.paper',
+                        })
+                    }}>
                         <DataGrid
+                            apiRef={apiRef}
                             rows={orders}
                             columns={columns}
                             checkboxSelection
@@ -437,6 +454,34 @@ export default function B2COrderList() {
                                 pagination: { paginationModel: { pageSize: 25 } },
                             }}
                             pageSizeOptions={[10, 25, 50, 100]}
+                            slots={{
+                                toolbar: () => (
+                                    <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                        <Box sx={{ flexGrow: 1 }} />
+                                        <Button
+                                            startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                            onClick={() => setIsFullscreen(!isFullscreen)}
+                                            size="small"
+                                        >
+                                            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                        </Button>
+                                    </Box>
+                                ),
+                            }}
+                            sx={{
+                                border: '1px solid #e0e0e0',
+                                height: '100%',
+                                '& .MuiDataGrid-cell': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                                '& .MuiDataGrid-columnHeaders': {
+                                    borderBottom: '2px solid #e0e0e0',
+                                    backgroundColor: '#fafafa',
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                            }}
                         />
                     </Box>
                 </Paper>
