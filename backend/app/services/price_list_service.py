@@ -216,10 +216,6 @@ async def create_price_list(data: Dict, created_by: str) -> Dict:
     else:
         result['status'] = 'inactive'
     
-    # Add counts (will be 0 for a new price list)
-    result['items_count'] = 0
-    result['customers_count'] = 0
-    
     return result
 
 
