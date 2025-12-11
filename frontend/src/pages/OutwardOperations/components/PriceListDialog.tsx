@@ -167,6 +167,10 @@ function PriceListDialog({ open, priceList, onClose }: PriceListDialogProps) {
                             value={formData.valid_from}
                             onChange={(e) => handleChange('valid_from', e.target.value)}
                             InputLabelProps={{ shrink: true }}
+                            placeholder="dd/mm/yyyy"
+                            inputProps={{
+                                style: { cursor: 'pointer' }
+                            }}
                         />
                     </Grid>
 
@@ -179,6 +183,10 @@ function PriceListDialog({ open, priceList, onClose }: PriceListDialogProps) {
                             onChange={(e) => handleChange('valid_to', e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             helperText="Leave empty for indefinite"
+                            placeholder="dd/mm/yyyy"
+                            inputProps={{
+                                style: { cursor: 'pointer' }
+                            }}
                         />
                     </Grid>
 

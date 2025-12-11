@@ -183,7 +183,7 @@ async def create_price_list(data: Dict, created_by: str) -> Dict:
         INSERT INTO customer_price_lists 
         (price_list_name, description, valid_from, valid_to, is_active, created_by)
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id
+        RETURNING *
     """
     
     result = await fetch_one(
@@ -201,6 +201,10 @@ async def create_price_list(data: Dict, created_by: str) -> Dict:
     # Convert UUID to string for Pydantic
     result['created_by'] = str(created_by) if created_by is not None else None
     
+    # Add counts (will be 0 for a new price list)
+    result['items_count'] = 0
+    result['customers_count'] = 0
+    
     # Determine status
     today = date.today()
     if result['valid_from'] > today:
@@ -211,10 +215,6 @@ async def create_price_list(data: Dict, created_by: str) -> Dict:
         result['status'] = 'active'
     else:
         result['status'] = 'inactive'
-    
-    # Add counts (will be 0 for a new price list)
-    result['items_count'] = 0
-    result['customers_count'] = 0
     
     return result
 
