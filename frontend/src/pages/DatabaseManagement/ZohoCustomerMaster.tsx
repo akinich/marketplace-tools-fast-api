@@ -180,9 +180,10 @@ function ZohoCustomerMaster() {
     const fetchPriceLists = async () => {
         try {
             const response = await priceListAPI.list({ limit: 500 });
+            console.log('✅ Price Lists Fetched:', response.price_lists);
             setPriceLists(response.price_lists);
         } catch (error) {
-            console.error('Failed to fetch price lists:', error);
+            console.error('❌ Failed to fetch price lists:', error);
         }
     };
 
@@ -498,13 +499,11 @@ function ZohoCustomerMaster() {
                         displayEmpty
                     >
                         <MenuItem value="">None</MenuItem>
-                        {priceLists
-                            .filter(pl => pl.is_active)
-                            .map((pl) => (
-                                <MenuItem key={pl.id} value={pl.id}>
-                                    {pl.price_list_name} {pl.status === 'active' ? '🟢' : '🟡'}
-                                </MenuItem>
-                            ))}
+                        {priceLists.map((pl) => (
+                            <MenuItem key={pl.id} value={pl.id}>
+                                {pl.price_list_name} {pl.status === 'active' ? '🟢' : pl.status === 'upcoming' ? '🟡' : '🔴'}
+                            </MenuItem>
+                        ))}
                     </Select>
                 );
             }
