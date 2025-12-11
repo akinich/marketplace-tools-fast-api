@@ -465,7 +465,6 @@ class StockPriceService:
                     SET stock_quantity = $1,
                         regular_price = $2,
                         sale_price = $3,
-                        last_synced = NOW(),
                         updated_at = NOW()
                     WHERE id = $4
                 """, 
