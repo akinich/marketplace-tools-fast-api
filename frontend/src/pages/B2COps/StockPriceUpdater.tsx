@@ -407,90 +407,91 @@ function StockPriceUpdater() {
                     ✅ Updatable Products ({updatableProducts.length})
                 </Typography>
 
-                <DataGrid
-                    apiRef={apiRef}
-                    rows={updatableProducts}
-                    columns={columns}
-                    initialState={{
-                        pagination: { paginationModel: { pageSize: 25, page: 0 } },
-                    }}
-                    pageSizeOptions={[25, 50, 100]}
-                    autoHeight={!isFullscreen}
-                    disableRowSelectionOnClick
-                    loading={loading}
-                    editMode="cell"
-                    processRowUpdate={(newRow) => {
-                        // Update the row in state
-                        setUpdatableProducts((prev) =>
-                            prev.map((row) => (row.id === newRow.id ? newRow : row))
-                        );
-                        return newRow;
-                    }}
-                    onCellClick={(params, event) => {
-                        // Enable single-click editing for editable cells
-                        if (params.isEditable && apiRef.current) {
-                            event.defaultMuiPrevented = true;
-                            apiRef.current.startCellEditMode({
-                                id: params.id,
-                                field: params.field,
-                            });
-                        }
-                    }}
-                    slots={{
-                        toolbar: () => (
-                            <GridToolbarContainer>
-                                <GridToolbarQuickFilter />
-                                <GridToolbarFilterButton />
-                                <GridToolbarExport />
-                                <Box sx={{ flexGrow: 1 }} />
-                                <Button
-                                    startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                                    onClick={() => setIsFullscreen(!isFullscreen)}
-                                    size="small"
-                                >
-                                    {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-                                </Button>
-                                <Button
-                                    startIcon={<VisibilityIcon />}
-                                    onClick={() => handlePreviewChanges(updatableProducts)}
-                                    size="small"
-                                >
-                                    Preview Changes
-                                </Button>
-                            </GridToolbarContainer>
-                        ),
-                    }}
-                    sx={{
-                        border: '1px solid #e0e0e0',
-                        ...(isFullscreen && {
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            zIndex: 9999,
-                            bgcolor: 'background.paper',
-                            height: '100vh !important',
-                        }),
-                        '& .MuiDataGrid-cell': {
-                            borderRight: '1px solid #e0e0e0',
-                        },
-                        '& .MuiDataGrid-columnHeaders': {
-                            borderBottom: '2px solid #e0e0e0',
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 1,
-                            backgroundColor: '#fafafa',
-                        },
-                        '& .MuiDataGrid-columnHeader': {
-                            borderRight: '1px solid #e0e0e0',
-                        },
-                        '& .editable-column-header': {
-                            backgroundColor: '#e3f2fd',
-                            fontWeight: 'bold',
-                        },
-                    }}
-                />
+                <Box sx={{
+                    height: isFullscreen ? '100vh' : 600,
+                    width: '100%',
+                    ...(isFullscreen && {
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 9999,
+                        bgcolor: 'background.paper',
+                    })
+                }}>
+                    <DataGrid
+                        apiRef={apiRef}
+                        rows={updatableProducts}
+                        columns={columns}
+                        initialState={{
+                            pagination: { paginationModel: { pageSize: 25, page: 0 } },
+                        }}
+                        pageSizeOptions={[25, 50, 100]}
+                        disableRowSelectionOnClick
+                        loading={loading}
+                        editMode="cell"
+                        processRowUpdate={(newRow) => {
+                            // Update the row in state
+                            setUpdatableProducts((prev) =>
+                                prev.map((row) => (row.id === newRow.id ? newRow : row))
+                            );
+                            return newRow;
+                        }}
+                        onCellClick={(params, event) => {
+                            // Enable single-click editing for editable cells
+                            if (params.isEditable && apiRef.current) {
+                                event.defaultMuiPrevented = true;
+                                apiRef.current.startCellEditMode({
+                                    id: params.id,
+                                    field: params.field,
+                                });
+                            }
+                        }}
+                        slots={{
+                            toolbar: () => (
+                                <GridToolbarContainer>
+                                    <GridToolbarQuickFilter />
+                                    <GridToolbarFilterButton />
+                                    <GridToolbarExport />
+                                    <Box sx={{ flexGrow: 1 }} />
+                                    <Button
+                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                        size="small"
+                                    >
+                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                    </Button>
+                                    <Button
+                                        startIcon={<VisibilityIcon />}
+                                        onClick={() => handlePreviewChanges(updatableProducts)}
+                                        size="small"
+                                    >
+                                        Preview Changes
+                                    </Button>
+                                </GridToolbarContainer>
+                            ),
+                        }}
+                        sx={{
+                            border: '1px solid #e0e0e0',
+                            height: '100%',
+                            '& .MuiDataGrid-cell': {
+                                borderRight: '1px solid #e0e0e0',
+                            },
+                            '& .MuiDataGrid-columnHeaders': {
+                                borderBottom: '2px solid #e0e0e0',
+                                backgroundColor: '#fafafa',
+                            },
+                            '& .MuiDataGrid-columnHeader': {
+                                borderRight: '1px solid #e0e0e0',
+                            },
+                            '& .editable-column-header': {
+                                backgroundColor: '#e3f2fd',
+                                fontWeight: 'bold',
+                            },
+                        }}
+                    />
+                </Box>
 
                 <Box sx={{ mt: 4 }}>
                     <Typography variant="h6" gutterBottom>
