@@ -251,6 +251,8 @@ Draft → Pending Allocation → Allocated → Picking → Packed → Out for De
 
 **Status:** ✅ **Inventory APIs Ready** - Backend allocation endpoints implemented in Module 2.1
 
+**📌 For complete allocation architecture (spreadsheet-style), see:** [S12 - Order Allocation Module](./S12%20module-03-allocation.md)
+
 ---
 
 ### **Integration with Inventory Module**
