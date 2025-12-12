@@ -159,8 +159,8 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                     <TableBody>
                         {items.map((item: any, index: number) => {
                             const itemCells = cells.filter((c: any) => c.item_id === item.id);
-                            const itemTotalOrder = itemCells.reduce((sum: number, c: any) => sum + c.order_quantity, 0);
-                            const itemTotalSent = itemCells.reduce((sum: number, c: any) => sum + (c.sent_quantity || 0), 0);
+                            const itemTotalOrder = itemCells.reduce((sum: number, c: any) => sum + (Number(c.order_quantity) || 0), 0);
+                            const itemTotalSent = itemCells.reduce((sum: number, c: any) => sum + (Number(c.sent_quantity) || 0), 0);
 
                             return (
                                 <TableRow key={item.id} hover>
