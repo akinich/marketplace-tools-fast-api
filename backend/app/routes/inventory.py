@@ -840,3 +840,85 @@ async def confirm_stock_allocation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to confirm allocation: {str(e)}"
         )
+
+
+# ============================================================================
+# ALLOCATION CLEANUP ROUTES (Admin Only)
+# ============================================================================
+
+@router.post("/allocations/cleanup", dependencies=[Depends(require_admin)], status_code=status.HTTP_200_OK)
+async def cleanup_stale_allocations(
+    timeout_hours: int = Query(24, ge=1, le=168, description="Hours before allocation expires"),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """
+    Manually trigger cleanup of stale allocations (Admin only).
+    
+    **Default:** Releases allocations older than 24 hours
+    
+    **Auto-Schedule:**
+    - This should run automatically via cron/Celery
+    - Manual trigger available for testing or emergency cleanup
+    
+    **Actions:**
+    - Changes status: allocated → available
+    - Logs deallocation movement
+    - Returns list of released items
+    
+    **Use Cases:**
+    - Emergency cleanup of stuck allocations
+    - Testing timeout mechanism
+    - Manual intervention for specific cases
+    """
+    try:
+        from app.services.allocation_cleanup_service import release_stale_allocations
+        
+        result = await release_stale_allocations(timeout_hours=timeout_hours)
+        
+        if result['released_count'] > 0:
+            logger.warning(
+                f"⚠️ Manual cleanup triggered by {current_user.email}: "
+                f"{result['released_count']} allocations released"
+            )
+        
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to cleanup allocations: {str(e)}"
+        )
+
+
+@router.get("/allocations/expiring-soon", dependencies=[Depends(require_admin)])
+async def get_expiring_allocations(
+    timeout_hours: int = Query(24, description="Allocation timeout in hours"),
+    current_user: CurrentUser = Depends(require_admin),
+):
+    """
+    Get allocations approaching timeout (Admin only).
+    
+    **Returns:**
+    - Allocations with < 4 hours remaining before timeout
+    - Age and remaining time for each
+    - Useful for monitoring dashboard
+    
+    **Use Cases:**
+    - Proactive monitoring
+    - Alert users before auto-release
+    - Dashboard widget for admins
+    """
+    try:
+        from app.services.allocation_cleanup_service import get_stale_allocations_report
+        
+        report = await get_stale_allocations_report(timeout_hours=timeout_hours)
+        
+        return {
+            'approaching_timeout': report,
+            'count': len(report),
+            'timeout_hours': timeout_hours
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get expiring allocations: {str(e)}"
+        )

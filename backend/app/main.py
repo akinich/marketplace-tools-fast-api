@@ -314,7 +314,8 @@ from app.routes import (
     sales_orders,
     inventory,
     b2c_orders,
-    price_list
+    price_list,
+    allocation
 )
 from app.routes import settings as settings_router
 
@@ -368,6 +369,8 @@ app.include_router(sales_orders.router, prefix=f"{settings.API_PREFIX}/sales-ord
 # B2C Orders Management
 app.include_router(b2c_orders.router, prefix=f"{settings.API_PREFIX}/b2c-orders", tags=["B2C Orders"])
 
+# Allocation Sheets (Order Allocation)
+app.include_router(allocation.router, prefix=f"{settings.API_PREFIX}/allocation", tags=["Allocation Sheets"])
 
 
 # ============================================================================

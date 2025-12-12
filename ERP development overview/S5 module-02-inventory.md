@@ -150,6 +150,8 @@ Delivered (removed from inventory)
 6. Stock status changes: Available → Allocated
 7. Stock moves to "Delivery Vehicles" location when picked
 
+**📌 For detailed allocation workflow, see:** [S12 - Order Allocation Module](./S12%20module-03-allocation.md)
+
 **NEW: Automated Stock Allocation APIs** ✨
 
 **Three Core Endpoints:**
