@@ -7,6 +7,9 @@
 --              organized by delivery date with Items × Customers matrix
 -- ================================================================================
 
+-- Set timezone to IST (Indian Standard Time = Asia/Kolkata)
+SET timezone = 'Asia/Kolkata';
+
 -- Table 1: Allocation Sheets (one per delivery date)
 CREATE TABLE allocation_sheets (
     id SERIAL PRIMARY KEY,
@@ -39,8 +42,10 @@ CREATE TABLE allocation_sheet_cells (
     
     -- Tracking flags
     order_modified BOOLEAN DEFAULT FALSE,
+    has_shortfall BOOLEAN GENERATED ALWAYS AS (COALESCE(sent_quantity, 0) < order_quantity) STORED,
     invoice_status VARCHAR(50) DEFAULT 'pending' CHECK (invoice_status IN ('pending', 'ready', 'invoiced')),
     invoice_id INT, -- Reference to invoice when generated
+    invoiced_at TIMESTAMP WITH TIME ZONE,
     
     -- Batch allocation tracking (JSON)
     allocated_batches JSONB,
