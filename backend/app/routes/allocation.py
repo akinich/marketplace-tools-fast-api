@@ -209,7 +209,7 @@ async def auto_fill_sheet(
                     (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
                 FROM allocation_sheet_cells c
                 JOIN zoho_items i ON c.item_id = i.id
-                JOIN zoho_customers cu ON c.customer_id = cu.id
+                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
                 WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
                 ORDER BY shortage DESC
             """, sheet_id)
@@ -465,7 +465,7 @@ async def get_invoice_status(
                         ELSE 'pending'
                     END as invoice_status
                 FROM allocation_sheet_cells c
-                JOIN zoho_customers cu ON c.customer_id = cu.id
+                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
                 WHERE c.sheet_id = $1
                 GROUP BY c.customer_id, cu.contact_name
                 ORDER BY cu.contact_name
@@ -559,7 +559,7 @@ async def get_sheet_statistics(
                         ELSE 'pending'
                     END as invoice_status
                 FROM allocation_sheet_cells c
-                JOIN zoho_customers cu ON c.customer_id = cu.id
+                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
                 WHERE c.sheet_id = $1
                 GROUP BY c.customer_id, cu.contact_name
                 ORDER BY cu.contact_name
@@ -577,7 +577,7 @@ async def get_sheet_statistics(
                     (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
                 FROM allocation_sheet_cells c
                 JOIN zoho_items i ON c.item_id = i.id
-                JOIN zoho_customers cu ON c.customer_id = cu.id
+                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
                 WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
                 ORDER BY (c.order_quantity - COALESCE(c.sent_quantity, 0)) DESC
             """, sheet_id)
