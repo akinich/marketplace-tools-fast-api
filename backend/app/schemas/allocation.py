@@ -120,9 +120,9 @@ class ItemInfo(BaseModel):
     id: int
     name: str
     sku: str
-    type: Optional[str]
-    variety: Optional[str]
-    sub_variety: Optional[str]
+    type: Optional[str] = None
+    variety: Optional[str] = None
+    sub_variety: Optional[str] = None
 
 
 class CustomerInfo(BaseModel):
