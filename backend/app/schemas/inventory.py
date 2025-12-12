@@ -19,7 +19,7 @@ from decimal import Decimal
 
 VALID_LOCATIONS = ['receiving_area', 'processing_area', 'packed_warehouse', 'delivery_vehicles', 'quality_hold']
 VALID_STATUSES = ['available', 'allocated', 'hold', 'in_transit', 'delivered']
-VALID_MOVEMENT_TYPES = ['stock_in', 'stock_out', 'location_transfer', 'adjustment', 'allocation', 'delivery']
+VALID_MOVEMENT_TYPES = ['stock_in', 'stock_out', 'location_transfer', 'adjustment', 'allocation', 'deallocation', 'delivery']
 VALID_ADJUSTMENT_TYPES = ['increase', 'decrease', 'correction']
 VALID_APPROVAL_STATUSES = ['pending_approval', 'approved', 'rejected', 'applied']
 

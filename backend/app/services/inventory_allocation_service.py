@@ -5,7 +5,7 @@ For order integration - allocate, deallocate, and confirm stock
 
 from typing import List, Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
 import logging
 
@@ -46,13 +46,23 @@ async def allocate_stock_to_order(
             if not item:
                 raise ValueError(f"Item {item_id} not found")
             
-            # 2. Check if order exists (optional - depends on sales_orders table structure)
+            # 2. IDEMPOTENCY CHECK - Prevent duplicate allocation
+            existing_allocation = await conn.fetchrow("""
+                SELECT COUNT(*) as count FROM inventory_movements
+                WHERE reference_type = 'sales_order'
+                  AND reference_id = $1
+                  AND movement_type = 'allocation'
+            """, order_id)
+            if existing_allocation and existing_allocation['count'] > 0:
+                raise ValueError(f"Order #{order_id} already has stock allocated. Use deallocate first if you need to reallocate.")
+            
+            # 3. Check if order exists (optional - depends on sales_orders table structure)
             # order_query = "SELECT id FROM sales_orders WHERE id = $1"
             # order = await conn.fetchrow(order_query, order_id)
             # if not order:
             #     raise ValueError(f"Order {order_id} not found")
             
-            # 3. Get available stock (use specific batches or FIFO)
+            # 4. Get available stock (use specific batches or FIFO)
             if batch_ids:
                 # Use specified batches
                 batch_placeholders = ','.join([f'${i+3}' for i in range(len(batch_ids))])
@@ -88,14 +98,14 @@ async def allocate_stock_to_order(
             if not available_stock:
                 raise ValueError(f"No available stock found for item {item['name']} at {location}")
             
-            # 4. Calculate total available
+            # 5. Calculate total available
             total_available = sum(Decimal(str(s['quantity'])) for s in available_stock)
             if total_available < quantity:
                 raise ValueError(
                     f"Insufficient stock. Requested: {quantity}, Available: {total_available}"
                 )
             
-            # 5. Allocate stock (FIFO - take from batches in order)
+            # 6. Allocate stock (FIFO - take from batches in order)
             allocated_batches = []
             remaining_to_allocate = quantity
             
@@ -179,7 +189,7 @@ async def allocate_stock_to_order(
                 'total_allocated': float(quantity),
                 'batches_allocated': allocated_batches,
                 'status': 'allocated',
-                'created_at': datetime.now()
+                'created_at': datetime.now(timezone.utc)
             }
             
     except ValueError as ve:
@@ -210,7 +220,22 @@ async def deallocate_stock_from_order(
     """
     try:
         async with DatabaseTransaction() as conn:
-            # 1. Find allocated stock for this order
+            # 1. DUPLICATE CALL CHECK - Verify stock is actually allocated
+            allocated_count = await conn.fetchrow("""
+                SELECT COUNT(*) as count FROM inventory
+                WHERE status = 'allocated'
+                  AND item_id IN (
+                      SELECT DISTINCT item_id FROM inventory_movements
+                      WHERE reference_type = 'sales_order'
+                        AND reference_id = $1
+                        AND movement_type = 'allocation'
+                  )
+            """, order_id)
+            
+            if not allocated_count or allocated_count['count'] == 0:
+                raise ValueError(f"No allocated stock found for order #{order_id}. May have been deallocated already.")
+            
+            # 2. Find allocated stock for this order
             find_query = """
                 SELECT
                     m.item_id, m.batch_id, m.quantity, m.from_location,
@@ -225,7 +250,7 @@ async def deallocate_stock_from_order(
             allocations = await conn.fetch(find_query, order_id)
             
             if not allocations:
-                raise ValueError(f"No allocations found for order #{order_id}")
+                raise ValueError(f"No allocation records found for order #{order_id}")
             
             deallocated_items = []
             
@@ -235,7 +260,7 @@ async def deallocate_stock_from_order(
                 quantity = Decimal(str(allocation['quantity']))
                 location = allocation['from_location']
                 
-                # 2. Change allocated stock back to available
+                # 3. Change allocated stock back to available
                 update_query = """
                     UPDATE inventory
                     SET status = 'available', updated_at = NOW()
@@ -246,13 +271,13 @@ async def deallocate_stock_from_order(
                 """
                 await conn.execute(update_query, item_id, batch_id, location)
                 
-                # 3. Log deallocation movement
+                # 4. Log deallocation movement (using 'deallocation' not 'adjustment')
                 movement_query = """
                     INSERT INTO inventory_movements (
                         item_id, batch_id, movement_type, quantity,
                         from_location, to_location,
                         reference_type, reference_id, notes, created_by
-                    ) VALUES ($1, $2, 'adjustment', $3, $4, $4, 'sales_order', $5, $6, $7)
+                    ) VALUES ($1, $2, 'deallocation', $3, $4, $4, 'sales_order', $5, $6, $7)
                 """
                 await conn.execute(
                     movement_query,
@@ -283,7 +308,7 @@ async def deallocate_stock_from_order(
                 'order_id': order_id,
                 'items_deallocated': deallocated_items,
                 'status': 'deallocated',
-                'created_at': datetime.now()
+                'created_at': datetime.now(timezone.utc)
             }
             
     except ValueError as ve:
@@ -314,7 +339,22 @@ async def confirm_allocation(
     """
     try:
         async with DatabaseTransaction() as conn:
-            # 1. Find allocated stock for this order
+            # 1. DUPLICATE CALL CHECK - Verify stock is actually allocated
+            allocated_count = await conn.fetchrow("""
+                SELECT COUNT(*) as count FROM inventory
+                WHERE status = 'allocated'
+                  AND item_id IN (
+                      SELECT DISTINCT item_id FROM inventory_movements
+                      WHERE reference_type = 'sales_order'
+                        AND reference_id = $1
+                        AND movement_type = 'allocation'
+                  )
+            """, order_id)
+            
+            if not allocated_count or allocated_count['count'] == 0:
+                raise ValueError(f"No allocated stock found for order #{order_id}. May have been confirmed already.")
+            
+            # 2. Find allocated stock for this order
             find_query = """
                 SELECT
                     m.item_id, m.batch_id, m.quantity, m.from_location,
@@ -329,7 +369,7 @@ async def confirm_allocation(
             allocations = await conn.fetch(find_query, order_id)
             
             if not allocations:
-                raise ValueError(f"No allocations found for order #{order_id}")
+                raise ValueError(f"No allocation records found for order #{order_id}")
             
             confirmed_items = []
             
@@ -339,7 +379,7 @@ async def confirm_allocation(
                 quantity = Decimal(str(allocation['quantity']))
                 location = allocation['from_location']
                 
-                # 2. Update allocated stock to delivered and decrement quantity
+                # 3. Update allocated stock to delivered and decrement quantity
                 # Option A: Change status to 'delivered' and keep quantity
                 # Option B: Delete record entirely (stock is gone)
                 # We'll use Option A for audit trail
@@ -355,7 +395,7 @@ async def confirm_allocation(
                 """
                 await conn.execute(update_query, item_id, batch_id, location)
                 
-                # 3. Log stock out movement
+                # 4. Log stock out movement
                 movement_query = """
                     INSERT INTO inventory_movements (
                         item_id, batch_id, movement_type, quantity,
@@ -392,7 +432,7 @@ async def confirm_allocation(
                 'order_id': order_id,
                 'items_confirmed': confirmed_items,
                 'status': 'confirmed',
-                'created_at': datetime.now()
+                'created_at': datetime.now(timezone.utc)
             }
             
     except ValueError as ve:
