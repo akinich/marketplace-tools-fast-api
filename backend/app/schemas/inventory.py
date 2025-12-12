@@ -8,7 +8,7 @@ movements, adjustments, and reorder levels.
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 from decimal import Decimal
 
