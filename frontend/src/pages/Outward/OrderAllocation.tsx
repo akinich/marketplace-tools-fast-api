@@ -15,7 +15,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import AllocationGrid from './components/AllocationGrid';
 import StatisticsDashboard from './components/StatisticsDashboard';
 import InvoiceStatusList from './components/InvoiceStatusList';
-import { allocationApi } from '../../../api';
+import { allocationApi } from '../../api';
 
 interface TabPanelProps {
     children?: React.ReactNode;
