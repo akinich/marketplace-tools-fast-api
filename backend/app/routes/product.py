@@ -32,7 +32,7 @@ router = APIRouter()
 # PRODUCT CRUD ENDPOINTS
 # ============================================================================
 
-@router.get("/products", response_model=ProductListResponse)
+@router.get("/", response_model=ProductListResponse)
 async def list_products(
     search: Optional[str] = Query(None, description="Search by product name or SKU"),
     active_only: bool = Query(True, description="Filter active products only"),
@@ -72,7 +72,7 @@ async def list_products(
 # WOOCOMMERCE SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/products/sync")
+@router.post("/sync")
 async def sync_products(
     sync_request: WooCommerceSyncRequest,
     background_tasks: BackgroundTasks,
@@ -112,7 +112,7 @@ async def sync_products(
     }
 
 
-@router.get("/products/sync-progress")
+@router.get("/sync-progress")
 async def get_sync_progress(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -130,7 +130,7 @@ async def get_sync_progress(
 # STATISTICS ENDPOINTS
 # ============================================================================
 
-@router.get("/products/stats", response_model=ProductStatsResponse)
+@router.get("/stats", response_model=ProductStatsResponse)
 async def get_product_stats(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -147,7 +147,7 @@ async def get_product_stats(
 # PRODUCT DETAIL ENDPOINTS (Must come after specific routes like /sync, /stats)
 # ============================================================================
 
-@router.get("/products/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
     product_id: int,
     current_user: CurrentUser = Depends(get_current_user)
@@ -168,7 +168,7 @@ async def get_product(
     return product
 
 
-@router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: ProductCreate,
     current_user: CurrentUser = Depends(get_current_user)
@@ -193,7 +193,7 @@ async def create_product(
     return product
 
 
-@router.patch("/products/{product_id}", response_model=ProductResponse)
+@router.patch("/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,

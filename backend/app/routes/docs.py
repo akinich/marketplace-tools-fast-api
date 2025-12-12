@@ -43,7 +43,7 @@ from app.services.docs_service import DocsService
 from app.auth.dependencies import get_current_user
 
 
-router = APIRouter(prefix="/docs", tags=["Documentation"])
+router = APIRouter(tags=["Documentation"])
 
 
 @router.get(

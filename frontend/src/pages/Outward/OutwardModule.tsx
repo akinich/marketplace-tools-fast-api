@@ -20,6 +20,8 @@ import SalesOrderForm from './SalesOrders/SalesOrderForm';
 import InvoiceManagement from './InvoiceManagement';
 import OrderAllocation from './OrderAllocation';
 import CustomerPricing from './CustomerPricing';
+import PriceListManagement from '../OutwardOperations/PriceListManagement';
+import PriceListDetail from '../OutwardOperations/PriceListDetail';
 
 export default function OutwardModule() {
     return (
@@ -35,6 +37,8 @@ export default function OutwardModule() {
             <Route path="invoices" element={<InvoiceManagement />} />
             <Route path="allocation" element={<OrderAllocation />} />
             <Route path="customer-pricing" element={<CustomerPricing />} />
+            <Route path="price-lists" element={<PriceListManagement />} />
+            <Route path="price-lists/:id" element={<PriceListDetail />} />
         </Routes>
     );
 }

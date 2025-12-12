@@ -21,7 +21,7 @@ from app.services import email_service
 from app.utils.settings_helper import require_feature
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/email", tags=["Email"])
+router = APIRouter(tags=["Email"])
 
 # ============================================================================
 # Email Templates

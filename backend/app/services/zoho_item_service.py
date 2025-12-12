@@ -414,7 +414,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         item_data['item_type'], item_data['product_type'], item_data['status'],
                         item_data['hsn_or_sac'], item_data['tax_id'], item_data['tax_name'],
                         item_data['tax_percentage'], item_data['is_taxable'], item_data['unit'],
-                        item_data['account_id'], False, None,  # for_purchase=False, segment=None
+                        item_data['account_id'], False, [],  # for_purchase=False, segment=empty array
                         item_data['created_time'],
                         item_data['last_modified_time'], item_data['raw_json'],
                         item_data['last_sync_at']

@@ -1,4 +1,4 @@
-import api from './index';
+import apiClient from './client';
 
 // ============================================================================
 // TYPES
@@ -105,35 +105,35 @@ export interface GRNListResponse {
 export const grnAPI = {
     // GRN Management
     generate: (poId: number) =>
-        api.post<GRNResponse>('/grn/generate', null, { params: { po_id: poId } }),
+        apiClient.post<GRNResponse>('/grn/generate', null, { params: { po_id: poId } }),
 
     getById: (grnId: number) =>
-        api.get<GRNDetailResponse>(`/grn/${grnId}`),
+        apiClient.get<GRNDetailResponse>(`/grn/${grnId}`),
 
     update: (grnId: number, data: GRNUpdateRequest) =>
-        api.put<GRNResponse>(`/grn/${grnId}/update`, data),
+        apiClient.put<GRNResponse>(`/grn/${grnId}/update`, data),
 
     finalize: (grnId: number) =>
-        api.post<GRNResponse>(`/grn/${grnId}/finalize`),
+        apiClient.post<GRNResponse>(`/grn/${grnId}/finalize`),
 
     list: (params: GRNListParams) =>
-        api.get<GRNListResponse>('/grn/list', { params }),
+        apiClient.get<GRNListResponse>('/grn/list', { params }),
 
     getByPO: (poId: number) =>
-        api.get<GRNResponse[]>(`/grn/by-po/${poId}`),
+        apiClient.get<GRNResponse[]>(`/grn/by-po/${poId}`),
 
     getByBatch: (batchNumber: string) =>
-        api.get<GRNDetailResponse>(`/grn/by-batch/${batchNumber}`),
+        apiClient.get<GRNDetailResponse>(`/grn/by-batch/${batchNumber}`),
 
     generateBlankPDF: (grnId: number) =>
-        api.get(`/grn/${grnId}/print`, { responseType: 'blob' }),
+        apiClient.get(`/grn/${grnId}/print`, { responseType: 'blob' }),
 
     // Photo Management
     uploadPhotos: (grnId: number, itemId: number, photoType: 'damage' | 'reject', files: File[]) => {
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
 
-        return api.post<string[]>(
+        return apiClient.post<string[]>(
             `/grn/${grnId}/photos/upload?item_id=${itemId}&photo_type=${photoType}`,
             formData,
             {
@@ -143,5 +143,5 @@ export const grnAPI = {
     },
 
     deletePhoto: (photoId: number) =>
-        api.delete(`/grn/photos/${photoId}`),
+        apiClient.delete(`/grn/photos/${photoId}`),
 };

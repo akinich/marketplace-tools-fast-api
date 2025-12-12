@@ -17,15 +17,20 @@ import {
     Grid,
     Card,
     CardContent,
+    Checkbox,
+    ListItemText,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
     Sync as SyncIcon,
     Download as DownloadIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { zohoCustomerAPI } from '../../api/zohoCustomer';
+import priceListAPI, { PriceList } from '../../api/priceList';
 
 // Interfaces
 interface ZohoCustomer {
@@ -44,6 +49,9 @@ interface ZohoCustomer {
     credit_limit: number;
     status: string;
     notes: string | null;
+    customer_segment: string[] | null;  // Changed to array for multi-select
+    price_list_id?: number | null;
+    price_list_name?: string | null;
     last_sync_at?: string;
 }
 
@@ -76,23 +84,27 @@ interface SyncResult {
 
 function ZohoCustomerMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState<ZohoCustomer[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterActive, setFilterActive] = useState('active');
     const [filterProductType, setFilterProductType] = useState('all');
+    const [filterSegment, setFilterSegment] = useState('all');
     const [stats, setStats] = useState<ZohoCustomerStats | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
     const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
     const [lastSyncRunTime, setLastSyncRunTime] = useState<string | null>(() => {
         // Load from localStorage on mount
         const stored = localStorage.getItem('zoho_customer_last_sync_run');
         return stored ? stored : null;
     });
+    const [priceLists, setPriceLists] = useState<PriceList[]>([]);
 
     // Get user role
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -126,7 +138,16 @@ function ZohoCustomerMaster() {
             };
 
             const response = await zohoCustomerAPI.getItems(params);
-            setCustomers(response.customers || []);
+            let fetchedCustomers = response.customers || [];
+
+            // Client-side filtering by customer segment
+            if (filterSegment !== 'all') {
+                fetchedCustomers = fetchedCustomers.filter((customer: ZohoCustomer) =>
+                    customer.customer_segment && customer.customer_segment.includes(filterSegment)
+                );
+            }
+
+            setCustomers(fetchedCustomers);
 
             // Calculate last sync time from customers
             if (response.customers && response.customers.length > 0) {
@@ -158,14 +179,26 @@ function ZohoCustomerMaster() {
         }
     };
 
+    // Fetch price lists
+    const fetchPriceLists = async () => {
+        try {
+            const response = await priceListAPI.list({ limit: 200 });
+            console.log('✅ Price Lists Fetched:', response.price_lists);
+            setPriceLists(response.price_lists);
+        } catch (error) {
+            console.error('❌ Failed to fetch price lists:', error);
+        }
+    };
+
     // Initial load
     useEffect(() => {
         fetchCustomers();
         fetchStats();
+        fetchPriceLists();
 
         // Check if sync is already in progress
         checkForOngoingSync();
-    }, [refreshTrigger, searchTerm, filterActive, filterProductType]);
+    }, [refreshTrigger, searchTerm, filterActive, filterProductType, filterSegment]);
 
     // Check for ongoing sync on mount
     const checkForOngoingSync = async () => {
@@ -303,7 +336,7 @@ function ZohoCustomerMaster() {
     // Export to CSV
     const handleExport = () => {
         const csvContent = [
-            ['ID', 'Contact ID', 'Contact Name', 'Company Name', 'Email', 'Phone', 'Mobile', 'Customer Type', 'GST No', 'PAN No', 'Payment Terms', 'Outstanding', 'Credit Limit', 'Status', 'Notes'],
+            ['ID', 'Contact ID', 'Contact Name', 'Company Name', 'Email', 'Phone', 'Mobile', 'Customer Type', 'GST No', 'PAN No', 'Payment Terms', 'Outstanding', 'Credit Limit', 'Status', 'Notes', 'Customer Segment'],
             ...customers.map((customer) => [
                 customer.id,
                 customer.contact_id,
@@ -320,6 +353,7 @@ function ZohoCustomerMaster() {
                 customer.credit_limit || '',
                 customer.status,
                 customer.notes || '',
+                (customer.customer_segment && customer.customer_segment.length > 0) ? customer.customer_segment.join('; ') : '',  // Join array with semicolon
             ]),
         ]
             .map((row) => row.join(','))
@@ -350,7 +384,142 @@ function ZohoCustomerMaster() {
         { field: 'outstanding_receivable_amount', headerName: 'Outstanding', width: 120, editable: false, type: 'number' },
         { field: 'credit_limit', headerName: 'Credit Limit', width: 120, editable: false, type: 'number' },
         { field: 'status', headerName: 'Status', width: 100, editable: false },
-        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
+        {
+            field: 'notes',
+            headerName: '✏️ Notes',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'customer_segment',
+            headerName: '✏️ Customer Segment',
+            width: 200,
+            editable: true,
+            headerClassName: 'editable-column-header',
+            renderCell: (params) => {
+                const segments = params.value as string[] | null;
+                return (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {segments && segments.length > 0 ? (
+                            segments.map((seg) => (
+                                <span key={seg} style={{
+                                    backgroundColor: '#e3f2fd',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem'
+                                }}>
+                                    {seg}
+                                </span>
+                            ))
+                        ) : (
+                            <span style={{ color: '#999' }}>-</span>
+                        )}
+                    </Box>
+                );
+            },
+            renderEditCell: (params) => {
+                const currentValue = (params.value as string[] | null) || [];
+                const options = ['B2B', 'B2C', 'B2R'];
+
+                const handleChange = (event: any) => {
+                    const value = event.target.value;
+                    params.api.setEditCellValue({ id: params.id, field: params.field, value });
+                };
+
+                return (
+                    <Select
+                        multiple
+                        value={currentValue}
+                        onChange={handleChange}
+                        renderValue={(selected) => (selected as string[]).join(', ')}
+                        sx={{ width: '100%', fontSize: '0.875rem' }}
+                        MenuProps={{
+                            PaperProps: {
+                                style: {
+                                    maxHeight: 300,
+                                },
+                            },
+                        }}
+                    >
+                        {options.map((option) => (
+                            <MenuItem key={option} value={option}>
+                                <Checkbox checked={currentValue.includes(option)} />
+                                <ListItemText primary={option} />
+                            </MenuItem>
+                        ))}
+                    </Select>
+                );
+            }
+        },
+        {
+            field: 'price_list_name',
+            headerName: '✏️ Price List',
+            width: 200,
+            editable: false,  // Changed to false - we edit price_list_id instead
+            headerClassName: isAdmin ? 'editable-column-header' : '',
+            renderCell: (params) => (
+                params.value ? (
+                    <span style={{
+                        backgroundColor: '#f0f7ff',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem'
+                    }}>
+                        💰 {params.value}
+                    </span>
+                ) : (
+                    <span style={{ color: '#999' }}>No price list</span>
+                )
+            ),
+        },
+        {
+            field: 'price_list_id',
+            headerName: 'Price List ID',
+            width: 0,  // Hidden column
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : '',
+            renderCell: () => null,  // Hidden
+            renderEditCell: (params) => {
+                const currentValue = params.row.price_list_id || '';
+
+                const handleChange = (event: any) => {
+                    const priceListId = event.target.value === '' ? null : parseInt(event.target.value);
+                    const priceListName = priceListId
+                        ? priceLists.find(pl => pl.id === priceListId)?.price_list_name || null
+                        : null;
+
+                    // Update both fields in the row data
+                    params.api.setEditCellValue({
+                        id: params.id,
+                        field: 'price_list_id',
+                        value: priceListId
+                    });
+
+                    // Also update the display field
+                    params.api.updateRows([{
+                        id: params.id,
+                        price_list_name: priceListName
+                    }]);
+                };
+
+                return (
+                    <Select
+                        value={currentValue}
+                        onChange={handleChange}
+                        sx={{ width: '100%', fontSize: '0.875rem' }}
+                        displayEmpty
+                    >
+                        <MenuItem value="">None</MenuItem>
+                        {priceLists.map((pl) => (
+                            <MenuItem key={pl.id} value={pl.id}>
+                                {pl.price_list_name} {pl.status === 'active' ? '🟢' : pl.status === 'upcoming' ? '🟡' : '🔴'}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                );
+            }
+        },
     ];
 
     return (
@@ -379,7 +548,7 @@ function ZohoCustomerMaster() {
                 {currentTab === 0 && (
                     <Box sx={{ p: 3 }}>
                         <Grid container spacing={2} sx={{ mb: 2 }}>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={3}>
                                 <TextField
                                     fullWidth
                                     label="🔍 Search customers"
@@ -388,9 +557,9 @@ function ZohoCustomerMaster() {
                                     placeholder="Search by name, SKU, or HSN/SAC"
                                 />
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
-                                    <InputLabel>Filter</InputLabel>
+                                    <InputLabel>Status</InputLabel>
                                     <Select value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
                                         <MenuItem value="active">Active only</MenuItem>
                                         <MenuItem value="inactive">Inactive only</MenuItem>
@@ -398,9 +567,9 @@ function ZohoCustomerMaster() {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
-                                    <InputLabel>Product Type</InputLabel>
+                                    <InputLabel>Customer Type</InputLabel>
                                     <Select value={filterProductType} onChange={(e) => setFilterProductType(e.target.value)}>
                                         <MenuItem value="all">All</MenuItem>
                                         <MenuItem value="goods">Goods</MenuItem>
@@ -409,6 +578,17 @@ function ZohoCustomerMaster() {
                                 </FormControl>
                             </Grid>
                             <Grid item xs={12} md={2}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Customer Segment</InputLabel>
+                                    <Select value={filterSegment} onChange={(e) => setFilterSegment(e.target.value)}>
+                                        <MenuItem value="all">All</MenuItem>
+                                        <MenuItem value="B2B">B2B</MenuItem>
+                                        <MenuItem value="B2C">B2C</MenuItem>
+                                        <MenuItem value="B2R">B2R</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} md={3}>
                                 <Button
                                     fullWidth
                                     variant="outlined"
@@ -444,8 +624,21 @@ function ZohoCustomerMaster() {
                                         )}
                                     </Box>
                                 </Box>
-                                <Box sx={{ height: 600, width: '100%' }}>
+                                <Box sx={{
+                                    height: isFullscreen ? '100vh' : 600,
+                                    width: '100%',
+                                    ...(isFullscreen && {
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 9999,
+                                        bgcolor: 'background.paper',
+                                    })
+                                }}>
                                     <DataGrid
+                                        apiRef={apiRef}
                                         rows={customers}
                                         columns={columns}
                                         initialState={{
@@ -456,6 +649,49 @@ function ZohoCustomerMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleItemUpdate}
+                                        editMode="cell"
+                                        onCellClick={(params, event) => {
+                                            // Enable single-click editing for editable cells
+                                            if (params.isEditable && apiRef.current) {
+                                                event.defaultMuiPrevented = true;
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
+                                        slots={{
+                                            toolbar: () => (
+                                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                    <Box sx={{ flexGrow: 1 }} />
+                                                    <Button
+                                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                                        size="small"
+                                                    >
+                                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                    </Button>
+                                                </Box>
+                                            ),
+                                        }}
+                                        sx={{
+                                            border: '1px solid #e0e0e0',
+                                            height: '100%',
+                                            '& .MuiDataGrid-cell': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .MuiDataGrid-columnHeaders': {
+                                                borderBottom: '2px solid #e0e0e0',
+                                                backgroundColor: '#fafafa',
+                                            },
+                                            '& .MuiDataGrid-columnHeader': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
+                                            }
+                                        }}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>

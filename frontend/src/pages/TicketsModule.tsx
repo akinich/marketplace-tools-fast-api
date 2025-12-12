@@ -185,10 +185,6 @@ export default function TicketsModule() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.role === 'Admin';
 
-  // Tab state
-  const [currentTab, setCurrentTab] = useState<number>(0);
-  const currentCategory = TICKET_CATEGORIES[currentTab].value;
-
   // Tickets state
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -221,7 +217,7 @@ export default function TicketsModule() {
       const params: any = {
         page: page + 1,
         limit: rowsPerPage,
-        ticket_category: currentCategory,
+        ticket_category: 'internal',
       };
       if (typeFilter) params.ticket_type = typeFilter;
       if (statusFilter) params.status = statusFilter;
@@ -231,7 +227,7 @@ export default function TicketsModule() {
       setTickets(data.tickets || []);
       setTotal(data.total || 0);
     } catch (error: any) {
-      enqueueSnackbar(`Failed to fetch ${currentCategory.toUpperCase()} tickets`, { variant: 'error' });
+      enqueueSnackbar('Failed to fetch internal tickets', { variant: 'error' });
       console.error('Failed to fetch tickets:', error);
     } finally {
       setLoading(false);
@@ -249,7 +245,7 @@ export default function TicketsModule() {
 
   useEffect(() => {
     fetchTickets();
-  }, [currentTab, page, rowsPerPage, typeFilter, statusFilter, priorityFilter]);
+  }, [page, rowsPerPage, typeFilter, statusFilter, priorityFilter]);
 
   useEffect(() => {
     fetchStats();
@@ -258,14 +254,6 @@ export default function TicketsModule() {
   // ============================================================================
   // EVENT HANDLERS
   // ============================================================================
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setCurrentTab(newValue);
-    setPage(0); // Reset to first page when switching tabs
-    setTypeFilter('');
-    setStatusFilter('');
-    setPriorityFilter('');
-  };
 
   const handleCreateTicket = async () => {
     if (!newTicket.title.trim() || !newTicket.description.trim()) {
@@ -287,13 +275,12 @@ export default function TicketsModule() {
         title: '',
         description: '',
         ticket_type: 'issue',
-        ticket_category: currentCategory, // Default to current tab category
+        ticket_category: 'internal', // Hardcoded to internal
       });
 
       // Refresh if the created ticket matches current tab
-      if (newTicket.ticket_category === currentCategory) {
-        fetchTickets();
-      }
+      // Always refresh for internal tickets
+      fetchTickets();
       fetchStats();
     } catch (error: any) {
       enqueueSnackbar(error.response?.data?.detail || 'Failed to create ticket', {
@@ -306,7 +293,7 @@ export default function TicketsModule() {
     // Set default category to current tab when opening dialog
     setNewTicket((prev) => ({
       ...prev,
-      ticket_category: currentCategory,
+      ticket_category: 'internal',
     }));
     setCreateOpen(true);
   };
@@ -328,8 +315,7 @@ export default function TicketsModule() {
   // RENDER
   // ============================================================================
 
-  const categoryConfig = getCategoryConfig(currentCategory);
-  const categoryStats = stats?.by_category[currentCategory] || 0;
+
 
   return (
     <Box sx={{ p: 3 }}>
@@ -340,7 +326,7 @@ export default function TicketsModule() {
             Tickets
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage support tickets across Internal, B2B, and B2C categories
+            Manage internal support tickets for ERP issues and features
           </Typography>
         </Box>
         <Button
@@ -417,34 +403,7 @@ export default function TicketsModule() {
         </Grid>
       )}
 
-      {/* Category Tabs */}
-      <Card sx={{ mb: 3 }}>
-        <Tabs
-          value={currentTab}
-          onChange={handleTabChange}
-          indicatorColor="primary"
-          textColor="primary"
-          variant="fullWidth"
-        >
-          {TICKET_CATEGORIES.map((category, index) => (
-            <Tab
-              key={category.value}
-              icon={category.icon}
-              iconPosition="start"
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {category.label}
-                  <Chip
-                    label={stats?.by_category[category.value] || 0}
-                    size="small"
-                    sx={{ bgcolor: category.color, color: 'white' }}
-                  />
-                </Box>
-              }
-            />
-          ))}
-        </Tabs>
-      </Card>
+
 
       {/* Filters */}
       <Card sx={{ mb: 3, p: 2 }}>
@@ -531,7 +490,7 @@ export default function TicketsModule() {
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 5 }}>
                     <Typography variant="body2" color="text.secondary">
-                      No tickets found for {categoryConfig.label}
+                      No Internal tickets found
                     </Typography>
                   </TableCell>
                 </TableRow>
@@ -629,25 +588,7 @@ export default function TicketsModule() {
         <DialogTitle>Create New Ticket</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControl fullWidth>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={newTicket.ticket_category}
-                onChange={(e: SelectChangeEvent<TicketCategory>) =>
-                  setNewTicket({ ...newTicket, ticket_category: e.target.value as TicketCategory })
-                }
-                label="Category"
-              >
-                {TICKET_CATEGORIES.map((category) => (
-                  <MenuItem key={category.value} value={category.value}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {category.icon}
-                      {category.label}
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+
 
             <FormControl fullWidth>
               <InputLabel>Type</InputLabel>

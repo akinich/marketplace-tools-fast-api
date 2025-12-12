@@ -217,7 +217,7 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
             <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Box sx={{ width: 16, height: 16, bgcolor: '#FFF59D', border: '1px solid #ccc' }} />
-                    <Typography variant="caption">Shortfall (SENT &lt; ORDER)</Typography>
+                    <Typography variant="caption">Shortfall (SENT \u003c ORDER)</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Box sx={{ width: 16, height: 16, bgcolor: '#FFE0B2', border: '1px solid #ccc' }} />

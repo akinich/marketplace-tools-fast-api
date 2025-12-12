@@ -18,12 +18,14 @@ import {
     Card,
     CardContent,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
     Sync as SyncIcon,
     Download as DownloadIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { productAPI } from '../../api';
 
@@ -84,9 +86,10 @@ interface User {
 
 function ItemMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [items, setItems] = useState<Product[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterActive, setFilterActive] = useState('active');
     const [filterType, setFilterType] = useState('all');
@@ -97,6 +100,7 @@ function ItemMaster() {
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
     const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Get user role
     const user: User = JSON.parse(localStorage.getItem('user') || '{}');
@@ -114,7 +118,7 @@ function ItemMaster() {
             };
 
             const response = await productAPI.getProducts(params);
-            setProducts(response.products || []);
+            setItems(response.products || []);
         } catch (error: any) {
             enqueueSnackbar(error.response?.data?.detail || 'Failed to load products', { variant: 'error' });
         } finally {
@@ -273,7 +277,7 @@ function ItemMaster() {
     const handleExport = () => {
         const csvContent = [
             ['ID', 'Product ID', 'Variation ID', 'SKU', 'Product Name', 'Parent Product', 'Stock', 'Regular Price', 'Sale Price', 'HSN', 'Zoho Name', 'Usage Units', 'Categories', 'Attributes', 'Active', 'Notes'],
-            ...products.map((p) => [
+            ...items.map((p) => [
                 p.id,
                 p.product_id,
                 p.variation_id || '',
@@ -309,19 +313,19 @@ function ItemMaster() {
         { field: 'id', headerName: 'DB ID', width: 80, editable: false },
         { field: 'product_id', headerName: 'Product ID', width: 100, editable: false },
         { field: 'variation_id', headerName: 'Variation ID', width: 120, editable: false },
-        { field: 'product_name', headerName: 'Product Name', width: 250, editable: isAdmin },
-        { field: 'parent_product', headerName: 'Parent Name', width: 200, editable: isAdmin },
-        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin },
-        { field: 'stock_quantity', headerName: 'Stock', width: 100, editable: isAdmin, type: 'number' },
-        { field: 'regular_price', headerName: 'Regular Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'sale_price', headerName: 'Sale Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'hsn', headerName: 'HSN', width: 120, editable: true },
-        { field: 'zoho_name', headerName: 'Zoho Name', width: 200, editable: true },
-        { field: 'usage_units', headerName: 'Usage Units', width: 120, editable: true },
-        { field: 'categories', headerName: 'Categories', width: 200, editable: isAdmin },
-        { field: 'attribute', headerName: 'Attributes', width: 200, editable: isAdmin },
-        { field: 'is_active', headerName: 'Active', width: 100, editable: isAdmin, type: 'boolean' },
-        { field: 'notes', headerName: 'Notes', width: 200, editable: true },
+        { field: 'product_name', headerName: 'Product Name', width: 250, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'parent_product', headerName: 'Parent Name', width: 200, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'stock_quantity', headerName: 'Stock', width: 100, editable: isAdmin, type: 'number', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'regular_price', headerName: 'Regular Price', width: 120, editable: isAdmin, type: 'number', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'sale_price', headerName: 'Sale Price', width: 120, editable: isAdmin, type: 'number', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'hsn', headerName: '✏️ HSN', width: 120, editable: true, headerClassName: 'editable-column-header' },
+        { field: 'zoho_name', headerName: '✏️ Zoho Name', width: 200, editable: true, headerClassName: 'editable-column-header' },
+        { field: 'usage_units', headerName: '✏️ Usage Units', width: 120, editable: true, headerClassName: 'editable-column-header' },
+        { field: 'categories', headerName: 'Categories', width: 200, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'attribute', headerName: 'Attributes', width: 200, editable: isAdmin, headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'is_active', headerName: 'Active', width: 100, editable: isAdmin, type: 'boolean', headerClassName: isAdmin ? 'editable-column-header' : '' },
+        { field: 'notes', headerName: '✏️ Notes', width: 200, editable: true, headerClassName: 'editable-column-header' },
     ];
 
     return (
@@ -399,18 +403,74 @@ function ItemMaster() {
                         ) : (
                             <>
                                 <Typography variant="body2" sx={{ mb: 2 }}>
-                                    ✅ Found {products.length} products
+                                    ✅ Found {items.length} products
                                 </Typography>
-                                <Box sx={{ height: 600, width: '100%' }}>
+                                <Box sx={{
+                                    height: isFullscreen ? '100vh' : 600,
+                                    width: '100%',
+                                    ...(isFullscreen && {
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 9999,
+                                        bgcolor: 'background.paper',
+                                    })
+                                }}>
                                     <DataGrid
-                                        rows={products}
+                                        apiRef={apiRef}
+                                        rows={items}
                                         columns={columns}
+                                        editMode="cell"
+                                        onCellClick={(params) => {
+                                            if (params.field && columns.find(col => col.field === params.field)?.editable) {
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
                                         initialState={{
-                                            pagination: { paginationModel: { pageSize: 25, page: 0 } },
+                                            pagination: {
+                                                paginationModel: { pageSize: 25, page: 0 },
+                                            },
                                         }}
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleProductUpdate}
+                                        slots={{
+                                            toolbar: () => (
+                                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                    <Box sx={{ flexGrow: 1 }} />
+                                                    <Button
+                                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                                        size="small"
+                                                    >
+                                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                    </Button>
+                                                </Box>
+                                            ),
+                                        }}
+                                        sx={{
+                                            border: '1px solid #e0e0e0',
+                                            height: '100%',
+                                            '& .MuiDataGrid-cell': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .MuiDataGrid-columnHeaders': {
+                                                borderBottom: '2px solid #e0e0e0',
+                                                backgroundColor: '#fafafa',
+                                            },
+                                            '& .MuiDataGrid-columnHeader': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
+                                            },
+                                        }}
                                         // @ts-ignore - newEditingApi is valid but might not be in older TS defs
                                         experimentalFeatures={{ newEditingApi: true }}
                                     />

@@ -139,10 +139,11 @@ async def get_item_price(
     order_date: date
 ) -> Dict[str, Any]:
     """
-    Get item price using 3-tier pricing logic:
-    1. Customer-specific price for order date (Tier 1)
-    2. Zoho item rate (selling price) (Tier 2)
-    3. Manual entry required (Tier 3)
+    Get item price using 4-tier pricing logic:
+    1. Customer's assigned price list (Tier 0)
+    2. Customer-specific price for order date (Tier 1)
+    3. Zoho item rate (selling price) (Tier 2)
+    4. Manual entry required (Tier 3)
 
     Args:
         customer_id: Zoho customer ID
@@ -150,9 +151,30 @@ async def get_item_price(
         order_date: Order date (drives pricing)
 
     Returns:
-        Dict with: {price: Decimal | None, source: 'customer' | 'item_rate' | 'manual'}
+        Dict with: {price: Decimal | None, source: 'price_list' | 'customer' | 'item_rate' | 'manual'}
     """
     try:
+        # Tier 0: Check customer's assigned price list
+        price_list_query = """
+            SELECT pli.price
+            FROM zoho_customers zc
+            JOIN customer_price_lists cpl ON zc.price_list_id = cpl.id
+            JOIN price_list_items pli ON cpl.id = pli.price_list_id
+            WHERE zc.id = $1
+              AND pli.item_id = $2
+              AND cpl.is_active = true
+              AND cpl.valid_from <= $3
+              AND (cpl.valid_to IS NULL OR cpl.valid_to >= $3)
+        """
+        price_list_result = await fetch_one(price_list_query, customer_id, item_id, order_date)
+
+        if price_list_result and price_list_result['price'] is not None:
+            logger.debug(f"✅ Found price list price for item {item_id}: {price_list_result['price']}")
+            return {
+                "price": Decimal(str(price_list_result['price'])),
+                "source": "price_list"  # New source type
+            }
+
         # Tier 1: Check customer-specific price for order date
         customer_price_query = """
             SELECT price

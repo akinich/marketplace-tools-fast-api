@@ -13,7 +13,7 @@
  *   - Activity logging for fetch and download
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -22,9 +22,6 @@ import {
     Paper,
     Alert,
     CircularProgress,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     FormControl,
     InputLabel,
     Select,
@@ -34,11 +31,15 @@ import {
 import {
     Search as SearchIcon,
     Download as DownloadIcon,
-    ExpandMore as ExpandMoreIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridRowSelectionModel, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { b2cOpsAPI } from '../../api';
+import axios from 'axios';
+
+const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || '';
 
 interface FetchProgress {
     current: number;
@@ -65,6 +66,7 @@ interface OrderRow {
 
 export default function B2COrderList() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
 
     // State
     const [startDate, setStartDate] = useState('');
@@ -74,7 +76,74 @@ export default function B2COrderList() {
     const [selectedOrders, setSelectedOrders] = useState<GridRowSelectionModel>([]);
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [fetchProgress, setFetchProgress] = useState<FetchProgress>({ current: 0, total: 0, estimatedTime: 0 });
+    const [initialLoading, setInitialLoading] = useState(true);
+
+    // Load initial data from database
+    useEffect(() => {
+        loadOrdersFromDatabase();
+    }, []);
+
+    // Transform database order for DataGrid format
+    const transformDatabaseOrder = (order: any, idx: number): OrderRow => {
+        const billing = typeof order.billing === 'string' ? JSON.parse(order.billing) : order.billing;
+        const shipping = typeof order.shipping === 'string' ? JSON.parse(order.shipping) : order.shipping;
+        const lineItems = order.line_items || [];
+
+        const itemsOrdered = lineItems
+            .map((item: any) => `${item.name} x ${item.quantity}`)
+            .join(', ');
+
+        const totalItems = lineItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+        const shippingAddress = [
+            shipping.address_1,
+            shipping.address_2,
+            shipping.city,
+            shipping.state,
+            shipping.postcode,
+            shipping.country
+        ].filter(Boolean).join(', ');
+
+        const customerName = `${billing.first_name || ''} ${billing.last_name || ''}`.trim() || 'N/A';
+
+        return {
+            id: order.woo_order_id,
+            sNo: idx + 1,
+            orderNumber: order.order_number,
+            date: new Date(order.date_created).toLocaleDateString(),
+            customerName,
+            itemsOrdered: itemsOrdered || 'N/A',
+            totalItems,
+            shippingAddress: shippingAddress || 'N/A',
+            mobileNumber: billing.phone || '',
+            customerNotes: order.customer_note || '-',
+            orderTotal: parseFloat(order.total),
+            paymentMethod: order.payment_method_title || '',
+            transactionId: order.transaction_id || '-',
+            orderStatus: order.status,
+        };
+    };
+
+    // Load orders from database
+    const loadOrdersFromDatabase = async () => {
+        try {
+            setInitialLoading(true);
+            const response = await axios.get(
+                `${API_BASE_URL}/api/v1/b2c-orders?page=1&limit=100`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+            );
+
+            const transformedOrders = response.data.orders.map(transformDatabaseOrder);
+            setOrders(transformedOrders);
+            setSelectedOrders([]); // Don't auto-select all
+        } catch (error: any) {
+            console.error('Error loading orders from database:', error);
+        } finally {
+            setInitialLoading(false);
+        }
+    };
 
     // Validate date range
     const validateDateRange = () => {
@@ -173,13 +242,25 @@ export default function B2COrderList() {
                 };
             });
 
+            // Save to database
+            setFetchProgress({ current: 95, total: 100, estimatedTime: 1 });
+            const saveResponse = await axios.post(
+                `${API_BASE_URL}/api/v1/b2c-orders/save`,
+                { orders: response.orders },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+            );
+
             // Complete progress
             clearInterval(progressInterval);
             setFetchProgress({ current: 100, total: 100, estimatedTime: 0 });
 
-            setOrders(transformedOrders);
-            setSelectedOrders(transformedOrders.map(o => o.id)); // Select all by default
-            enqueueSnackbar(`Successfully fetched ${transformedOrders.length} orders!`, { variant: 'success' });
+            // Reload from database to show saved data
+            await loadOrdersFromDatabase();
+
+            enqueueSnackbar(
+                `Synced ${saveResponse.data.total} orders (${saveResponse.data.created} new, ${saveResponse.data.updated} updated)`,
+                { variant: 'success' }
+            );
         } catch (error: any) {
             clearInterval(progressInterval);
             setFetchProgress({ current: 0, total: 0, estimatedTime: 0 });
@@ -348,8 +429,21 @@ export default function B2COrderList() {
                         </Button>
                     </Box>
 
-                    <Box sx={{ height: 600, width: '100%' }}>
+                    <Box sx={{
+                        height: isFullscreen ? '100vh' : 600,
+                        width: '100%',
+                        ...(isFullscreen && {
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            bgcolor: 'background.paper',
+                        })
+                    }}>
                         <DataGrid
+                            apiRef={apiRef}
                             rows={orders}
                             columns={columns}
                             checkboxSelection
@@ -360,40 +454,40 @@ export default function B2COrderList() {
                                 pagination: { paginationModel: { pageSize: 25 } },
                             }}
                             pageSizeOptions={[10, 25, 50, 100]}
+                            slots={{
+                                toolbar: () => (
+                                    <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                        <Box sx={{ flexGrow: 1 }} />
+                                        <Button
+                                            startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                            onClick={() => setIsFullscreen(!isFullscreen)}
+                                            size="small"
+                                        >
+                                            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                        </Button>
+                                    </Box>
+                                ),
+                            }}
+                            sx={{
+                                border: '1px solid #e0e0e0',
+                                height: '100%',
+                                '& .MuiDataGrid-cell': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                                '& .MuiDataGrid-columnHeaders': {
+                                    borderBottom: '2px solid #e0e0e0',
+                                    backgroundColor: '#fafafa',
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                            }}
                         />
                     </Box>
                 </Paper>
             )}
 
-            {/* Help Section */}
-            <Accordion sx={{ mt: 3 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography>ℹ️ Help & Instructions</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Typography variant="body2" component="div">
-                        <strong>How to use Order Extractor:</strong>
-                        <ol>
-                            <li><strong>Select Date Range</strong>: Choose start and end dates (max 31 days)</li>
-                            <li><strong>Fetch Orders</strong>: Click to retrieve orders from WooCommerce</li>
-                            <li><strong>Review Orders</strong>: Check the order list and select which ones to download</li>
-                            <li><strong>Download Excel</strong>: Export selected orders to Excel with two sheets:
-                                <ul>
-                                    <li><strong>Orders Sheet</strong>: Customer details and order information</li>
-                                    <li><strong>Item Summary Sheet</strong>: Aggregated item quantities</li>
-                                </ul>
-                            </li>
-                        </ol>
 
-                        <strong>Troubleshooting:</strong>
-                        <ul>
-                            <li><strong>No orders found</strong>: Check date range and WooCommerce order dates</li>
-                            <li><strong>API errors</strong>: Contact admin to verify WooCommerce API credentials</li>
-                            <li><strong>Timeout</strong>: Try a shorter date range (fewer orders)</li>
-                        </ul>
-                    </Typography>
-                </AccordionDetails>
-            </Accordion>
         </Box>
     );
 }

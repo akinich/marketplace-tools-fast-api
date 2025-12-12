@@ -25,7 +25,8 @@ import {
     GridToolbarFilterButton,
     GridToolbarQuickFilter,
     GridColDef,
-    GridRenderCellParams
+    GridRenderCellParams,
+    useGridApiRef
 } from '@mui/x-data-grid';
 import {
     Refresh as RefreshIcon,
@@ -36,6 +37,8 @@ import {
     LockOpen as LockOpenIcon,
     Restore as RestoreIcon,
     Visibility as VisibilityIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import stockPriceAPI from '../../api/stockPrice';
@@ -89,10 +92,12 @@ interface UploadResult {
 }
 
 function StockPriceUpdater() {
+    const apiRef = useGridApiRef();
     const { enqueueSnackbar } = useSnackbar();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Product lists
     const [updatableProducts, setUpdatableProducts] = useState<Product[]>([]);
@@ -228,7 +233,11 @@ function StockPriceUpdater() {
         const changes: any[] = [];
 
         editedRows.forEach((row) => {
-            const change: any = { db_id: row.id };
+            const change: any = {
+                db_id: row.id,
+                product_id: row.product_id,
+                variation_id: row.variation_id || null
+            };
             let hasChanges = false;
 
             if (row.updated_stock !== null && row.updated_stock !== undefined) {
@@ -337,12 +346,13 @@ function StockPriceUpdater() {
 
     const renderUpdateTab = () => {
         const columns: GridColDef[] = [
-            { field: 'product_id', headerName: 'Product ID', width: 100 },
-            { field: 'variation_id', headerName: 'Variation ID', width: 110 },
+            { field: 'product_id', headerName: 'Product ID', flex: 0.6, minWidth: 90 },
+            { field: 'variation_id', headerName: 'Variation ID', flex: 0.7, minWidth: 100 },
             {
                 field: 'product_name',
                 headerName: 'Product Name',
-                width: 300,
+                flex: 2,
+                minWidth: 200,
                 renderCell: (params: GridRenderCellParams) => {
                     const displayName = params.row.parent_product && params.row.variation_id
                         ? `${params.row.parent_product} - ${params.row.product_name}`
@@ -350,13 +360,13 @@ function StockPriceUpdater() {
                     return <Typography variant="body2">{displayName}</Typography>;
                 },
             },
-            { field: 'sku', headerName: 'SKU', width: 120 },
-            { field: 'stock_quantity', headerName: 'Current Stock', width: 120, type: 'number' },
-            { field: 'regular_price', headerName: 'Current Regular Price', width: 150, type: 'number' },
-            { field: 'sale_price', headerName: 'Current Sale Price', width: 150, type: 'number' },
-            { field: 'updated_stock', headerName: 'New Stock', width: 120, type: 'number', editable: true },
-            { field: 'updated_regular_price', headerName: 'New Regular Price', width: 150, type: 'number', editable: true },
-            { field: 'updated_sale_price', headerName: 'New Sale Price', width: 150, type: 'number', editable: true },
+            { field: 'sku', headerName: 'SKU', flex: 0.8, minWidth: 100 },
+            { field: 'stock_quantity', headerName: 'Current Stock', flex: 0.8, minWidth: 100, type: 'number' },
+            { field: 'regular_price', headerName: 'Current Regular Price', flex: 1, minWidth: 120, type: 'number' },
+            { field: 'sale_price', headerName: 'Current Sale Price', flex: 1, minWidth: 120, type: 'number' },
+            { field: 'updated_stock', headerName: '✏️ New Stock', flex: 0.8, minWidth: 100, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'updated_regular_price', headerName: '✏️ New Regular Price', flex: 1, minWidth: 130, type: 'number', editable: true, headerClassName: 'editable-column-header' },
+            { field: 'updated_sale_price', headerName: '✏️ New Sale Price', flex: 1, minWidth: 130, type: 'number', editable: true, headerClassName: 'editable-column-header' },
         ];
 
         return (
@@ -402,35 +412,91 @@ function StockPriceUpdater() {
                     ✅ Updatable Products ({updatableProducts.length})
                 </Typography>
 
-                <DataGrid
-                    rows={updatableProducts}
-                    columns={columns}
-                    initialState={{
-                        pagination: { paginationModel: { pageSize: 25, page: 0 } },
-                    }}
-                    pageSizeOptions={[25, 50, 100]}
-                    autoHeight
-                    disableRowSelectionOnClick
-                    loading={loading}
-                    processRowUpdate={(newRow) => newRow}
-                    slots={{
-                        toolbar: () => (
-                            <GridToolbarContainer>
-                                <GridToolbarQuickFilter />
-                                <GridToolbarFilterButton />
-                                <GridToolbarExport />
-                                <Box sx={{ flexGrow: 1 }} />
-                                <Button
-                                    startIcon={<VisibilityIcon />}
-                                    onClick={() => handlePreviewChanges(updatableProducts)}
-                                    size="small"
-                                >
-                                    Preview Changes
-                                </Button>
-                            </GridToolbarContainer>
-                        ),
-                    }}
-                />
+                <Box sx={{
+                    height: isFullscreen ? '100vh' : 600,
+                    width: '100%',
+                    ...(isFullscreen && {
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 9999,
+                        bgcolor: 'background.paper',
+                    })
+                }}>
+                    <DataGrid
+                        apiRef={apiRef}
+                        rows={updatableProducts}
+                        columns={columns}
+                        initialState={{
+                            pagination: { paginationModel: { pageSize: 25, page: 0 } },
+                        }}
+                        pageSizeOptions={[25, 50, 100]}
+                        disableRowSelectionOnClick
+                        loading={loading}
+                        editMode="cell"
+                        processRowUpdate={(newRow) => {
+                            // Update the row in state
+                            setUpdatableProducts((prev) =>
+                                prev.map((row) => (row.id === newRow.id ? newRow : row))
+                            );
+                            return newRow;
+                        }}
+                        onCellClick={(params, event) => {
+                            // Enable single-click editing for editable cells
+                            if (params.isEditable && apiRef.current) {
+                                event.defaultMuiPrevented = true;
+                                apiRef.current.startCellEditMode({
+                                    id: params.id,
+                                    field: params.field,
+                                });
+                            }
+                        }}
+                        slots={{
+                            toolbar: () => (
+                                <GridToolbarContainer>
+                                    <GridToolbarQuickFilter />
+                                    <GridToolbarFilterButton />
+                                    <GridToolbarExport />
+                                    <Box sx={{ flexGrow: 1 }} />
+                                    <Button
+                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                        size="small"
+                                    >
+                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                    </Button>
+                                    <Button
+                                        startIcon={<VisibilityIcon />}
+                                        onClick={() => handlePreviewChanges(updatableProducts)}
+                                        size="small"
+                                    >
+                                        Preview Changes
+                                    </Button>
+                                </GridToolbarContainer>
+                            ),
+                        }}
+                        sx={{
+                            border: '1px solid #e0e0e0',
+                            height: '100%',
+                            '& .MuiDataGrid-cell': {
+                                borderRight: '1px solid #e0e0e0',
+                            },
+                            '& .MuiDataGrid-columnHeaders': {
+                                borderBottom: '2px solid #e0e0e0',
+                                backgroundColor: '#fafafa',
+                            },
+                            '& .MuiDataGrid-columnHeader': {
+                                borderRight: '1px solid #e0e0e0',
+                            },
+                            '& .editable-column-header': {
+                                backgroundColor: '#e3f2fd',
+                                fontWeight: 'bold',
+                            },
+                        }}
+                    />
+                </Box>
 
                 <Box sx={{ mt: 4 }}>
                     <Typography variant="h6" gutterBottom>

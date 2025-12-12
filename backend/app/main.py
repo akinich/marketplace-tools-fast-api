@@ -313,50 +313,64 @@ from app.routes import (
     grn,
     sales_orders,
     inventory,
+    b2c_orders,
+    price_list,
     allocation
 )
 from app.routes import settings as settings_router
 
 # Mount routers
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
-app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin Panel"])
 app.include_router(security.router, prefix=f"{settings.API_PREFIX}/security", tags=["Security"])
-app.include_router(api_keys.router, prefix=f"{settings.API_PREFIX}", tags=["API Keys"])
+app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
+app.include_router(api_keys.router, prefix=f"{settings.API_PREFIX}/api-keys", tags=["API Keys"])
 
+# Core
 app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/dashboard", tags=["Dashboard"])
-
 app.include_router(tickets.router, prefix=f"{settings.API_PREFIX}/tickets", tags=["Tickets"])
-app.include_router(development.router, prefix=f"{settings.API_PREFIX}/development", tags=["Development"])
-app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram Notifications"])
-app.include_router(webhooks.router, prefix=f"{settings.API_PREFIX}/webhooks", tags=["Webhooks"])
-app.include_router(email.router, prefix=f"{settings.API_PREFIX}", tags=["Email"])
-app.include_router(docs.router, prefix=f"{settings.API_PREFIX}", tags=["Documentation"])
 app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/settings", tags=["Settings"])
-app.include_router(websocket.router, tags=["WebSocket"])
-app.include_router(b2c_ops.router, prefix=f"{settings.API_PREFIX}", tags=["B2C Operations"])
-app.include_router(product.router, prefix=f"{settings.API_PREFIX}", tags=["Product Management"])
-app.include_router(zoho_item.router, prefix=f"{settings.API_PREFIX}", tags=["Zoho Item Master"])
-app.include_router(zoho_vendor.router, prefix=f"{settings.API_PREFIX}", tags=["Zoho Vendor Master"])
-app.include_router(zoho_customer.router, prefix=f"{settings.API_PREFIX}", tags=["Zoho Customer Master"])
-app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}", tags=["WooCommerce Customer Master"])
-app.include_router(woo_to_zoho.router, prefix=f"{settings.API_PREFIX}", tags=["Woo to Zoho Export"])
-app.include_router(stock_price.router, prefix=f"{settings.API_PREFIX}", tags=["Stock & Price Updater"])
-app.include_router(woo_checkout.router, prefix=f"{settings.API_PREFIX}", tags=["WooCommerce Checkout"])
 
-# Inventory & Batch Tracking
+# Communication
+app.include_router(telegram.router, prefix=f"{settings.API_PREFIX}/telegram", tags=["Telegram"])
+app.include_router(email.router, prefix=f"{settings.API_PREFIX}/email", tags=["Email"])
+app.include_router(webhooks.router, prefix=f"{settings.API_PREFIX}/webhooks", tags=["Webhooks"])
+app.include_router(websocket.router, prefix=f"{settings.API_PREFIX}/ws", tags=["WebSocket"])
+
+# Development
+app.include_router(docs.router, prefix=f"{settings.API_PREFIX}/docs", tags=["Documentation"])
+app.include_router(development.router, prefix=f"{settings.API_PREFIX}/dev", tags=["Development"])
+
+# B2C Operations
+app.include_router(b2c_ops.router, prefix=f"{settings.API_PREFIX}/b2c-ops", tags=["B2C Operations"])
+app.include_router(woo_checkout.router, prefix=f"{settings.API_PREFIX}/woo-checkout", tags=["WooCommerce Checkout"])
+
+# Zoho Integration
+app.include_router(zoho_item.router, prefix=f"{settings.API_PREFIX}/zoho-items", tags=["Zoho Items"])
+app.include_router(zoho_vendor.router, prefix=f"{settings.API_PREFIX}/zoho-vendors", tags=["Zoho Vendors"])
+app.include_router(zoho_customer.router, prefix=f"{settings.API_PREFIX}/zoho-customers", tags=["Zoho Customers"])
+
+# WooCommerce Integration
+app.include_router(woo_customer.router, prefix=f"{settings.API_PREFIX}/woo-customers", tags=["WooCommerce Customers"])
+app.include_router(woo_to_zoho.router, prefix=f"{settings.API_PREFIX}/woo-to-zoho", tags=["WooCommerce to Zoho"])
+app.include_router(product.router, prefix=f"{settings.API_PREFIX}/products", tags=["Products"])
+app.include_router(stock_price.router, prefix=f"{settings.API_PREFIX}/stock-price", tags=["Stock & Pricing"])
+app.include_router(price_list.router, prefix=f"{settings.API_PREFIX}/price-lists", tags=["Price Lists"])
+
+# Inventory Management
 app.include_router(batch_tracking.router, prefix=f"{settings.API_PREFIX}/batches", tags=["Batch Tracking"])
-app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}", tags=["Wastage Tracking"])
-app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory Management"])
-
-# Purchase Orders
-# Purchase Orders
-app.include_router(po.router, prefix=f"{settings.API_PREFIX}/po", tags=["Purchase Orders"])
-
-# GRN Management
-app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["GRN Management"])
+app.include_router(wastage_tracking.router, prefix=f"{settings.API_PREFIX}/wastage", tags=["Wastage Tracking"])
+app.include_router(po.router, prefix=f"{settings.API_PREFIX}/purchase-orders", tags=["Purchase Orders"])
+app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["Goods Receipt Note"])
+app.include_router(inventory.router, prefix=f"{settings.API_PREFIX}/inventory", tags=["Inventory"])
 
 # Sales Order & Pricing
 app.include_router(sales_orders.router, prefix=f"{settings.API_PREFIX}/sales-orders", tags=["Sales Orders"])
+
+# B2C Orders Management
+app.include_router(b2c_orders.router, prefix=f"{settings.API_PREFIX}/b2c-orders", tags=["B2C Orders"])
+
+# Price Lists
+app.include_router(price_list.router, prefix=f"{settings.API_PREFIX}/price-lists", tags=["Price Lists"])
 
 # Allocation Sheets (Order Allocation)
 app.include_router(allocation.router, prefix=f"{settings.API_PREFIX}/allocation", tags=["Allocation Sheets"])

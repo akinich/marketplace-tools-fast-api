@@ -121,7 +121,7 @@ async def get_items(
                 gst_no, gst_treatment, pan_no, tax_id,
                 place_of_contact, is_taxable,
                 outstanding_receivable_amount, unused_credits, credit_limit,
-                notes,
+                notes, customer_segment,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_customers
@@ -156,7 +156,7 @@ async def get_item_by_id(contact_id: int) -> Optional[Dict]:
                 gst_no, gst_treatment, pan_no, tax_id,
                 place_of_contact, is_taxable,
                 outstanding_receivable_amount, unused_credits, credit_limit,
-                notes,
+                notes, customer_segment,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
             FROM zoho_customers
@@ -194,8 +194,8 @@ async def update_item(
         params = []
         param_count = 0
 
-        # Notes field is user-editable for all users
-        user_editable_fields = ['notes']
+        # Notes and customer_segment fields are user-editable for all users
+        user_editable_fields = ['notes', 'customer_segment']
 
         for field, value in item_data.model_dump(exclude_unset=True).items():
             # Only admins can update non-editable fields
@@ -233,7 +233,7 @@ async def update_item(
                 gst_no, gst_treatment, pan_no, tax_id,
                 place_of_contact, is_taxable,
                 outstanding_receivable_amount, unused_credits, credit_limit,
-                notes,
+                notes, customer_segment,
                 created_time, last_modified_time,
                 last_sync_at, created_at, updated_at
         """
@@ -380,7 +380,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                 }
 
                 if existing:
-                    # Update existing customer
+                    # Update existing customer (preserve user-edited fields: notes, customer_segment)
                     await execute_query(
                         """
                         UPDATE zoho_customers SET
@@ -394,6 +394,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                             created_time = $23, last_modified_time = $24,
                             raw_json = $25, last_sync_at = $26, updated_at = NOW()
                         WHERE id = $1
+                        -- Note: notes and customer_segment are NOT updated to preserve user edits
                         """,
                         existing['id'],
                         customer_data['contact_name'], customer_data['company_name'], customer_data['email'],
@@ -411,7 +412,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                     updated += 1
                     _sync_progress["updated"] = updated
                 else:
-                    # Insert new customer
+                    # Insert new customer with default values for user-editable fields
                     await execute_query(
                         """
                         INSERT INTO zoho_customers (
@@ -422,12 +423,13 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                             gst_no, gst_treatment, pan_no, tax_id,
                             place_of_contact, is_taxable,
                             outstanding_receivable_amount, unused_credits, credit_limit,
+                            customer_segment,
                             created_time, last_modified_time,
                             raw_json, last_sync_at
                         ) VALUES (
                             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                             $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                            $21, $22, $23, $24, $25, $26
+                            $21, $22, $23, $24, $25, $26, $27
                         )
                         """,
                         customer_data['contact_id'], customer_data['contact_name'], customer_data['company_name'],
@@ -439,6 +441,7 @@ async def sync_from_zoho_books(synced_by: str, force_refresh: bool = False) -> D
                         customer_data['tax_id'], customer_data['place_of_contact'], customer_data['is_taxable'],
                         customer_data['outstanding_receivable_amount'], customer_data['unused_credits'],
                         customer_data['credit_limit'],
+                        [],  # customer_segment - empty array default
                         customer_data['created_time'], customer_data['last_modified_time'],
                         customer_data['raw_json'], customer_data['last_sync_at']
                     )

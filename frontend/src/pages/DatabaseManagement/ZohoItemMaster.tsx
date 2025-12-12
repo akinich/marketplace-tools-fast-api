@@ -17,13 +17,17 @@ import {
     Grid,
     Card,
     CardContent,
+    Checkbox,
+    ListItemText,
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import {
     Refresh as RefreshIcon,
     Sync as SyncIcon,
     Download as DownloadIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import { zohoItemAPI } from '../../api/zohoItem';
 
@@ -43,7 +47,7 @@ interface ZohoItem {
     status: string;
     is_taxable: boolean;
     for_purchase: boolean;
-    segment: string | null;
+    segment: string[] | null;  // Changed to array for multi-select
     last_sync_at?: string;
 }
 
@@ -76,17 +80,20 @@ interface SyncResult {
 
 function ZohoItemMaster() {
     const { enqueueSnackbar } = useSnackbar();
+    const apiRef = useGridApiRef();
     const [currentTab, setCurrentTab] = useState(0);
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<ZohoItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterActive, setFilterActive] = useState('active');
     const [filterProductType, setFilterProductType] = useState('all');
+    const [filterSegment, setFilterSegment] = useState('all');
     const [stats, setStats] = useState<ZohoStats | null>(null);
     const [syncing, setSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
     const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
     const [lastSyncRunTime, setLastSyncRunTime] = useState<string | null>(() => {
         // Load from localStorage on mount
@@ -126,7 +133,16 @@ function ZohoItemMaster() {
             };
 
             const response = await zohoItemAPI.getItems(params);
-            setItems(response.items || []);
+            let fetchedItems = response.items || [];
+
+            // Client-side filtering by segment
+            if (filterSegment !== 'all') {
+                fetchedItems = fetchedItems.filter((item: ZohoItem) =>
+                    item.segment && item.segment.includes(filterSegment)
+                );
+            }
+
+            setItems(fetchedItems);
 
             // Calculate last sync time from items
             if (response.items && response.items.length > 0) {
@@ -165,7 +181,7 @@ function ZohoItemMaster() {
 
         // Check if sync is already in progress
         checkForOngoingSync();
-    }, [refreshTrigger, searchTerm, filterActive, filterProductType]);
+    }, [refreshTrigger, searchTerm, filterActive, filterProductType, filterSegment]);
 
     // Check for ongoing sync on mount
     const checkForOngoingSync = async () => {
@@ -319,7 +335,7 @@ function ZohoItemMaster() {
                 item.status,
                 item.is_taxable ? 'Yes' : 'No',
                 item.for_purchase ? 'Yes' : 'No',
-                item.segment || '',
+                (item.segment && item.segment.length > 0) ? item.segment.join('; ') : '',  // Join array with semicolon
             ]),
         ]
             .map((row) => row.join(','))
@@ -338,19 +354,155 @@ function ZohoItemMaster() {
     const columns: GridColDef[] = [
         { field: 'id', headerName: 'DB ID', width: 80, editable: false },
         { field: 'item_id', headerName: 'Zoho Item ID', width: 120, editable: false },
-        { field: 'name', headerName: 'Item Name', width: 250, editable: isAdmin },
-        { field: 'sku', headerName: 'SKU', width: 150, editable: isAdmin },
-        { field: 'description', headerName: 'Description', width: 200, editable: isAdmin },
-        { field: 'rate', headerName: 'Selling Price', width: 120, editable: isAdmin, type: 'number' },
-        { field: 'purchase_rate', headerName: 'Purchase Price', width: 130, editable: isAdmin, type: 'number' },
-        { field: 'item_type', headerName: 'Item Type', width: 150, editable: isAdmin },
-        { field: 'product_type', headerName: 'Product Type', width: 120, editable: isAdmin },
-        { field: 'hsn_or_sac', headerName: 'HSN/SAC', width: 120, editable: isAdmin },
-        { field: 'unit', headerName: 'Unit', width: 100, editable: isAdmin },
-        { field: 'status', headerName: 'Status', width: 100, editable: isAdmin },
-        { field: 'is_taxable', headerName: 'Taxable', width: 100, editable: isAdmin, type: 'boolean' },
-        { field: 'for_purchase', headerName: 'For Purchase', width: 120, editable: true, type: 'boolean' },
-        { field: 'segment', headerName: 'Segment', width: 150, editable: true, type: 'singleSelect', valueOptions: ['b2b', 'b2c', 'others'] },
+        {
+            field: 'name',
+            headerName: isAdmin ? '✏️ Item Name' : 'Item Name',
+            width: 250,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'sku',
+            headerName: isAdmin ? '✏️ SKU' : 'SKU',
+            width: 150,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'description',
+            headerName: isAdmin ? '✏️ Description' : 'Description',
+            width: 200,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'rate',
+            headerName: isAdmin ? '✏️ Selling Price' : 'Selling Price',
+            width: 120,
+            editable: isAdmin,
+            type: 'number',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'purchase_rate',
+            headerName: isAdmin ? '✏️ Purchase Price' : 'Purchase Price',
+            width: 130,
+            editable: isAdmin,
+            type: 'number',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'item_type',
+            headerName: isAdmin ? '✏️ Item Type' : 'Item Type',
+            width: 150,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'product_type',
+            headerName: isAdmin ? '✏️ Product Type' : 'Product Type',
+            width: 120,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'hsn_or_sac',
+            headerName: isAdmin ? '✏️ HSN/SAC' : 'HSN/SAC',
+            width: 120,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'unit',
+            headerName: isAdmin ? '✏️ Unit' : 'Unit',
+            width: 100,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'status',
+            headerName: isAdmin ? '✏️ Status' : 'Status',
+            width: 100,
+            editable: isAdmin,
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'is_taxable',
+            headerName: isAdmin ? '✏️ Taxable' : 'Taxable',
+            width: 100,
+            editable: isAdmin,
+            type: 'boolean',
+            headerClassName: isAdmin ? 'editable-column-header' : ''
+        },
+        {
+            field: 'for_purchase',
+            headerName: '✏️ For Purchase',
+            width: 140,
+            editable: true,
+            type: 'boolean',
+            headerClassName: 'editable-column-header'
+        },
+        {
+            field: 'segment',
+            headerName: '✏️ Segment',
+            width: 180,
+            editable: true,
+            headerClassName: 'editable-column-header',
+            renderCell: (params) => {
+                const segments = params.value as string[] | null;
+                return (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        {segments && segments.length > 0 ? (
+                            segments.map((seg) => (
+                                <span key={seg} style={{
+                                    backgroundColor: '#e3f2fd',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem'
+                                }}>
+                                    {seg}
+                                </span>
+                            ))
+                        ) : (
+                            <span style={{ color: '#999' }}>-</span>
+                        )}
+                    </Box>
+                );
+            },
+            renderEditCell: (params) => {
+                const currentValue = (params.value as string[] | null) || [];
+                const options = ['b2b', 'b2c', 'others'];
+
+                const handleChange = (event: any) => {
+                    const value = event.target.value;
+                    params.api.setEditCellValue({ id: params.id, field: params.field, value });
+                };
+
+                return (
+                    <Select
+                        multiple
+                        value={currentValue}
+                        onChange={handleChange}
+                        renderValue={(selected) => (selected as string[]).join(', ')}
+                        sx={{ width: '100%', fontSize: '0.875rem' }}
+                        MenuProps={{
+                            PaperProps: {
+                                style: {
+                                    maxHeight: 300,
+                                },
+                            },
+                        }}
+                    >
+                        {options.map((option) => (
+                            <MenuItem key={option} value={option}>
+                                <Checkbox checked={currentValue.includes(option)} />
+                                <ListItemText primary={option} />
+                            </MenuItem>
+                        ))}
+                    </Select>
+                );
+            }
+        },
     ];
 
     return (
@@ -379,7 +531,7 @@ function ZohoItemMaster() {
                 {currentTab === 0 && (
                     <Box sx={{ p: 3 }}>
                         <Grid container spacing={2} sx={{ mb: 2 }}>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={3}>
                                 <TextField
                                     fullWidth
                                     label="🔍 Search items"
@@ -388,9 +540,9 @@ function ZohoItemMaster() {
                                     placeholder="Search by name, SKU, or HSN/SAC"
                                 />
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
-                                    <InputLabel>Filter</InputLabel>
+                                    <InputLabel>Status</InputLabel>
                                     <Select value={filterActive} onChange={(e) => setFilterActive(e.target.value)}>
                                         <MenuItem value="active">Active only</MenuItem>
                                         <MenuItem value="inactive">Inactive only</MenuItem>
@@ -398,7 +550,7 @@ function ZohoItemMaster() {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} md={3}>
+                            <Grid item xs={12} md={2}>
                                 <FormControl fullWidth>
                                     <InputLabel>Product Type</InputLabel>
                                     <Select value={filterProductType} onChange={(e) => setFilterProductType(e.target.value)}>
@@ -409,6 +561,17 @@ function ZohoItemMaster() {
                                 </FormControl>
                             </Grid>
                             <Grid item xs={12} md={2}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Segment</InputLabel>
+                                    <Select value={filterSegment} onChange={(e) => setFilterSegment(e.target.value)}>
+                                        <MenuItem value="all">All</MenuItem>
+                                        <MenuItem value="b2b">b2b</MenuItem>
+                                        <MenuItem value="b2c">b2c</MenuItem>
+                                        <MenuItem value="others">others</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={12} md={3}>
                                 <Button
                                     fullWidth
                                     variant="outlined"
@@ -444,8 +607,21 @@ function ZohoItemMaster() {
                                         )}
                                     </Box>
                                 </Box>
-                                <Box sx={{ height: 600, width: '100%' }}>
+                                <Box sx={{
+                                    height: isFullscreen ? '100vh' : 600,
+                                    width: '100%',
+                                    ...(isFullscreen && {
+                                        position: 'fixed',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        zIndex: 9999,
+                                        bgcolor: 'background.paper',
+                                    })
+                                }}>
                                     <DataGrid
+                                        apiRef={apiRef}
                                         rows={items}
                                         columns={columns}
                                         initialState={{
@@ -456,6 +632,54 @@ function ZohoItemMaster() {
                                         pageSizeOptions={[10, 25, 50, 100]}
                                         disableRowSelectionOnClick
                                         processRowUpdate={handleItemUpdate}
+                                        editMode="cell"
+                                        onCellClick={(params, event) => {
+                                            // Enable single-click editing for editable cells
+                                            if (params.isEditable && apiRef.current) {
+                                                event.defaultMuiPrevented = true;
+                                                apiRef.current.startCellEditMode({
+                                                    id: params.id,
+                                                    field: params.field,
+                                                });
+                                            }
+                                        }}
+                                        slotProps={{
+                                            toolbar: {
+                                                showQuickFilter: true,
+                                            },
+                                        }}
+                                        slots={{
+                                            toolbar: () => (
+                                                <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                    <Box sx={{ flexGrow: 1 }} />
+                                                    <Button
+                                                        startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                        onClick={() => setIsFullscreen(!isFullscreen)}
+                                                        size="small"
+                                                    >
+                                                        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                    </Button>
+                                                </Box>
+                                            ),
+                                        }}
+                                        sx={{
+                                            border: '1px solid #e0e0e0',
+                                            height: '100%',
+                                            '& .MuiDataGrid-cell': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .MuiDataGrid-columnHeaders': {
+                                                borderBottom: '2px solid #e0e0e0',
+                                                backgroundColor: '#fafafa',
+                                            },
+                                            '& .MuiDataGrid-columnHeader': {
+                                                borderRight: '1px solid #e0e0e0',
+                                            },
+                                            '& .editable-column-header': {
+                                                backgroundColor: '#e3f2fd',
+                                                fontWeight: 'bold',
+                                            }
+                                        }}
                                     />
                                 </Box>
                                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>

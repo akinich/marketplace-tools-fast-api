@@ -43,6 +43,7 @@ class ZohoCustomerBase(BaseModel):
     unused_credits: Optional[float] = 0
     credit_limit: Optional[float] = 0
     notes: Optional[str] = None
+    customer_segment: Optional[List[str]] = None  # User-editable: B2B, B2C, B2R
 
 
 class ZohoCustomerCreate(ZohoCustomerBase):
@@ -76,11 +77,16 @@ class ZohoCustomerUpdate(BaseModel):
     unused_credits: Optional[float] = None
     credit_limit: Optional[float] = None
     notes: Optional[str] = None  # User editable
+    customer_segment: Optional[List[str]] = None  # User-editable: B2B, B2C, B2R
+    price_list_id: Optional[int] = None  # User-editable: Assign price list
 
 
 class ZohoCustomerResponse(ZohoCustomerBase):
     """Schema for Zoho customer response"""
     id: int
+    price_list_id: Optional[int] = None
+    price_list_name: Optional[str] = None
+    customer_segment: Optional[List[str]] = None
     created_time: Optional[datetime] = None
     last_modified_time: Optional[datetime] = None
     last_sync_at: Optional[datetime] = None

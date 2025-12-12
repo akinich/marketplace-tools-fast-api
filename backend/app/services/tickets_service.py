@@ -257,6 +257,18 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
     Create a new ticket. Any user can create tickets.
     Priority is not set at creation - only admins can set it later.
     """
+    # Convert delivery_date string to date object if provided
+    delivery_date_obj = None
+    if request.delivery_date:
+        try:
+            from datetime import datetime
+            # Parse the date string (format: YYYY-MM-DD)
+            delivery_date_obj = datetime.strptime(request.delivery_date, "%Y-%m-%d").date()
+        except (ValueError, AttributeError):
+            # If parsing fails, leave as None
+            logger.warning(f"Invalid delivery_date format: {request.delivery_date}")
+            delivery_date_obj = None
+    
     insert_query = """
         INSERT INTO tickets (
             title,
@@ -294,7 +306,7 @@ async def create_ticket(request: CreateTicketRequest, user_id: str) -> Dict:
         request.sales_order_id,
         request.invoice_id,
         request.batch_number,
-        request.delivery_date,
+        delivery_date_obj,  # Use the converted date object
         request.photo_urls
     )
 
@@ -872,65 +884,6 @@ async def get_ticket_stats() -> Dict:
     }
 
 
-async def get_dashboard_stats() -> Dict:
-    """
-    Get dashboard statistics broken down by category (Internal/B2B/B2C).
-    Returns status breakdown for each category plus overall totals.
-    """
-    # Get stats for each category
-    dashboard_query = """
-        SELECT
-            ticket_category,
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE status = 'open') as open,
-            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
-            COUNT(*) FILTER (WHERE status = 'resolved') as resolved,
-            COUNT(*) FILTER (WHERE status = 'closed') as closed
-        FROM tickets
-        GROUP BY ticket_category
-    """
-    category_stats = await fetch_all(dashboard_query)
-
-    # Initialize category data
-    internal_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
-    b2b_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
-    b2c_stats = {"total": 0, "open": 0, "in_progress": 0, "resolved": 0, "closed": 0}
-
-    # Fill in category data
-    for row in category_stats:
-        category = row["ticket_category"]
-        stats = {
-            "total": row["total"],
-            "open": row["open"],
-            "in_progress": row["in_progress"],
-            "resolved": row["resolved"],
-            "closed": row["closed"],
-        }
-
-        if category == "internal":
-            internal_stats = stats
-        elif category == "b2b":
-            b2b_stats = stats
-        elif category == "b2c":
-            b2c_stats = stats
-
-    # Calculate total across all categories
-    total_across_categories = {
-        "total": internal_stats["total"] + b2b_stats["total"] + b2c_stats["total"],
-        "open": internal_stats["open"] + b2b_stats["open"] + b2c_stats["open"],
-        "in_progress": internal_stats["in_progress"] + b2b_stats["in_progress"] + b2c_stats["in_progress"],
-        "resolved": internal_stats["resolved"] + b2b_stats["resolved"] + b2c_stats["resolved"],
-        "closed": internal_stats["closed"] + b2b_stats["closed"] + b2c_stats["closed"],
-    }
-
-    return {
-        "internal": internal_stats,
-        "b2b": b2b_stats,
-        "b2c": b2c_stats,
-        "total_across_categories": total_across_categories,
-    }
-
-
 async def get_my_tickets(
     user_id: str,
     ticket_status: Optional[TicketStatus] = None,
@@ -987,4 +940,18 @@ async def get_dashboard_stats() -> Dict:
                 "closed": row["closed"],
             }
     
-    return stats
+    # Calculate total across all categories
+    total_across_categories = {
+        "total": stats["internal"]["total"] + stats["b2b"]["total"] + stats["b2c"]["total"],
+        "open": stats["internal"]["open"] + stats["b2b"]["open"] + stats["b2c"]["open"],
+        "in_progress": stats["internal"]["in_progress"] + stats["b2b"]["in_progress"] + stats["b2c"]["in_progress"],
+        "resolved": stats["internal"]["resolved"] + stats["b2b"]["resolved"] + stats["b2c"]["resolved"],
+        "closed": stats["internal"]["closed"] + stats["b2b"]["closed"] + stats["b2c"]["closed"],
+    }
+    
+    return {
+        "internal": stats["internal"],
+        "b2b": stats["b2b"],
+        "b2c": stats["b2c"],
+        "total_across_categories": total_across_categories,
+    }

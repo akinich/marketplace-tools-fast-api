@@ -25,7 +25,7 @@ import {
     CircularProgress,
     Paper
 } from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -35,6 +35,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PreviewIcon from '@mui/icons-material/Visibility';
 import HistoryIcon from '@mui/icons-material/History';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
 import { wooToZohoAPI } from '../../api/wooToZoho';
 
@@ -61,6 +63,8 @@ interface ExportHistoryItem {
 
 const WooToZohoExport: React.FC = () => {
     const { enqueueSnackbar } = useSnackbar();
+    const previewGridRef = useGridApiRef();
+    const historyGridRef = useGridApiRef();
     const [tabValue, setTabValue] = useState(0);
 
     // Export State
@@ -73,12 +77,14 @@ const WooToZohoExport: React.FC = () => {
     const [previewData, setPreviewData] = useState<ExportPreviewData | null>(null);
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
 
     // History State
     const [historyData, setHistoryData] = useState<ExportHistoryItem[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [historyStartDate, setHistoryStartDate] = useState<Date | null>(subDays(new Date(), 30));
     const [historyEndDate, setHistoryEndDate] = useState<Date | null>(new Date());
+    const [isHistoryFullscreen, setIsHistoryFullscreen] = useState(false);
 
     // Fetch suggested sequence on mount and when prefix changes
     useEffect(() => {
@@ -334,8 +340,21 @@ const WooToZohoExport: React.FC = () => {
                                         <Typography variant="h6" gutterBottom>
                                             Line Items Preview (First 50 rows)
                                         </Typography>
-                                        <Box sx={{ height: 400, width: '100%' }}>
+                                        <Box sx={{
+                                            height: isPreviewFullscreen ? '100vh' : 400,
+                                            width: '100%',
+                                            ...(isPreviewFullscreen && {
+                                                position: 'fixed',
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                zIndex: 9999,
+                                                bgcolor: 'background.paper',
+                                            })
+                                        }}>
                                             <DataGrid
+                                                apiRef={previewGridRef}
                                                 rows={previewData.csv_rows}
                                                 columns={previewColumns}
                                                 getRowId={(row) => `${row['Invoice Number']}-${row['Item Name']}`}
@@ -345,6 +364,34 @@ const WooToZohoExport: React.FC = () => {
                                                 pageSizeOptions={[50]}
                                                 disableRowSelectionOnClick
                                                 density="compact"
+                                                slots={{
+                                                    toolbar: () => (
+                                                        <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                            <Box sx={{ flexGrow: 1 }} />
+                                                            <Button
+                                                                startIcon={isPreviewFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                                onClick={() => setIsPreviewFullscreen(!isPreviewFullscreen)}
+                                                                size="small"
+                                                            >
+                                                                {isPreviewFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                            </Button>
+                                                        </Box>
+                                                    ),
+                                                }}
+                                                sx={{
+                                                    border: '1px solid #e0e0e0',
+                                                    height: '100%',
+                                                    '& .MuiDataGrid-cell': {
+                                                        borderRight: '1px solid #e0e0e0',
+                                                    },
+                                                    '& .MuiDataGrid-columnHeaders': {
+                                                        borderBottom: '2px solid #e0e0e0',
+                                                        backgroundColor: '#fafafa',
+                                                    },
+                                                    '& .MuiDataGrid-columnHeader': {
+                                                        borderRight: '1px solid #e0e0e0',
+                                                    },
+                                                }}
                                             />
                                         </Box>
                                     </CardContent>
@@ -394,8 +441,21 @@ const WooToZohoExport: React.FC = () => {
                         <Grid item xs={12}>
                             <Card>
                                 <CardContent>
-                                    <Box sx={{ height: 600, width: '100%' }}>
+                                    <Box sx={{
+                                        height: isHistoryFullscreen ? '100vh' : 600,
+                                        width: '100%',
+                                        ...(isHistoryFullscreen && {
+                                            position: 'fixed',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            zIndex: 9999,
+                                            bgcolor: 'background.paper',
+                                        })
+                                    }}>
                                         <DataGrid
+                                            apiRef={historyGridRef}
                                             rows={historyData}
                                             columns={historyColumns}
                                             initialState={{
@@ -405,6 +465,34 @@ const WooToZohoExport: React.FC = () => {
                                             disableRowSelectionOnClick
                                             loading={loadingHistory}
                                             getRowId={(row) => row.id}
+                                            slots={{
+                                                toolbar: () => (
+                                                    <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                                        <Box sx={{ flexGrow: 1 }} />
+                                                        <Button
+                                                            startIcon={isHistoryFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                                            onClick={() => setIsHistoryFullscreen(!isHistoryFullscreen)}
+                                                            size="small"
+                                                        >
+                                                            {isHistoryFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                                        </Button>
+                                                    </Box>
+                                                ),
+                                            }}
+                                            sx={{
+                                                border: '1px solid #e0e0e0',
+                                                height: '100%',
+                                                '& .MuiDataGrid-cell': {
+                                                    borderRight: '1px solid #e0e0e0',
+                                                },
+                                                '& .MuiDataGrid-columnHeaders': {
+                                                    borderBottom: '2px solid #e0e0e0',
+                                                    backgroundColor: '#fafafa',
+                                                },
+                                                '& .MuiDataGrid-columnHeader': {
+                                                    borderRight: '1px solid #e0e0e0',
+                                                },
+                                            }}
                                         />
                                     </Box>
                                 </CardContent>

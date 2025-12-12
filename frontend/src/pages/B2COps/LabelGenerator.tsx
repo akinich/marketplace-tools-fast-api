@@ -35,8 +35,10 @@ import {
     Download as DownloadIcon,
     ExpandMore as ExpandMoreIcon,
     CheckCircle as CheckCircleIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { b2cOpsAPI } from '../../api';
 
@@ -66,12 +68,14 @@ interface PreviewData {
 
 export default function LabelGenerator() {
     const { enqueueSnackbar } = useSnackbar();
+    const gridRef = useGridApiRef();
 
     // State
     const [file, setFile] = useState<File | null>(null);
     const [previewData, setPreviewData] = useState<PreviewData | null>(null);
     const [loading, setLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // Configuration
     const [fontName, setFontName] = useState('Courier-Bold');
@@ -363,8 +367,21 @@ export default function LabelGenerator() {
                     <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
                         👀 Data Preview
                     </Typography>
-                    <Box sx={{ height: 400, width: '100%' }}>
+                    <Box sx={{
+                        height: isFullscreen ? '100vh' : 400,
+                        width: '100%',
+                        ...(isFullscreen && {
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            bgcolor: 'background.paper',
+                        })
+                    }}>
                         <DataGrid
+                            apiRef={gridRef}
                             rows={rows}
                             columns={columns}
                             initialState={{
@@ -372,6 +389,34 @@ export default function LabelGenerator() {
                             }}
                             pageSizeOptions={[10, 20, 50]}
                             disableRowSelectionOnClick
+                            slots={{
+                                toolbar: () => (
+                                    <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                        <Box sx={{ flexGrow: 1 }} />
+                                        <Button
+                                            startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                            onClick={() => setIsFullscreen(!isFullscreen)}
+                                            size="small"
+                                        >
+                                            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                        </Button>
+                                    </Box>
+                                ),
+                            }}
+                            sx={{
+                                border: '1px solid #e0e0e0',
+                                height: '100%',
+                                '& .MuiDataGrid-cell': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                                '& .MuiDataGrid-columnHeaders': {
+                                    borderBottom: '2px solid #e0e0e0',
+                                    backgroundColor: '#fafafa',
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                            }}
                         />
                     </Box>
                     {previewData.preview_data.length < previewData.valid_labels && (

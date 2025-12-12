@@ -113,6 +113,27 @@ async def create_so(
         )
 
 
+
+@router.get("/price-check")
+async def check_price(
+    customer_id: int = Query(..., description="Customer ID"),
+    item_id: int = Query(..., description="Item ID"),
+    order_date: date = Query(default_factory=date.today, description="Date for pricing"),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Check 3-tier price for specific customer/item/date.
+    """
+    try:
+        result = await sales_order_service.get_item_price(customer_id, item_id, order_date)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check price: {str(e)}"
+        )
+
+
 @router.get("/{so_id}", response_model=SODetailResponse)
 async def get_so(
     so_id: int,
@@ -159,26 +180,6 @@ async def update_so(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update SO: {str(e)}"
-        )
-
-
-@router.get("/price-check")
-async def check_price(
-    customer_id: int = Query(..., description="Customer ID"),
-    item_id: int = Query(..., description="Item ID"),
-    order_date: date = Query(default_factory=date.today, description="Date for pricing"),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """
-    Check 3-tier price for specific customer/item/date.
-    """
-    try:
-        result = await sales_order_service.get_item_price(customer_id, item_id, order_date)
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check price: {str(e)}"
         )
 
 

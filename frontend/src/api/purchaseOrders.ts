@@ -160,7 +160,7 @@ export const purchaseOrdersAPI = {
      * Create new purchase order
      */
     create: async (data: POCreateRequest): Promise<PODetailResponse> => {
-        const response = await apiClient.post('/po/create', data);
+        const response = await apiClient.post('/purchase-orders/create', data);
         return response.data;
     },
 
@@ -168,7 +168,7 @@ export const purchaseOrdersAPI = {
      * Get next sequential PO number
      */
     getNextNumber: async (): Promise<{ po_number: string; sequence_number: number; financial_year: string }> => {
-        const response = await apiClient.get('/po/next-number');
+        const response = await apiClient.get('/purchase-orders/next-number');
         return response.data;
     },
 
@@ -176,7 +176,7 @@ export const purchaseOrdersAPI = {
      * Get complete PO details with items and history
      */
     getById: async (poId: number): Promise<PODetailResponse> => {
-        const response = await apiClient.get(`/po/${poId}`);
+        const response = await apiClient.get(`/purchase-orders/${poId}`);
         return response.data;
     },
 
@@ -184,7 +184,7 @@ export const purchaseOrdersAPI = {
      * Update purchase order
      */
     update: async (poId: number, data: POUpdateRequest): Promise<PODetailResponse> => {
-        const response = await apiClient.put(`/po/${poId}/update`, data);
+        const response = await apiClient.put(`/purchase-orders/${poId}/update`, data);
         return response.data;
     },
 
@@ -192,7 +192,7 @@ export const purchaseOrdersAPI = {
      * Send PO to farm via email
      */
     send: async (poId: number): Promise<{ message: string; status: string }> => {
-        const response = await apiClient.post(`/po/${poId}/send`);
+        const response = await apiClient.post(`/purchase-orders/${poId}/send`);
         return response.data;
     },
 
@@ -200,7 +200,7 @@ export const purchaseOrdersAPI = {
      * List purchase orders with filters and pagination
      */
     list: async (params: POListParams): Promise<POListResponse> => {
-        const response = await apiClient.get('/po/list', { params });
+        const response = await apiClient.get('/purchase-orders/list', { params });
         return response.data;
     },
 
@@ -209,7 +209,7 @@ export const purchaseOrdersAPI = {
      */
     exportToZoho: async (poIds: number[]): Promise<Blob> => {
         const response = await apiClient.post(
-            '/po/export-zoho',
+            '/purchase-orders/export-zoho',
             { po_ids: poIds },
             { responseType: 'blob' }
         );
@@ -220,7 +220,7 @@ export const purchaseOrdersAPI = {
      * Generate printable PO PDF
      */
     generatePDF: async (poId: number): Promise<Blob> => {
-        const response = await apiClient.get(`/po/${poId}/pdf`, { responseType: 'blob' });
+        const response = await apiClient.get(`/purchase-orders/${poId}/pdf`, { responseType: 'blob' });
         return response.data;
     },
 
@@ -232,7 +232,7 @@ export const purchaseOrdersAPI = {
      * Add or update vendor-item pricing (admin only)
      */
     addVendorPrice: async (data: VendorPricingRequest): Promise<PriceHistoryResponse> => {
-        const response = await apiClient.post('/po/vendor-pricing/manage', data);
+        const response = await apiClient.post('/purchase-orders/vendor-pricing/manage', data);
         return response.data;
     },
 
@@ -240,7 +240,7 @@ export const purchaseOrdersAPI = {
      * Get vendors with pricing configured (admin only)
      */
     getVendorsWithPricing: async (): Promise<VendorPricingSummary[]> => {
-        const response = await apiClient.get('/vendor-pricing/vendors-summary');
+        const response = await apiClient.get('/purchase-orders/vendor-pricing/vendors-summary');
         return response.data;
     },
 
@@ -248,7 +248,7 @@ export const purchaseOrdersAPI = {
      * Get price history for vendor-item combinations (admin only)
      */
     getPriceHistory: async (vendorId: number, itemId?: number): Promise<PriceHistoryResponse[]> => {
-        const response = await apiClient.get('/po/vendor-pricing/history', {
+        const response = await apiClient.get('/purchase-orders/vendor-pricing/history', {
             params: { vendor_id: vendorId, item_id: itemId }
         });
         return response.data;
@@ -258,7 +258,7 @@ export const purchaseOrdersAPI = {
      * Get all active vendor-item prices for a specific date
      */
     getActivePrices: async (vendorId: number, date?: string): Promise<ActivePriceResponse[]> => {
-        const response = await apiClient.get('/po/vendor-pricing/active', {
+        const response = await apiClient.get('/purchase-orders/vendor-pricing/active', {
             params: { vendor_id: vendorId, price_date: date }
         });
         return response.data;

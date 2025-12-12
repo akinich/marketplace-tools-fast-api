@@ -31,7 +31,7 @@ router = APIRouter()
 # ZOHO ITEM CRUD ENDPOINTS
 # ============================================================================
 
-@router.get("/zoho-customers", response_model=ZohoCustomerListResponse)
+@router.get("/", response_model=ZohoCustomerListResponse)
 async def list_zoho_customers(
     search: Optional[str] = Query(None, description="Search by item name, SKU, or HSN/SAC"),
     active_only: bool = Query(True, description="Filter active items only"),
@@ -65,7 +65,7 @@ async def list_zoho_customers(
 # ZOHO BOOKS SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/zoho-customers/sync")
+@router.post("/sync")
 async def sync_zoho_customers(
     sync_request: ZohoCustomerSyncRequest,
     background_tasks: BackgroundTasks,
@@ -105,7 +105,7 @@ async def sync_zoho_customers(
     }
 
 
-@router.get("/zoho-customers/sync-progress")
+@router.get("/sync-progress")
 async def get_sync_progress(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -123,7 +123,7 @@ async def get_sync_progress(
 # STATISTICS ENDPOINTS
 # ============================================================================
 
-@router.get("/zoho-customers/stats", response_model=ZohoCustomerStatsResponse)
+@router.get("/stats", response_model=ZohoCustomerStatsResponse)
 async def get_zoho_customer_stats(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -140,7 +140,7 @@ async def get_zoho_customer_stats(
 # ZOHO ITEM DETAIL ENDPOINTS (Must come after specific routes like /sync, /stats)
 # ============================================================================
 
-@router.get("/zoho-customers/{customer_id}", response_model=ZohoCustomerResponse)
+@router.get("/{customer_id}", response_model=ZohoCustomerResponse)
 async def get_zoho_customer(
     customer_id: int,
     current_user: CurrentUser = Depends(get_current_user)
@@ -161,7 +161,7 @@ async def get_zoho_customer(
     return item
 
 
-@router.patch("/zoho-customers/{customer_id}", response_model=ZohoCustomerResponse)
+@router.patch("/{customer_id}", response_model=ZohoCustomerResponse)
 async def update_zoho_customer(
     customer_id: int,
     item_data: ZohoCustomerUpdate,

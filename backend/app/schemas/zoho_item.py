@@ -37,7 +37,7 @@ class ZohoItemBase(BaseModel):
     unit: Optional[str] = None
     account_id: Optional[str] = None
     for_purchase: bool = False
-    segment: Optional[str] = None
+    segment: Optional[List[str]] = None  # Changed to list for multi-select
 
 
 class ZohoItemCreate(ZohoItemBase):
@@ -65,14 +65,14 @@ class ZohoItemUpdate(BaseModel):
     unit: Optional[str] = None
     account_id: Optional[str] = None
     for_purchase: Optional[bool] = None
-    segment: Optional[str] = None
+    segment: Optional[List[str]] = None  # Changed to list for multi-select
 
 
 class ZohoItemResponse(ZohoItemBase):
     """Schema for Zoho item response"""
     id: int
     for_purchase: bool = False
-    segment: Optional[str] = None
+    segment: Optional[List[str]] = None  # Changed to list for multi-select
     created_time: Optional[datetime] = None
     last_modified_time: Optional[datetime] = None
     last_sync_at: Optional[datetime] = None

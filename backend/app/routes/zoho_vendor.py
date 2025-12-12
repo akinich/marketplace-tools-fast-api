@@ -31,7 +31,7 @@ router = APIRouter()
 # ZOHO ITEM CRUD ENDPOINTS
 # ============================================================================
 
-@router.get("/zoho-vendors", response_model=ZohoVendorListResponse)
+@router.get("/", response_model=ZohoVendorListResponse)
 async def list_zoho_vendors(
     search: Optional[str] = Query(None, description="Search by item name, SKU, or HSN/SAC"),
     active_only: bool = Query(True, description="Filter active items only"),
@@ -65,7 +65,7 @@ async def list_zoho_vendors(
 # ZOHO BOOKS SYNC ENDPOINTS
 # ============================================================================
 
-@router.post("/zoho-vendors/sync")
+@router.post("/sync")
 async def sync_zoho_vendors(
     sync_request: ZohoVendorSyncRequest,
     background_tasks: BackgroundTasks,
@@ -105,7 +105,7 @@ async def sync_zoho_vendors(
     }
 
 
-@router.get("/zoho-vendors/sync-progress")
+@router.get("/sync-progress")
 async def get_sync_progress(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -123,7 +123,7 @@ async def get_sync_progress(
 # STATISTICS ENDPOINTS
 # ============================================================================
 
-@router.get("/zoho-vendors/stats", response_model=ZohoVendorStatsResponse)
+@router.get("/stats", response_model=ZohoVendorStatsResponse)
 async def get_zoho_vendor_stats(
     current_user: CurrentUser = Depends(get_current_user)
 ):
@@ -140,7 +140,7 @@ async def get_zoho_vendor_stats(
 # ZOHO ITEM DETAIL ENDPOINTS (Must come after specific routes like /sync, /stats)
 # ============================================================================
 
-@router.get("/zoho-vendors/{vendor_id}", response_model=ZohoVendorResponse)
+@router.get("/{vendor_id}", response_model=ZohoVendorResponse)
 async def get_zoho_vendor(
     vendor_id: int,
     current_user: CurrentUser = Depends(get_current_user)
@@ -161,7 +161,7 @@ async def get_zoho_vendor(
     return item
 
 
-@router.patch("/zoho-vendors/{vendor_id}", response_model=ZohoVendorResponse)
+@router.patch("/{vendor_id}", response_model=ZohoVendorResponse)
 async def update_zoho_vendor(
     vendor_id: int,
     item_data: ZohoVendorUpdate,

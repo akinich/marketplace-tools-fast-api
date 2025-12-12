@@ -368,14 +368,80 @@ async def update_cell(
         
         # Update SENT quantity
         if sent_quantity is not None:
-            # TODO: Recalculate batches for manual sent quantity
-            await conn.execute("""
-                UPDATE allocation_sheet_cells
-                SET sent_quantity = $1,
-                    invoice_status = 'pending',
-                    updated_at = NOW()
-                WHERE id = $2
-            """, float(sent_quantity), cell_id)
+            # Recalculate batches for manual sent quantity using FIFO
+            item_id_val = await conn.fetchval("""
+                SELECT item_id FROM allocation_sheet_cells WHERE id = $1
+            """, cell_id)
+            
+            if item_id_val:
+                # Get available batches (same query as auto_fill_sent_quantities)
+                batches = await conn.fetch("""
+                    SELECT 
+                        id as batch_id,
+                        batch_number,
+                        (quantity - allocated_qty - sold_qty) as available_qty,
+                        CASE 
+                            WHEN batch_number LIKE '%R' THEN TRUE
+                            ELSE FALSE
+                        END as is_repacked,
+                        CASE 
+                            WHEN expiry_date < (CURRENT_DATE + INTERVAL '2 days') THEN TRUE
+                            ELSE FALSE
+                        END as is_expiring_soon,
+                        expiry_date,
+                        entry_date
+                    FROM inventory_batches
+                    WHERE item_id = $1 
+                      AND (quantity - allocated_qty - sold_qty) > 0
+                    ORDER BY 
+                        CASE WHEN expiry_date < (CURRENT_DATE + INTERVAL '2 days') THEN 1 ELSE 2 END,
+                        CASE WHEN batch_number LIKE '%R' THEN 2 ELSE 3 END,
+                        entry_date ASC
+                """, item_id_val)
+                
+                # Allocate batches
+                allocated = []
+                allocated_qty = 0
+                needed = float(sent_quantity)
+                
+                for batch in batches:
+                    if allocated_qty >= needed:
+                        break
+                    
+                    take = min(batch['available_qty'], needed - allocated_qty)
+                    allocated.append({
+                        'batch_id': batch['batch_id'],
+                        'batch_number': batch['batch_number'],
+                        'qty_allocated': float(take),
+                        'is_repacked': batch['is_repacked'],
+                        'is_expiring_soon': batch['is_expiring_soon']
+                    })
+                    allocated_qty += float(take)
+                
+                # Update cell
+                await conn.execute("""
+                    UPDATE allocation_sheet_cells
+                    SET sent_quantity = $1,
+                        allocated_batches = $2,
+                        has_shortfall = ($1 > $3),
+                        invoice_status = 'pending',
+                        updated_at = NOW()
+                    WHERE id = $4
+                """, 
+                    float(sent_quantity), 
+                    json.dumps(allocated),
+                    allocated_qty,
+                    cell_id
+                )
+            else:
+                # Fallback
+                await conn.execute("""
+                    UPDATE allocation_sheet_cells
+                    SET sent_quantity = $1,
+                        invoice_status = 'pending',
+                        updated_at = NOW()
+                    WHERE id = $2
+                """, float(sent_quantity), cell_id)
             
             recalculated_batches = True
         

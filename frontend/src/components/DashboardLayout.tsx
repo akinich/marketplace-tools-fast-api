@@ -404,6 +404,7 @@ export default function DashboardLayout() {
         // B2C Management sub-modules
         const b2cManagementRoutes: Record<string, string> = {
             b2c_dashboard: '/b2c-ops/dashboard',
+            b2c_order_list: '/b2c-ops/b2c-order-list',
             subscription_management: '/b2c-ops/subscriptions',
             woo_to_zoho_export: '/b2c-ops/woo-to-zoho-export',
             stock_price_updater: '/b2c-ops/stock-price-updater',
@@ -454,6 +455,7 @@ export default function DashboardLayout() {
             invoice_management: '/outward/invoices',
             order_allocation: '/outward/allocation',
             customer_pricing: '/outward/customer-pricing',
+            price_lists: '/outward/price-lists',
         };
 
         // Reporting sub-modules
