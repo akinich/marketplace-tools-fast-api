@@ -99,7 +99,7 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
         # Get customer details with SO numbers
         customers_dict = {}
         for so_item in so_items:
-            cust_id = so_item['customer_id']
+            cust_id = str(so_item['customer_id'])  # Convert to string to match allocation_sheet_cells.customer_id type
             if cust_id not in customers_dict:
                 customers_dict[cust_id] = {
                     'id': cust_id,
@@ -107,7 +107,7 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
                     'so_number': so_item['so_number'],
                     'so_id': so_item['so_id']
                 }
-        
+
         customers = sorted(customers_dict.values(), key=lambda c: c['so_number'])
         
         # 4. Generate/update cells
@@ -119,8 +119,8 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
                 WHERE sheet_id = $1
                   AND item_id = $2
                   AND customer_id = $3
-            """, sheet_id, so_item['item_id'], so_item['customer_id'])
-            
+            """, sheet_id, so_item['item_id'], str(so_item['customer_id']))
+
             if existing_cell:
                 # Update ORDER quantity if SO changed
                 if existing_cell['order_quantity'] != so_item['quantity']:
@@ -129,7 +129,7 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
                         SET order_quantity = $1, updated_at = NOW()
                         WHERE id = $2
                     """, so_item['quantity'], existing_cell['id'])
-                
+
                 cells.append(dict(existing_cell))
             else:
                 # Create new cell
@@ -139,7 +139,7 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
                         order_quantity, created_by
                     ) VALUES ($1, $2, $3, $4, $5, $6)
                     RETURNING *
-                """, sheet_id, so_item['item_id'], so_item['customer_id'],
+                """, sheet_id, so_item['item_id'], str(so_item['customer_id']),
                     so_item['so_id'], so_item['quantity'], user_id)
                 
                 cells.append(dict(new_cell))
