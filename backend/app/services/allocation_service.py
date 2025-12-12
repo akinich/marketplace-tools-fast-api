@@ -64,7 +64,7 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
                 soi.item_id,
                 soi.quantity
             FROM sales_orders so
-            JOIN sales_order_items soi ON so.id = soi.so_id
+            JOIN sales_order_items soi ON so.id = soi.sales_order_id
             JOIN zoho_customers c ON so.customer_id = c.id
             WHERE so.delivery_date = $1
               AND so.status NOT IN ('cancelled', 'delivered')
