@@ -81,7 +81,7 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                                         Total Ordered
                                     </Typography>
                                     <Typography variant="h4">
-                                        {summary.total_ordered.toFixed(1)}
+                                        {Number(summary.total_ordered).toFixed(1)}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         kg
@@ -102,7 +102,7 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                                         Total Sent
                                     </Typography>
                                     <Typography variant="h4" color="success.main">
-                                        {summary.total_sent.toFixed(1)}
+                                        {Number(summary.total_sent).toFixed(1)}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         kg
@@ -123,7 +123,7 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                                         Shortfall
                                     </Typography>
                                     <Typography variant="h4" color={summary.total_shortfall > 0 ? 'warning.main' : 'success.main'}>
-                                        {summary.total_shortfall.toFixed(1)}
+                                        {Number(summary.total_shortfall).toFixed(1)}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         kg
@@ -148,7 +148,7 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                                         Fulfillment Rate
                                     </Typography>
                                     <Typography variant="h4" color={summary.fulfillment_rate >= 95 ? 'success.main' : 'warning.main'}>
-                                        {summary.fulfillment_rate.toFixed(1)}
+                                        {Number(summary.fulfillment_rate).toFixed(1)}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         %
@@ -188,11 +188,11 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                                     <TableRow key={index} hover>
                                         <TableCell>{sf.item_name}</TableCell>
                                         <TableCell>{sf.customer_name}</TableCell>
-                                        <TableCell align="right">{sf.ordered.toFixed(1)} kg</TableCell>
-                                        <TableCell align="right">{sf.sent.toFixed(1)} kg</TableCell>
+                                        <TableCell align="right">{Number(sf.ordered).toFixed(1)} kg</TableCell>
+                                        <TableCell align="right">{Number(sf.sent).toFixed(1)} kg</TableCell>
                                         <TableCell align="right">
                                             <Chip
-                                                label={`${sf.shortage.toFixed(1)} kg`}
+                                                label={`${Number(sf.shortage).toFixed(1)} kg`}
                                                 color="warning"
                                                 size="small"
                                             />
@@ -225,12 +225,12 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                             {by_item.map((item: any) => (
                                 <TableRow key={item.item_id} hover>
                                     <TableCell>{item.item_name}</TableCell>
-                                    <TableCell align="right">{item.total_ordered.toFixed(1)} kg</TableCell>
-                                    <TableCell align="right">{item.total_sent.toFixed(1)} kg</TableCell>
+                                    <TableCell align="right">{Number(item.total_ordered).toFixed(1)} kg</TableCell>
+                                    <TableCell align="right">{Number(item.total_sent).toFixed(1)} kg</TableCell>
                                     <TableCell align="right">
                                         {item.shortfall > 0 ? (
                                             <Chip
-                                                label={`${item.shortfall.toFixed(1)} kg`}
+                                                label={`${Number(item.shortfall).toFixed(1)} kg`}
                                                 color="warning"
                                                 size="small"
                                             />
@@ -266,11 +266,11 @@ export default function StatisticsDashboard({ sheetId }: StatisticsDashboardProp
                             {by_customer.map((customer: any) => (
                                 <TableRow key={customer.customer_id} hover>
                                     <TableCell>{customer.customer_name}</TableCell>
-                                    <TableCell align="right">{customer.total_ordered.toFixed(1)} kg</TableCell>
-                                    <TableCell align="right">{customer.total_sent.toFixed(1)} kg</TableCell>
+                                    <TableCell align="right">{Number(customer.total_ordered).toFixed(1)} kg</TableCell>
+                                    <TableCell align="right">{Number(customer.total_sent).toFixed(1)} kg</TableCell>
                                     <TableCell align="center">
                                         <Chip
-                                            label={`${customer.fulfillment_rate.toFixed(1)}%`}
+                                            label={`${Number(customer.fulfillment_rate).toFixed(1)}%`}
                                             color={customer.fulfillment_rate >= 95 ? 'success' : 'warning'}
                                             size="small"
                                         />

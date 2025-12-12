@@ -201,10 +201,10 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
 
                                     {/* Item Totals */}
                                     <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>
-                                        {itemTotalOrder.toFixed(1)}
+                                        {Number(itemTotalOrder).toFixed(1)}
                                     </TableCell>
                                     <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>
-                                        {itemTotalSent.toFixed(1)}
+                                        {Number(itemTotalSent).toFixed(1)}
                                     </TableCell>
                                 </TableRow>
                             );
