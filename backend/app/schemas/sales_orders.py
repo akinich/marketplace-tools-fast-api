@@ -67,18 +67,18 @@ class SOCreateRequest(BaseModel):
     """Request to create new sales order"""
     customer_id: int = Field(..., gt=0, description="Zoho customer ID")
     so_number: Optional[str] = Field(None, max_length=50, description="Custom SO number (generated if None)")
-    
+
     order_date: date = Field(..., description="Date of order placement (drives pricing)")
-    delivery_date: Optional[date] = Field(None, description="Expected delivery date")
+    delivery_date: date = Field(..., description="Expected delivery date (REQUIRED)")
     order_source: Optional[str] = Field("manual", description="Source: manual, whatsapp, email, website")
-    
+
     items: List[SOItemCreate] = Field(..., min_items=1, description="SO items")
     notes: Optional[str] = Field(None, max_length=1000, description="SO-level notes")
 
     @validator('delivery_date')
     def delivery_after_order(cls, v, values):
         """Validate delivery date is on or after order date"""
-        if v and 'order_date' in values and v < values['order_date']:
+        if 'order_date' in values and v < values['order_date']:
             raise ValueError('Delivery date must be on or after order date')
         return v
 
