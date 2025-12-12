@@ -189,9 +189,8 @@ async def create_user(request: CreateUserRequest, created_by_id: str) -> Dict:
     try:
         # Generate simple temporary password: firstname@year (e.g., john@2025)
         # User is forced to change on first login anyway
-        from datetime import datetime
         first_name = request.full_name.split()[0].lower()
-        current_year = datetime.now().year
+        current_year = now_ist().year
         temp_password = f"{first_name}@{current_year}"
         password_hash_value = hash_password(temp_password)
 

@@ -4,9 +4,10 @@ For order integration - allocate, deallocate, and confirm stock
 """
 
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from datetime import datetime, timezone
 from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
+from app.utils.timezone import now_ist
 import logging
 
 logger = logging.getLogger(__name__)
@@ -81,17 +82,32 @@ async def allocate_stock_to_order(
                 params = [item_id, location] + batch_ids
                 available_stock = await conn.fetch(stock_query, *params)
             else:
-                # FIFO: Prioritize repacked batches, then oldest first
+                # FIFO: Prioritize expiring items (<2 days), then repacked batches, then oldest first
                 stock_query = """
                     SELECT
                         i.id, i.batch_id, i.quantity, b.batch_number,
-                        b.is_repacked
+                        b.is_repacked,
+                        i.expiry_date,
+                        CASE 
+                            WHEN i.expiry_date IS NOT NULL 
+                                 AND i.expiry_date <= CURRENT_DATE + INTERVAL '2 days' 
+                            THEN TRUE
+                            ELSE FALSE
+                        END as is_expiring_soon
                     FROM inventory i
                     JOIN batches b ON i.batch_id = b.id
                     WHERE i.item_id = $1
                       AND i.location = $2
                       AND i.status = 'available'
-                    ORDER BY b.is_repacked DESC, i.entry_date ASC
+                    ORDER BY 
+                        CASE 
+                            WHEN i.expiry_date IS NOT NULL 
+                                 AND i.expiry_date <= CURRENT_DATE + INTERVAL '2 days' 
+                            THEN 0  -- Expiring soon gets highest priority
+                            ELSE 1
+                        END,
+                        b.is_repacked DESC,  -- Repacked second
+                        i.entry_date ASC     -- Oldest third
                 """
                 available_stock = await conn.fetch(stock_query, item_id, location)
             
@@ -172,14 +188,22 @@ async def allocate_stock_to_order(
                     'batch_id': stock_record['batch_id'],
                     'batch_number': stock_record['batch_number'],
                     'quantity': float(allocate_qty),
-                    'is_repacked': stock_record['is_repacked']
+                    'is_repacked': stock_record['is_repacked'],
+                    'is_expiring_soon': stock_record.get('is_expiring_soon', False),
+                    'expiry_date': stock_record['expiry_date'].isoformat() if stock_record.get('expiry_date') else None
                 })
                 
                 remaining_to_allocate -= allocate_qty
             
+            # Calculate priority breakdown for response
+            expiring_count = sum(1 for b in allocated_batches if b.get('is_expiring_soon', False))
+            repacked_count = sum(1 for b in allocated_batches if b['is_repacked'] and not b.get('is_expiring_soon', False))
+            regular_count = len(allocated_batches) - expiring_count - repacked_count
+            
             logger.info(
                 f"✅ Allocated {quantity} of {item['name']} to order #{order_id} "
-                f"from {len(allocated_batches)} batch(es)"
+                f"from {len(allocated_batches)} batch(es) "
+                f"[Expiring: {expiring_count}, Repacked: {repacked_count}, Regular: {regular_count}]"
             )
             
             return {
@@ -188,8 +212,14 @@ async def allocate_stock_to_order(
                 'item_name': item['name'],
                 'total_allocated': float(quantity),
                 'batches_allocated': allocated_batches,
+                'allocation_priority_applied': {
+                    'expiring_soon_count': expiring_count,
+                    'repacked_count': repacked_count,
+                    'regular_count': regular_count
+                },
+                'expires_at': (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
                 'status': 'allocated',
-                'created_at': datetime.now(timezone.utc)
+                'created_at': datetime.now(timezone.utc).isoformat()
             }
             
     except ValueError as ve:
@@ -308,7 +338,7 @@ async def deallocate_stock_from_order(
                 'order_id': order_id,
                 'items_deallocated': deallocated_items,
                 'status': 'deallocated',
-                'created_at': datetime.now(timezone.utc)
+                'created_at': now_ist()
             }
             
     except ValueError as ve:
@@ -432,7 +462,7 @@ async def confirm_allocation(
                 'order_id': order_id,
                 'items_confirmed': confirmed_items,
                 'status': 'confirmed',
-                'created_at': datetime.now(timezone.utc)
+                'created_at': now_ist()
             }
             
     except ValueError as ve:

@@ -48,6 +48,7 @@ from decimal import Decimal
 import asyncpg
 
 from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
+from app.utils.timezone import now_ist
 from app.schemas.inventory import (
     InventoryCreate, InventoryUpdate, InventoryMovementCreate,
     LocationTransferRequest, InventoryAdjustmentRequest,
@@ -94,7 +95,7 @@ async def add_stock_entry(
                 raise ValueError(f"Batch {request.batch_id} not found")
             
             # 3. Use provided entry_date or default to now
-            entry_date = request.entry_date or datetime.now()
+            entry_date = request.entry_date or now_ist()
             
             # 4. Insert inventory record (expiry_date auto-calculated by trigger)
             insert_query = """

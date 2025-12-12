@@ -23,6 +23,7 @@ Dependencies:
 import io
 import zipfile
 from datetime import datetime
+from app.utils.timezone import now_ist
 from typing import List, Dict, Any, Tuple, Optional
 import logging
 
@@ -166,7 +167,7 @@ class LabelService:
                 pdf_bytes = LabelService._create_pdf(
                     data, font_name, font_adjustment, width_mm, height_mm
                 )
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                timestamp = now_ist().strftime("%Y%m%d_%H%M")
                 filename = f"labels_{timestamp}.pdf"
                 return pdf_bytes, filename, False
             
@@ -175,7 +176,7 @@ class LabelService:
                 zip_bytes = LabelService._create_zip(
                     data, font_name, font_adjustment, width_mm, height_mm
                 )
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                timestamp = now_ist().strftime("%Y%m%d_%H%M")
                 filename = f"labels_{timestamp}.zip"
                 return zip_bytes, filename, True
                 
@@ -219,7 +220,7 @@ class LabelService:
     ) -> bytes:
         """Create ZIP file with multiple PDFs (25 labels each)"""
         zip_buffer = io.BytesIO()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        timestamp = now_ist().strftime("%Y%m%d_%H%M")
         
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             # Split data into batches

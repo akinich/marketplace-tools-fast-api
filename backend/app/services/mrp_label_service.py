@@ -18,6 +18,7 @@ Dependencies:
 import io
 import zipfile
 from datetime import datetime
+from app.utils.timezone import now_ist
 from typing import List, Dict, Any, Tuple, Optional
 import logging
 import pandas as pd
@@ -193,7 +194,7 @@ class MrpLabelService:
             if total_pages == 0:
                 raise ValueError("No valid PDFs to merge")
             
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            timestamp = now_ist().strftime("%Y%m%d_%H%M")
             
             # If small enough, return single PDF
             if total_pages <= LABELS_PER_FILE:
