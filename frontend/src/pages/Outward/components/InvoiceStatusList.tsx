@@ -153,7 +153,7 @@ export default function InvoiceStatusList({ sheetId, onRefresh }: InvoiceStatusL
                             <TableRow key={customer.customer_id} hover>
                                 <TableCell>{customer.customer_name}</TableCell>
                                 <TableCell align="center">{customer.items_count}</TableCell>
-                                <TableCell align="right">{customer.total_sent.toFixed(1)} kg</TableCell>
+                                <TableCell align="right">{Number(customer.total_sent).toFixed(1)} kg</TableCell>
                                 <TableCell align="center">
                                     {customer.has_shortfall ? (
                                         <Chip
