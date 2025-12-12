@@ -240,54 +240,233 @@ Draft → Pending Allocation → Allocated → Picking → Packed → Out for De
 
 ---
 
-## **CHILD MODULE 3.2: ORDER ALLOCATION (FIFO)**
+## **CHILD MODULE 3.2: ORDER ALLOCATION**
 
 ### **Overview**
 
 **Purpose:** Allocate inventory batches to sales orders using FIFO with repacked batch priority
 
-**Build Priority:** CRITICAL - Build in Phase 4 (Weeks 10-11)  
+**Build Priority:** Phase 4 (Weeks 9-10)  
 **Estimated Duration:** 5-7 days
 
----
-
-### **Core Features**
-
-#### **1. FIFO Allocation with Priority**
-
-**Priority Order:**
-1. **Repacked Batches (B###R):** HIGHEST PRIORITY
-   - Move out fastest to avoid further degradation
-   - Always allocated first if available
-2. **Oldest Regular Batches:** Standard FIFO
-   - Based on packing date (entry to inventory)
-3. **Newer Batches:** Last in queue
-
-**Allocation Algorithm:**
-```
-For each SO line item:
-1. Query available inventory for item
-2. Filter by:
-   - Status = Available (not already allocated)
-   - Location = Packed Goods Warehouse
-   - Grade (if customer specifies)
-3. Sort by:
-   - is_repacked DESC (repacked first)
-   - packing_date ASC (oldest first)
-4. Allocate batches until quantity fulfilled
-5. Handle partial batch allocation if needed
-6. Update inventory status: Available → Allocated
-7. Link batches to SO
-```
+**Status:** ✅ **Inventory APIs Ready** - Backend allocation endpoints implemented in Module 2.1
 
 ---
 
-#### **2. Stock Availability Checks**
+### **Integration with Inventory Module**
 
-**Real-Time Check:**
-- Current available stock (Packed Goods Warehouse)
-- Already allocated stock (reserved for other SOs)
-- Net available = Total - Allocated
+**The allocation APIs are already built and available:**
+
+#### **1. Allocate Stock to Order**
+```bash
+POST /api/v1/inventory/allocate
+```
+
+**Request:**
+```json
+{
+    "order_id": 123,
+    "item_id": 1,
+    "quantity": 5.0,
+    "location": "packed_warehouse",
+    "batch_ids": [10, 11]  // Optional - auto FIFO if not provided
+}
+```
+
+**What it does:**
+- Changes status: `available` → `allocated`
+- Uses FIFO with repacked batch priority
+- Supports partial allocation (splits records if needed)
+- Creates movement log with order reference
+
+**Response:**
+```json
+{
+    "order_id": 123,
+    "item_id": 1,
+    "item_name": "Lettuce",
+    "total_allocated": 5.0,
+    "batches_allocated": [
+        {
+            "batch_id": 10,
+            "batch_number": "B120R",
+            "quantity": 3.0,
+            "is_repacked": true
+        },
+        {
+            "batch_id": 11,
+            "batch_number": "B121",
+            "quantity": 2.0,
+            "is_repacked": false
+        }
+    ],
+    "status": "allocated",
+    "created_at": "2024-12-12T10:30:00Z"
+}
+```
+
+---
+
+#### **2. Deallocate Stock (Cancel Order)**
+```bash
+POST /api/v1/inventory/deallocate
+```
+
+**Request:**
+```json
+{
+    "order_id": 123
+}
+```
+
+**What it does:**
+- Changes status: `allocated` → `available`
+- Releases ALL stock for the order
+- Stock becomes available again
+- Creates deallocation movement log
+
+---
+
+#### **3. Confirm Allocation (Order → Invoice)**
+```bash
+POST /api/v1/inventory/confirm-allocation
+```
+
+**Request:**
+```json
+{
+    "order_id": 123
+}
+```
+
+**What it does:**
+- Changes status: `allocated` → `delivered`
+- Sets quantity to 0 (permanently removes from inventory)
+- Creates `stock_out` movement log
+- Cannot be reversed
+
+---
+
+### **Order Lifecycle with Allocation**
+
+```
+1. Order Created
+   → Call POST /inventory/allocate
+   → Stock: 20kg → 15kg available + 5kg allocated to order #123
+
+2A. Order Cancelled
+    → Call POST /inventory/deallocate
+    → Stock: 20kg available (5kg released)
+
+2B. Order → Invoice
+    → Call POST /inventory/confirm-allocation
+    → Stock: 15kg total (5kg permanently debited)
+```
+
+---
+
+### **FIFO Priority Logic (Already Implemented)**
+
+**Allocation Order:**
+1. **Repacked Batches (B###R)** - Highest priority
+2. **Oldest Regular Batches** - FIFO by entry_date
+3. **Newer Batches** - Last
+
+**Example:**
+```
+Available Stock:
+- Batch B120R (repacked): 50kg, entry: Dec 1
+- Batch B119: 100kg, entry: Nov 28
+- Batch B121: 75kg, entry: Dec 3
+
+Order for 120kg → Allocates:
+1. B120R: 50kg (repacked, highest priority)
+2. B119: 70kg (oldest regular batch)
+Total: 120kg allocated
+```
+
+---
+
+### **Sales Order Integration Steps**
+
+**When building Module 3.1 (Sales Orders):**
+
+1. **On Order Creation:**
+   ```python
+   # After saving order to DB
+   for line_item in order.line_items:
+       allocation = await inventoryAPI.allocateStock({
+           "order_id": order.id,
+           "item_id": line_item.item_id,
+           "quantity": line_item.quantity,
+           "location": "packed_warehouse"
+       })
+       # Save allocation details to order
+   ```
+
+2. **On Order Cancellation:**
+   ```python
+   await inventoryAPI.deallocateStock(order.id)
+   # Updates order status to cancelled
+   ```
+
+3. **On Invoice Creation:**
+   ```python
+   await inventoryAPI.confirmAllocation(order.id)
+   # Stock permanently debited
+   # Can now create invoice
+   ```
+
+---
+
+### **UI Components Needed**
+
+**For Sales Order Module:**
+
+1. **Stock Availability Check** (before order creation)
+   - Use `GET /inventory/availability`
+   - Show available vs required
+   - Alert if insufficient stock
+
+2. **Allocation Summary** (in order details)
+   - Which batches allocated
+   - Quantity per batch
+   - Allocation timestamp
+
+3. **Manual Batch Selection** (optional)
+   - Override FIFO
+   - Select specific batches
+   - Pass `batch_ids` in allocate request
+
+---
+
+### **Error Handling**
+
+**Common Errors:**
+
+1. **Insufficient Stock:**
+   ```json
+   {
+       "detail": "Insufficient stock. Requested: 50.0, Available: 30.0"
+   }
+   ```
+   **Action:** Notify user, suggest partial order or wait for restock
+
+2. **Already Allocated:**
+   ```json
+   {
+       "detail": "Order #123 already has stock allocated"
+   }
+   ```
+   **Action:** Deallocate first if need to reallocate
+
+3. **No Allocated Stock:**
+   ```json
+   {
+       "detail": "No allocated stock found for order #123"
+   }
+   ```
+   **Action:** Cannot deallocate/confirm - nothing was allocated
 
 **Incoming Stock Check:**
 - Active POs with expected delivery dates
