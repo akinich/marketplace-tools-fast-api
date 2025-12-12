@@ -89,7 +89,7 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
         
         # Get item details
         items_query = """
-            SELECT id, name, sku, type, variety, sub_variety
+            SELECT id, name, sku
             FROM zoho_items
             WHERE id = ANY($1::int[])
             ORDER BY name
