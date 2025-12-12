@@ -8,6 +8,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +281,7 @@ async def auto_fill_sent_quantities(sheet_id: int, conn=None):
                         allocated_batches = $2::jsonb,
                         updated_at = NOW()
                     WHERE id = $3
-                """, float(allocated_qty), allocated, cell['id'])
+                """, float(allocated_qty), json.dumps(allocated), cell['id'])
         
         logger.info(f"✅ Auto-filled SENT quantities for sheet {sheet_id}")
         
