@@ -312,7 +312,8 @@ from app.routes import (
     po,
     grn,
     sales_orders,
-    inventory
+    inventory,
+    allocation
 )
 from app.routes import settings as settings_router
 
@@ -356,6 +357,9 @@ app.include_router(grn.router, prefix=f"{settings.API_PREFIX}/grn", tags=["GRN M
 
 # Sales Order & Pricing
 app.include_router(sales_orders.router, prefix=f"{settings.API_PREFIX}/sales-orders", tags=["Sales Orders"])
+
+# Allocation Sheets (Order Allocation)
+app.include_router(allocation.router, prefix=f"{settings.API_PREFIX}/allocation", tags=["Allocation Sheets"])
 
 
 # ============================================================================
