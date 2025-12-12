@@ -56,11 +56,11 @@ async def generate_sheet_data(delivery_date: date, user_id: str = None) -> Dict[
         
         # 2. Get all SOs for this delivery date
         sos_query = """
-            SELECT 
+            SELECT
                 so.id as so_id,
                 so.so_number,
                 so.customer_id,
-                c.customer_name,
+                c.contact_name as customer_name,
                 soi.item_id,
                 soi.quantity
             FROM sales_orders so
@@ -361,7 +361,7 @@ async def update_cell(
             await conn.execute("""
                 UPDATE sales_order_items
                 SET quantity = $1
-                WHERE so_id = $2 AND item_id = $3
+                WHERE sales_order_id = $2 AND item_id = $3
             """, float(order_quantity), cell['so_id'], cell['item_id'])
             
             updated_so = True
