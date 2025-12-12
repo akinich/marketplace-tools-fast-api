@@ -133,7 +133,7 @@ const InventoryListPage: React.FC = () => {
             });
 
             const response = await inventoryAPI.list(params);
-            setInventory(response.items);
+            setInventory(response.items); // Backend returns {items: [...], total, page, limit}
             setTotal(response.total);
         } catch (error: any) {
             console.error('Failed to load inventory:', error);

@@ -372,8 +372,8 @@ class StockMovementReportFilters(BaseModel):
     item_id: Optional[int] = None
 
 
-class BatchAgeReportItem(BaseModel):
-    """Batch age report item"""
+class BatchAgeRecord(BaseModel):
+    """Batch age report record"""
     batch_id: int
     batch_number: str
     item_id: int
@@ -383,3 +383,54 @@ class BatchAgeReportItem(BaseModel):
     entry_date: datetime
     age_days: int
     status: str
+    
+    class Config:
+        from_attributes = True
+
+
+# ============================================================================
+# STOCK ALLOCATION SCHEMAS (for Order Integration)
+# ============================================================================
+
+class StockAllocationRequest(BaseModel):
+    """Allocate stock to a sales order"""
+    order_id: int = Field(..., gt=0, description="Sales order ID")
+    item_id: int = Field(..., gt=0, description="Item ID")
+    quantity: Decimal = Field(..., gt=0, description="Quantity to allocate")
+    batch_ids: Optional[List[int]] = Field(None, description="Specific batches to allocate (optional, uses FIFO if not provided)")
+    location: Optional[str] = Field('packed_warehouse', description="Location to allocate from")
+    
+    @validator('location')
+    def validate_location(cls, v):
+        if v and v not in VALID_LOCATIONS:
+            raise ValueError(f'Location must be one of: {", ".join(VALID_LOCATIONS)}')
+        return v
+
+
+class StockDeallocationRequest(BaseModel):
+    """Deallocate/release stock from cancelled order"""
+    order_id: int = Field(..., gt=0, description="Sales order ID to deallocate")
+
+
+class ConfirmAllocationRequest(BaseModel):
+    """Confirm allocation and debit stock (order → invoice)"""
+    order_id: int = Field(..., gt=0, description="Sales order ID to confirm")
+
+
+class AllocationResponse(BaseModel):
+    """Response for allocation operations"""
+    order_id: int
+    item_id: int
+    item_name: str
+    total_allocated: Decimal
+    batches_allocated: List[Dict[str, Any]]  # [{batch_id, batch_number, quantity}]
+    status: str  # allocated, deallocated, confirmed
+    created_at: datetime
+
+
+class AllocationStatusResponse(BaseModel):
+    """Get allocation status for an order"""
+    order_id: int
+    allocations: List[Dict[str, Any]]
+    total_allocated_quantity: Decimal
+    total_confirmed_quantity: Decimal

@@ -314,6 +314,43 @@ export const inventoryAPI = {
         const response = await apiClient.get('/inventory/reports/batch-age');
         return response.data;
     },
+
+    // ============================================================================
+    // STOCK ALLOCATION (Order Integration)
+    // ============================================================================
+
+    /**
+     * Allocate stock to sales order (reserve stock)
+     * Changes status: available → allocated
+     */
+    allocateStock: async (request: {
+        order_id: number;
+        item_id: number;
+        quantity: number;
+        batch_ids?: number[];
+        location?: string;
+    }): Promise<any> => {
+        const response = await apiClient.post('/inventory/allocate', request);
+        return response.data;
+    },
+
+    /**
+     * Deallocate/release stock from cancelled order
+     * Changes status: allocated → available
+     */
+    deallocateStock: async (order_id: number): Promise<any> => {
+        const response = await apiClient.post('/inventory/deallocate', { order_id });
+        return response.data;
+    },
+
+    /**
+     * Confirm allocation and debit stock (order → invoice)
+     * Changes status: allocated → delivered, quantity → 0
+     */
+    confirmAllocation: async (order_id: number): Promise<any> => {
+        const response = await apiClient.post('/inventory/confirm-allocation', { order_id });
+        return response.data;
+    },
 };
 
 export default inventoryAPI;

@@ -51,7 +51,8 @@ from app.schemas.inventory import (
     InventoryAdjustmentResponse, ReorderLevelConfig, ReorderLevelResponse,
     StockAvailabilityQuery, StockAvailabilityResponse,
     BatchInventoryView, ExpiringItem, LowStockAlert,
-    CurrentStockReportFilters, StockMovementReportFilters
+    CurrentStockReportFilters, StockMovementReportFilters,
+    StockAllocationRequest, StockDeallocationRequest, ConfirmAllocationRequest
 )
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
@@ -681,4 +682,161 @@ async def generate_batch_age_report(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate batch age report: {str(e)}"
+        )
+
+
+# ============================================================================
+# STOCK ALLOCATION ROUTES (Order Integration)
+# ============================================================================
+
+@router.post("/allocate", status_code=status.HTTP_201_CREATED)
+async def allocate_stock(
+    request: StockAllocationRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Allocate stock to a sales order (reserve stock).
+    Changes status: available → allocated
+    
+    **Flow:**
+    1. Order created → Call this endpoint
+    2. Stock is reserved (status = 'allocated')
+    3. Shows as: 20kg total, 15kg available, 5kg allocated
+    
+    **FIFO Logic:**
+    - Prioritizes repacked batches (B###R)
+    - Then oldest regular batches
+    - Can specify batches manually or auto-select
+    
+    **Returns:**
+    - Allocation details
+    - Which batches were allocated
+    - Total quantity allocated
+    
+    **Example:**
+    ```
+    POST /api/v1/inventory/allocate
+    {
+        "order_id": 123,
+        "item_id": 1,
+        "quantity": 5.0,
+        "location": "packed_warehouse"
+    }
+    ```
+    """
+    try:
+        from app.services.inventory_allocation_service import allocate_stock_to_order
+        
+        result = await allocate_stock_to_order(
+            order_id=request.order_id,
+            item_id=request.item_id,
+            quantity=request.quantity,
+            batch_ids=request.batch_ids,
+            location=request.location,
+            user_id=str(current_user.id)
+        )
+        return result
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to allocate stock: {str(e)}"
+        )
+
+
+@router.post("/deallocate", status_code=status.HTTP_200_OK)
+async def deallocate_stock(
+    request: StockDeallocationRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Deallocate/release stock from a cancelled order.
+    Changes status: allocated → available
+    
+    **Flow:**
+    1. Order cancelled → Call this endpoint
+    2. Stock is released back to available
+    3. Shows as: 20kg total, 20kg available, 0kg allocated
+    
+    **Returns:**
+    - Deallocation confirmation
+    - Items released
+    
+    **Example:**
+    ```
+    POST /api/v1/inventory/deallocate
+    {
+        "order_id": 123
+    }
+    ```
+    """
+    try:
+        from app.services.inventory_allocation_service import deallocate_stock_from_order
+        
+        result = await deallocate_stock_from_order(
+            order_id=request.order_id,
+            user_id=str(current_user.id)
+        )
+        return result
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to deallocate stock: {str(e)}"
+        )
+
+
+@router.post("/confirm-allocation", status_code=status.HTTP_200_OK)
+async def confirm_stock_allocation(
+    request: ConfirmAllocationRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Confirm allocation and debit stock (order → invoice).
+    Changes status: allocated → delivered
+    Actually decrements stock quantity
+    
+    **Flow:**
+    1. Order converted to invoice → Call this endpoint
+    2. Stock status changed to 'delivered'
+    3. Quantity set to 0 (debited)
+    4. Shows as: 15kg total, 15kg available (5kg removed from inventory)
+    
+    **Returns:**
+    - Confirmation details
+    - Items confirmed/debited
+    
+    **Example:**
+    ```
+    POST /api/v1/inventory/confirm-allocation
+    {
+        "order_id": 123
+    }
+    ```
+    """
+    try:
+        from app.services.inventory_allocation_service import confirm_allocation
+        
+        result = await confirm_allocation(
+            order_id=request.order_id,
+            user_id=str(current_user.id)
+        )
+        return result
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to confirm allocation: {str(e)}"
         )
