@@ -29,8 +29,10 @@ import {
     ArrowBack as BackIcon,
     Warning as WarningIcon,
     Settings as SettingsIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridActionsCellItem } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridActionsCellItem, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { wastageTrackingAPI, WastageAlert, WastageThreshold, AlertLevel } from '../../../api/wastageTracking';
 import useAuthStore from '../../../store/authStore';
@@ -39,11 +41,13 @@ export default function WastageAlertsPage() {
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
     const { user } = useAuthStore();
+    const gridRef = useGridApiRef();
     const [loading, setLoading] = useState(false);
     const [alerts, setAlerts] = useState<WastageAlert[]>([]);
     const [thresholds, setThresholds] = useState<WastageThreshold[]>([]);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedThreshold, setSelectedThreshold] = useState<WastageThreshold | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const isAdmin = user?.role === 'admin';
 
@@ -193,8 +197,21 @@ export default function WastageAlertsPage() {
                     <Typography variant="h6" gutterBottom>
                         Threshold Configuration
                     </Typography>
-                    <Box sx={{ height: 400, width: '100%' }}>
+                    <Box sx={{
+                        height: isFullscreen ? '100vh' : 400,
+                        width: '100%',
+                        ...(isFullscreen && {
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            bgcolor: 'background.paper',
+                        })
+                    }}>
                         <DataGrid
+                            apiRef={gridRef}
                             rows={thresholds}
                             columns={thresholdColumns}
                             loading={loading}
@@ -202,6 +219,34 @@ export default function WastageAlertsPage() {
                             pageSizeOptions={[10, 25, 50]}
                             initialState={{
                                 pagination: { paginationModel: { pageSize: 10 } },
+                            }}
+                            slots={{
+                                toolbar: () => (
+                                    <Box sx={{ p: 1, display: 'flex', gap: 1, alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+                                        <Box sx={{ flexGrow: 1 }} />
+                                        <Button
+                                            startIcon={isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                                            onClick={() => setIsFullscreen(!isFullscreen)}
+                                            size="small"
+                                        >
+                                            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                        </Button>
+                                    </Box>
+                                ),
+                            }}
+                            sx={{
+                                border: '1px solid #e0e0e0',
+                                height: '100%',
+                                '& .MuiDataGrid-cell': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
+                                '& .MuiDataGrid-columnHeaders': {
+                                    borderBottom: '2px solid #e0e0e0',
+                                    backgroundColor: '#fafafa',
+                                },
+                                '& .MuiDataGrid-columnHeader': {
+                                    borderRight: '1px solid #e0e0e0',
+                                },
                             }}
                         />
                     </Box>
