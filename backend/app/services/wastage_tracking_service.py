@@ -24,6 +24,7 @@ Key Functions:
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
+from app.utils.timezone import now_ist
 from decimal import Decimal
 import uuid
 
@@ -482,9 +483,9 @@ async def get_wastage_analytics_by_farm(
     """
     # Set default date range (last 30 days)
     if not date_from:
-        date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        date_from = (now_ist() - timedelta(days=30)).strftime("%Y-%m-%d")
     if not date_to:
-        date_to = datetime.now().strftime("%Y-%m-%d")
+        date_to = now_ist().strftime("%Y-%m-%d")
     
     # TODO: Implement farm analytics when farm/PO tables are ready
     # For now, return empty response
@@ -511,9 +512,9 @@ async def get_wastage_analytics_by_stage(
     try:
         # Set default date range
         if not date_from:
-            date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            date_from = (now_ist() - timedelta(days=30)).strftime("%Y-%m-%d")
         if not date_to:
-            date_to = datetime.now().strftime("%Y-%m-%d")
+            date_to = now_ist().strftime("%Y-%m-%d")
         
         # Convert string dates to date objects for asyncpg
         from datetime import date as date_type
@@ -601,9 +602,9 @@ async def get_wastage_analytics_by_product(
     try:
         # Set default date range
         if not date_from:
-            date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            date_from = (now_ist() - timedelta(days=30)).strftime("%Y-%m-%d")
         if not date_to:
-            date_to = datetime.now().strftime("%Y-%m-%d")
+            date_to = now_ist().strftime("%Y-%m-%d")
         
         # Convert string dates to date objects for asyncpg
         from datetime import date as date_type
@@ -686,9 +687,9 @@ async def get_wastage_trends(
     try:
         # Set default date range
         if not date_from:
-            date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            date_from = (now_ist() - timedelta(days=30)).strftime("%Y-%m-%d")
         if not date_to:
-            date_to = datetime.now().strftime("%Y-%m-%d")
+            date_to = now_ist().strftime("%Y-%m-%d")
         
         # Convert string dates to date objects for asyncpg
         from datetime import date as date_type
@@ -1013,8 +1014,8 @@ async def check_threshold_alerts() -> AlertsListResponse:
         # Check each threshold
         for threshold in thresholds:
             # Calculate wastage percentage for last 7 days
-            date_from = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-            date_to = datetime.now().strftime("%Y-%m-%d")
+            date_from = (now_ist() - timedelta(days=7)).strftime("%Y-%m-%d")
+            date_to = now_ist().strftime("%Y-%m-%d")
             
             # TODO: Implement actual threshold checking when we have total received data
             # For now, just log that we're checking

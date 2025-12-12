@@ -7,6 +7,7 @@ import json
 import logging
 from typing import Any, Optional, Dict, List
 from datetime import datetime, timedelta
+from app.utils.timezone import now_ist
 from asyncpg import Connection
 
 logger = logging.getLogger(__name__)
@@ -22,12 +23,12 @@ class SettingsCache:
         """Check if cache is still valid"""
         if self._cache_time is None:
             return False
-        return datetime.now() - self._cache_time < self._ttl
+        return now_ist() - self._cache_time < self._ttl
 
     def set(self, settings: Dict[str, Any]):
         """Update cache"""
         self._cache = settings
-        self._cache_time = datetime.now()
+        self._cache_time = now_ist()
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get value from cache"""

@@ -26,6 +26,7 @@ Functions:
 import logging
 from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
+from app.utils.timezone import now_ist
 import asyncpg
 
 from app.database import fetch_one, fetch_all, execute_query, DatabaseTransaction
@@ -725,7 +726,7 @@ async def link_document_to_batch(
             "batch_number": batch_number,
             "document_type": document_type,
             "document_id": document_id,
-            "linked_at": datetime.now()
+            "linked_at": now_ist()
         }
 
     except ValueError as ve:
@@ -767,7 +768,7 @@ async def archive_old_batches() -> Dict[str, Any]:
     """
     try:
         # Find batches delivered 5+ days ago
-        cutoff_date = datetime.now() - timedelta(days=5)
+        cutoff_date = now_ist() - timedelta(days=5)
 
         query = """
             UPDATE batches
