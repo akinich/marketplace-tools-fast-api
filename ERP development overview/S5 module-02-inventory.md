@@ -132,7 +132,7 @@ Delivered (removed from inventory)
 
 ---
 
-#### **3. FIFO Allocation Logic**
+#### **3. FIFO Allocation Logic & Stock Allocation APIs**
 
 **Priority Order:**
 1. **Repacked Batches (B###R)** - HIGHEST PRIORITY
@@ -141,7 +141,7 @@ Delivered (removed from inventory)
    - Based on packing date (or receiving date if no packing)
 3. **Newer Batches** - Last in queue
 
-**Allocation Process:**
+**Allocation Process (OLD - Manual):**
 1. SO created and awaiting allocation
 2. System queries available inventory
 3. Applies FIFO with repacked priority
@@ -150,30 +150,92 @@ Delivered (removed from inventory)
 6. Stock status changes: Available → Allocated
 7. Stock moves to "Delivery Vehicles" location when picked
 
+**NEW: Automated Stock Allocation APIs** ✨
+
+**Three Core Endpoints:**
+
+1. **`POST /api/v1/inventory/allocate`** - Reserve Stock
+   ```json
+   {
+       "order_id": 123,
+       "item_id": 1,
+       "quantity": 5.0,
+       "location": "packed_warehouse",
+       "batch_ids": [10, 11]  // Optional - auto FIFO if not provided
+   }
+   ```
+   **What it does:**
+   - Changes status: `available` → `allocated`
+   - Uses FIFO with repacked priority
+   - Supports partial allocation (splits records)
+   - Creates movement log
+   - Returns allocated batches
+
+2. **`POST /api/v1/inventory/deallocate`** - Release Stock (Cancel Order)
+   ```json
+   {
+       "order_id": 123
+   }
+   ```
+   **What it does:**
+   - Changes status: `allocated` → `available`
+   - Releases ALL stock for the order
+   - Creates movement log
+   - Stock becomes available again
+
+3. **`POST /api/v1/inventory/confirm-allocation`** - Debit Stock (Invoice)
+   ```json
+   {
+       "order_id": 123
+   }
+   ```
+   **What it does:**
+   - Changes status: `allocated` → `delivered`
+   - Sets quantity to 0 (stock debited)
+   - Creates stock_out movement log
+   - Removes from available inventory
+
+**Stock Lifecycle with APIs:**
+```
+20kg Lettuce (Available)
+    ↓
+[Order Created] → POST /allocate {order_id: 123, qty: 5kg}
+    ↓
+15kg Available + 5kg Allocated (to order #123)
+    ↓
+[Order Cancelled] → POST /deallocate {order_id: 123}
+    ↓
+20kg Available + 0kg Allocated
+    
+OR
+
+[Order Invoiced] → POST /confirm-allocation {order_id: 123}
+    ↓
+15kg Total (5kg permanently removed)
+```
+
+**Integration with Sales Orders Module:**
+- When SO created → Call `/inventory/allocate`
+- When SO cancelled → Call `/inventory/deallocate`
+- When SO → Invoice → Call `/inventory/confirm-allocation`
+
 **Edge Cases:**
 - Partial batch allocation (e.g., need 50kg, batch has 100kg)
 - Grade-specific allocation (customer wants Grade A only)
 - Customer preferences (avoid certain farms)
+- Insufficient stock (API returns error with available qty)
 
 ---
 
-#### **4. Stock Availability Checks**
+#### **4. Stock Reservation (Legacy - Now Replaced by Allocation APIs)**
 
-**Real-Time Checks:**
-- Current stock in "Packed Goods Warehouse"
-- Allocated but not delivered (reserved)
-- Incoming stock from active POs/GRNs
-
-**Shortage Handling:**
-1. Check current available stock
-2. If insufficient, check incoming POs (expected delivery dates)
-3. If still short, flag for market procurement
-4. Alert user with shortage details
-
-**Stock Reservation:**
+**OLD METHOD:**
 - When SO created, can optionally reserve stock
 - Reserved stock not allocated to other orders
 - Reservation expires after X hours (configurable)
+
+**NEW METHOD:**
+Use `/inventory/allocate` API instead - it's the same as reservation but properly tracked
 
 ---
 
