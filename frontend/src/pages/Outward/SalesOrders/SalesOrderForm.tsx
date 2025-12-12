@@ -447,7 +447,7 @@ const SalesOrderForm: React.FC = () => {
                                             inputProps={{ min: 0 }}
                                         />
                                     </TableCell>
-                                    <TableCell>₹{item.total.toFixed(2)}</TableCell>
+                                    <TableCell>₹{Number(item.total).toFixed(2)}</TableCell>
                                     <TableCell>
                                         <IconButton size="small" color="error" onClick={() => removeItemRow(index)}>
                                             <Delete />
@@ -483,9 +483,9 @@ const SalesOrderForm: React.FC = () => {
                         />
                     </Box>
                     <Box sx={{ minWidth: 250, textAlign: 'right' }}>
-                        <Typography variant="body1" sx={{ mb: 1 }}>Subtotal: ₹{subtotal.toFixed(2)}</Typography>
-                        <Typography variant="body1" sx={{ mb: 1 }}>Tax (0%): ₹{taxAmount.toFixed(2)}</Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Grand Total: ₹{grandTotal.toFixed(2)}</Typography>
+                        <Typography variant="body1" sx={{ mb: 1 }}>Subtotal: ₹{Number(subtotal).toFixed(2)}</Typography>
+                        <Typography variant="body1" sx={{ mb: 1 }}>Tax (0%): ₹{Number(taxAmount).toFixed(2)}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Grand Total: ₹{Number(grandTotal).toFixed(2)}</Typography>
                     </Box>
                 </Box>
 
