@@ -199,17 +199,17 @@ async def auto_fill_sheet(
             
             # Get shortfalls
             shortfalls = await conn.fetch("""
-                SELECT 
+                SELECT
                     c.item_id,
                     i.name as item_name,
                     c.customer_id,
-                    cu.name as customer_name,
+                    cu.contact_name as customer_name,
                     c.order_quantity,
                     c.sent_quantity,
                     (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
                 FROM allocation_sheet_cells c
                 JOIN zoho_items i ON c.item_id = i.id
-                JOIN zoho_customers cu ON c.customer_id = cu.zoho_customer_id
+                JOIN zoho_customers cu ON c.customer_id = cu.id
                 WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
                 ORDER BY shortage DESC
             """, sheet_id)
@@ -247,7 +247,7 @@ async def get_available_dates(
     try:
         async with pool.acquire() as conn:
             dates = await conn.fetch("""
-                SELECT 
+                SELECT
                     so.delivery_date,
                     COUNT(DISTINCT so.id) as so_count,
                     COUNT(DISTINCT soi.item_id) as item_count,
@@ -257,7 +257,7 @@ async def get_available_dates(
                         WHERE ash.delivery_date = so.delivery_date
                     ) as has_sheet
                 FROM sales_orders so
-                JOIN sales_order_items soi ON so.id = soi.so_id
+                JOIN sales_order_items soi ON so.id = soi.sales_order_id
                 WHERE so.delivery_date >= CURRENT_DATE
                   AND so.status NOT IN ('cancelled', 'completed')
                 GROUP BY so.delivery_date
@@ -453,22 +453,22 @@ async def get_invoice_status(
     try:
         async with pool.acquire() as conn:
             customers = await conn.fetch("""
-                SELECT 
+                SELECT
                     c.customer_id,
-                    cu.name as customer_name,
+                    cu.contact_name as customer_name,
                     COUNT(c.id) as items_count,
                     SUM(c.sent_quantity) as total_sent,
                     BOOL_OR(c.has_shortfall) as has_shortfall,
-                    CASE 
+                    CASE
                         WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
                         WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
                         ELSE 'pending'
                     END as invoice_status
                 FROM allocation_sheet_cells c
-                JOIN zoho_customers cu ON c.customer_id = cu.zoho_customer_id
+                JOIN zoho_customers cu ON c.customer_id = cu.id
                 WHERE c.sheet_id = $1
-                GROUP BY c.customer_id, cu.name
-                ORDER BY cu.name
+                GROUP BY c.customer_id, cu.contact_name
+                ORDER BY cu.contact_name
             """, sheet_id)
             
         return {
@@ -547,37 +547,37 @@ async def get_sheet_statistics(
             
             # By customer breakdown
             by_customer = await conn.fetch("""
-                SELECT 
+                SELECT
                     c.customer_id,
-                    cu.name as customer_name,
+                    cu.contact_name as customer_name,
                     SUM(c.order_quantity) as total_ordered,
                     SUM(c.sent_quantity) as total_sent,
                     (SUM(c.sent_quantity) / NULLIF(SUM(c.order_quantity), 0) * 100) as fulfillment_rate,
-                    CASE 
+                    CASE
                         WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
                         WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
                         ELSE 'pending'
                     END as invoice_status
                 FROM allocation_sheet_cells c
-                JOIN zoho_customers cu ON c.customer_id = cu.zoho_customer_id
+                JOIN zoho_customers cu ON c.customer_id = cu.id
                 WHERE c.sheet_id = $1
-                GROUP BY c.customer_id, cu.name
-                ORDER BY cu.name
+                GROUP BY c.customer_id, cu.contact_name
+                ORDER BY cu.contact_name
             """, sheet_id)
             
             # Shortfalls detail
             shortfalls = await conn.fetch("""
-                SELECT 
+                SELECT
                     c.item_id,
                     i.name as item_name,
                     c.customer_id,
-                    cu.name as customer_name,
+                    cu.contact_name as customer_name,
                     c.order_quantity as ordered,
                     c.sent_quantity as sent,
                     (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
                 FROM allocation_sheet_cells c
                 JOIN zoho_items i ON c.item_id = i.id
-                JOIN zoho_customers cu ON c.customer_id = cu.zoho_customer_id
+                JOIN zoho_customers cu ON c.customer_id = cu.id
                 WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
                 ORDER BY (c.order_quantity - COALESCE(c.sent_quantity, 0)) DESC
             """, sheet_id)
