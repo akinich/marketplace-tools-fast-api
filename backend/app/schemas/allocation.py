@@ -60,9 +60,11 @@ class AllocationCellUpdate(BaseModel):
     sent_quantity: Optional[Decimal] = Field(None, ge=0)
     version: int  # For optimistic locking
     
-    @validator('order_quantity', 'sent_quantity')
+    @validator('sent_quantity', always=True)
     def at_least_one_field(cls, v, values):
-        if not v and not values.get('sent_quantity'):
+        # Check if NEITHER field was provided
+        order_qty = values.get('order_quantity')
+        if order_qty is None and v is None:
             raise ValueError('At least one of order_quantity or sent_quantity must be provided')
         return v
 
