@@ -11,14 +11,15 @@ import {
     Typography,
     Chip,
     IconButton,
-    Tooltip,
     Paper,
     Button
 } from '@mui/material';
 import {
     Warning as WarningIcon,
     Refresh as RefreshIcon,
-    AutoFixHigh as AutoFillIcon
+    AutoFixHigh as AutoFillIcon,
+    Fullscreen as FullscreenIcon,
+    FullscreenExit as FullscreenExitIcon
 } from '@mui/icons-material';
 import { useOptimisticCell } from '../hooks/useOptimisticCell';
 import { allocationApi } from '../../../api';
@@ -31,6 +32,7 @@ interface AllocationGridProps {
 
 export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridProps) {
     const [autoFilling, setAutoFilling] = useState(false);
+    const [fullscreen, setFullscreen] = useState(false);
 
     const { items, customers, cells, totals } = sheetData;
 
@@ -42,11 +44,6 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
     // Helper to check if customer has any modified cells
     const hasModifiedCells = (customerId: string) => {
         return cells.some((c: any) => c.customer_id === customerId && c.order_modified);
-    };
-
-    // Helper to check if any cell for item has shortfall
-    const hasShortfall = (itemId: number) => {
-        return cells.some((c: any) => c.item_id === itemId && c.has_shortfall);
     };
 
     const handleAutoFill = async () => {
@@ -63,23 +60,33 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
     };
 
     return (
-        <Box>
-            {/* Action Bar */}
+        <Box sx={{
+            position: fullscreen ? 'fixed' : 'relative',
+            top: fullscreen ? 0 : 'auto',
+            left: fullscreen ? 0 : 'auto',
+            right: fullscreen ? 0 : 'auto',
+            bottom: fullscreen ? 0 : 'auto',
+            zIndex: fullscreen ? 1300 : 'auto',
+            bgcolor: fullscreen ? 'background.default' : 'transparent',
+            p: fullscreen ? 3 : 0
+        }}>
+            {/* Toolbar */}
             <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">
-                    Allocation Matrix
-                </Typography>
+                <Button
+                    variant="contained"
+                    startIcon={autoFilling ? <RefreshIcon /> : <AutoFillIcon />}
+                    onClick={handleAutoFill}
+                    disabled={autoFilling}
+                >
+                    {autoFilling ? 'Auto-filling...' : 'Auto-Fill SENT (FIFO)'}
+                </Button>
+
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<AutoFillIcon />}
-                        onClick={handleAutoFill}
-                        disabled={autoFilling}
-                    >
-                        {autoFilling ? 'Auto-Filling...' : 'Auto-Fill SENT'}
-                    </Button>
                     <IconButton onClick={onRefresh} title="Refresh">
                         <RefreshIcon />
+                    </IconButton>
+                    <IconButton onClick={() => setFullscreen(!fullscreen)} title={fullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+                        {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                     </IconButton>
                 </Box>
             </Box>
@@ -98,30 +105,72 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
             </Box>
 
             {/* Grid */}
-            <TableContainer component={Paper} sx={{ maxHeight: 'calc(100vh - 400px)', overflow: 'auto' }}>
+            <TableContainer
+                component={Paper}
+                sx={{
+                    maxHeight: fullscreen ? 'calc(100vh - 200px)' : 600,
+                    position: 'relative',
+                    overflow: 'auto'
+                }}
+            >
                 <Table stickyHeader size="small">
                     <TableHead>
                         <TableRow>
-                            {/* Item Info Columns */}
-                            <TableCell sx={{ fontWeight: 'bold', minWidth: 50 }}>NO</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>TYPE</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>VARIETY</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>SUB VARIETY</TableCell>
+                            {/* Sticky Left Columns */}
+                            <TableCell
+                                sx={{
+                                    fontWeight: 'bold',
+                                    position: 'sticky',
+                                    left: 0,
+                                    zIndex: 3,
+                                    bgcolor: 'background.paper',
+                                    borderRight: '2px solid #e0e0e0'
+                                }}
+                            >
+                                #
+                            </TableCell>
+                            <TableCell
+                                sx={{
+                                    fontWeight: 'bold',
+                                    position: 'sticky',
+                                    left: 40,
+                                    zIndex: 3,
+                                    bgcolor: 'background.paper',
+                                    borderRight: '2px solid #e0e0e0',
+                                    minWidth: 150
+                                }}
+                            >
+                                Item Name
+                            </TableCell>
+                            <TableCell
+                                sx={{
+                                    fontWeight: 'bold',
+                                    position: 'sticky',
+                                    left: 190,
+                                    zIndex: 3,
+                                    bgcolor: 'background.paper',
+                                    borderRight: '2px solid #e0e0e0',
+                                    minWidth: 100
+                                }}
+                            >
+                                Variety
+                            </TableCell>
 
                             {/* Customer Columns */}
                             {customers.map((customer: any) => (
                                 <TableCell
                                     key={customer.id}
-                                    align="center"
-                                    sx={{ minWidth: 180, bgcolor: 'grey.50' }}
                                     colSpan={2}
+                                    align="center"
+                                    sx={{
+                                        fontWeight: 'bold',
+                                        borderLeft: '1px solid #e0e0e0',
+                                        bgcolor: hasModifiedCells(customer.id) ? '#fff3e0' : 'inherit'
+                                    }}
                                 >
                                     <Box>
                                         <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                                             {customer.name}
-                                            {hasModifiedCells(customer.id) && (
-                                                <span style={{ color: '#ff9800' }}>*</span>
-                                            )}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
                                             {customer.so_number}
@@ -135,25 +184,16 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                                         </Box>
                                         <Box sx={{ flex: 1, pl: 0.5 }}>
                                             <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                                                SENT {hasShortfall(customer.id) && <WarningIcon sx={{ fontSize: 12, color: 'warning.main' }} />}
+                                                SENT
                                             </Typography>
                                         </Box>
                                     </Box>
                                 </TableCell>
                             ))}
 
-                            {/* Totals Column */}
-                            <TableCell align="center" sx={{ fontWeight: 'bold', minWidth: 120 }} colSpan={2}>
-                                TOTAL
-                                <Box sx={{ display: 'flex', mt: 0.5 }}>
-                                    <Box sx={{ flex: 1 }}>
-                                        <Typography variant="caption">ORDER</Typography>
-                                    </Box>
-                                    <Box sx={{ flex: 1 }}>
-                                        <Typography variant="caption">SENT</Typography>
-                                    </Box>
-                                </Box>
-                            </TableCell>
+                            {/* Item Totals */}
+                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100', borderLeft: '2px solid #666' }}>ORDER Total</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>SENT Total</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -164,11 +204,40 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
 
                             return (
                                 <TableRow key={item.id} hover>
-                                    {/* Item Info */}
-                                    <TableCell>{index + 1}</TableCell>
-                                    <TableCell>{item.type || '-'}</TableCell>
-                                    <TableCell>{item.name}</TableCell>
-                                    <TableCell>{item.sub_variety || item.variety || '-'}</TableCell>
+                                    {/* Sticky Left Columns */}
+                                    <TableCell
+                                        sx={{
+                                            position: 'sticky',
+                                            left: 0,
+                                            zIndex: 1,
+                                            bgcolor: 'background.paper',
+                                            borderRight: '2px solid #e0e0e0'
+                                        }}
+                                    >
+                                        {index + 1}
+                                    </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            position: 'sticky',
+                                            left: 40,
+                                            zIndex: 1,
+                                            bgcolor: 'background.paper',
+                                            borderRight: '2px solid #e0e0e0'
+                                        }}
+                                    >
+                                        {item.name}
+                                    </TableCell>
+                                    <TableCell
+                                        sx={{
+                                            position: 'sticky',
+                                            left: 190,
+                                            zIndex: 1,
+                                            bgcolor: 'background.paper',
+                                            borderRight: '2px solid #e0e0e0'
+                                        }}
+                                    >
+                                        {item.variety || '-'}
+                                    </TableCell>
 
                                     {/* Customer Cells */}
                                     {customers.map((customer: any) => {
@@ -200,7 +269,7 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                                     })}
 
                                     {/* Item Totals */}
-                                    <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>
+                                    <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100', borderLeft: '2px solid #666' }}>
                                         {Number(itemTotalOrder).toFixed(1)}
                                     </TableCell>
                                     <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>
@@ -212,25 +281,10 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                     </TableBody>
                 </Table>
             </TableContainer>
-
-            {/* Legend */}
-            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Box sx={{ width: 16, height: 16, bgcolor: '#FFF59D', border: '1px solid #ccc' }} />
-                    <Typography variant="caption">Shortfall (SENT \u003c ORDER)</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Box sx={{ width: 16, height: 16, bgcolor: '#FFE0B2', border: '1px solid #ccc' }} />
-                    <Typography variant="caption">ORDER Modified</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Typography variant="caption">*</Typography>
-                    <Typography variant="caption">= Customer has modifications</Typography>
-                </Box>
-            </Box>
         </Box>
     );
 }
+
 
 // Editable Cell Component with Optimistic Updates
 interface EditableCellProps {
@@ -267,51 +321,30 @@ function EditableCell({ cell, field, onRefresh }: EditableCellProps) {
         }
     };
 
-    React.useEffect(() => {
-        setLocalValue(String(value));
-    }, [value]);
-
-    const bgColor = isShortfall
-        ? '#FFF59D'  // Yellow for shortfall
-        : isModified
-            ? '#FFE0B2'  // Orange for modified
-            : 'transparent';
-
     return (
         <TableCell
             align="center"
             sx={{
-                bgcolor: bgColor,
-                p: 0.5,
+                bgcolor: isShortfall ? '#fff3e0' : isModified ? '#e3f2fd' : 'inherit',
                 position: 'relative'
             }}
         >
-            {error && (
-                <Tooltip title={error}>
-                    <WarningIcon
-                        sx={{
-                            position: 'absolute',
-                            top: 2,
-                            right: 2,
-                            fontSize: 12,
-                            color: 'error.main'
-                        }}
-                    />
-                </Tooltip>
-            )}
             <TextField
-                value={isFocused ? localValue : (value || '')}
+                size="small"
+                type="number"
+                value={localValue}
                 onChange={(e) => setLocalValue(e.target.value)}
                 onFocus={() => setIsFocused(true)}
                 onBlur={handleBlur}
                 onKeyPress={handleKeyPress}
                 disabled={isUpdating}
-                size="small"
-                type="number"
-                inputProps={{
-                    step: 0.1,
-                    min: 0,
-                    style: { textAlign: 'center', padding: '4px' }
+                error={!!error}
+                InputProps={{
+                    inputProps: {
+                        min: 0,
+                        step: 0.1,
+                        style: { textAlign: 'center' }
+                    }
                 }}
                 sx={{
                     width: '80px',
