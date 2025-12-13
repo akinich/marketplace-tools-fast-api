@@ -113,12 +113,14 @@ const AdjustmentsPage: React.FC = () => {
     useEffect(() => {
         const loadDropdownData = async () => {
             try {
-                const [itemsRes, batchesRes] = await Promise.all([
-                    zohoItemAPI.getItems({ page: 1, limit: 1000 }),
-                    batchTrackingAPI.getActiveBatches({ limit: 1000 })
+                const [itemsRes, batchesRes, locationsRes] = await Promise.all([
+                    zohoItemAPI.getItems({ type: 'Finished Goods', limit: 100 }),
+                    batchTrackingAPI.getActiveBatches({ limit: 100 }),
+                    fetch('/api/v1/locations').then(res => res.json()),
                 ]);
                 setItems(itemsRes || []);
                 setBatches(batchesRes.batches || []);
+                setLocations(locationsRes || []); // Set locations state
             } catch (error) {
                 console.error('Failed to load dropdown data:', error);
             }
