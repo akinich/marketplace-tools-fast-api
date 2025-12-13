@@ -841,7 +841,7 @@ async def get_active_batches(
         # Get batches
         offset = (page - 1) * limit
         query = f"""
-            SELECT id, batch_number, status, is_repacked, created_at
+            SELECT id as batch_id, batch_number, status, is_repacked, created_at
             FROM batches
             {where_clause}
             ORDER BY created_at DESC
