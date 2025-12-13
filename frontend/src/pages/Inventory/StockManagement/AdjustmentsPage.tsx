@@ -117,7 +117,8 @@ const AdjustmentsPage: React.FC = () => {
                     zohoItemAPI.getItems({ type: 'Finished Goods', limit: 100 }),
                     batchTrackingAPI.getActiveBatches({ limit: 100 }),
                 ]);
-                setItems(itemsRes || []);
+                // zohoItemAPI returns paginated response: { items: [...], total, page, pages }
+                setItems(Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || []));
                 setBatches(batchesRes.batches || []);
             } catch (error) {
                 console.error('Failed to load dropdown data:', error);
