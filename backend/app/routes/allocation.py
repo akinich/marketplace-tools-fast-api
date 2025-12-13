@@ -476,7 +476,8 @@ async def get_invoice_status(
                 'items_count': row['items_count'],
                 'total_sent': float(row['total_sent'] or 0),
                 'has_shortfall': row['has_shortfall'] or False,
-                'invoice_status': row['invoice_status']
+                'invoice_status': row['invoice_status'],
+                'invoice_id': row['invoice_id']
             } for row in customers]
         }
     except Exception as e:
