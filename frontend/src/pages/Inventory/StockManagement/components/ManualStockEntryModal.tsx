@@ -161,9 +161,9 @@ const ManualStockEntryModal: React.FC<Props> = ({ open, onClose, onSuccess }) =>
                             />
                         )}
                         onChange={(_, value) => {
-                            setFormData({ ...formData, batch_id: value?.id || 0 });
+                            setFormData({ ...formData, batch_id: value?.batch_id || 0 });
                         }}
-                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        isOptionEqualToValue={(option, value) => option.batch_id === value.batch_id}
                     />
 
                     {/* Location */}
