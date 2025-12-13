@@ -460,7 +460,8 @@ async def get_invoice_status(
                     WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
                     WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
                     ELSE 'pending'
-                END as invoice_status
+                END as invoice_status,
+                NULL::integer as invoice_id
             FROM allocation_sheet_cells c
             JOIN zoho_customers cu ON c.customer_id::integer = cu.id
             WHERE c.sheet_id = $1
