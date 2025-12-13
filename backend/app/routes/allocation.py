@@ -45,7 +45,7 @@ from app.schemas.allocation import (
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
 from app.services import allocation_service
-from app.database import get_db_connection
+from app.database import pool
 import logging
 
 router = APIRouter()
