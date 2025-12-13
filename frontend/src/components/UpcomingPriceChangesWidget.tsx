@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { EventNote as EventIcon } from '@mui/icons-material';
 import priceListAPI, { PriceList } from '../api/priceList';
+import { formatDate } from '../utils/formatters';
 
 /**
  * Dashboard Widget - Upcoming Price Changes
@@ -117,7 +118,7 @@ function UpcomingPriceChangesWidget() {
                                             {pl.price_list_name}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            Active from: {new Date(pl.valid_from).toLocaleDateString()}
+                                            Active from: {formatDate(pl.valid_from)}
                                         </Typography>
                                     </Box>
                                 ))}
@@ -146,7 +147,7 @@ function UpcomingPriceChangesWidget() {
                                             {pl.price_list_name}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            Expires: {pl.valid_to ? new Date(pl.valid_to).toLocaleDateString() : 'Never'}
+                                            Expires: {pl.valid_to ? formatDate(pl.valid_to) : 'Never'}
                                         </Typography>
                                         <Chip
                                             label={`${pl.customers_count} customers`}
