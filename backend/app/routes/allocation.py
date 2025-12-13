@@ -45,7 +45,7 @@ from app.schemas.allocation import (
 from app.schemas.auth import CurrentUser
 from app.auth.dependencies import get_current_user, require_admin
 from app.services import allocation_service
-from app.database import pool
+from app.database import fetch_one, fetch_all, execute_query
 import logging
 
 router = APIRouter()
@@ -189,30 +189,31 @@ async def auto_fill_sheet(
         await allocation_service.auto_fill_sent_quantities(sheet_id)
         
         # Count updated cells and get shortfalls
-        async with pool.acquire() as conn:
-            # Count updated cells
-            updated_count = await conn.fetchval("""
-                SELECT COUNT(*)
-                FROM allocation_sheet_cells
-                WHERE sheet_id = $1 AND sent_quantity > 0
-            """, sheet_id)
-            
-            # Get shortfalls
-            shortfalls = await conn.fetch("""
-                SELECT
-                    c.item_id,
-                    i.name as item_name,
-                    c.customer_id,
-                    cu.contact_name as customer_name,
-                    c.order_quantity,
-                    c.sent_quantity,
-                    (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
-                FROM allocation_sheet_cells c
-                JOIN zoho_items i ON c.item_id = i.id
-                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
-                WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
-                ORDER BY shortage DESC
-            """, sheet_id)
+        # Count updated cells
+        updated_count_row = await fetch_one("""
+            SELECT COUNT(*) as count
+            FROM allocation_sheet_cells
+            WHERE sheet_id = $1
+              AND sent_quantity > 0
+        """, sheet_id)
+        updated_count = updated_count_row['count'] if updated_count_row else 0
+        
+        # Get shortfalls
+        shortfalls = await fetch_all("""
+            SELECT
+                c.item_id,
+                i.name as item_name,
+                c.customer_id,
+                cu.contact_name as customer_name,
+                c.order_quantity,
+                c.sent_quantity,
+                (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
+            FROM allocation_sheet_cells c
+            JOIN zoho_items i ON c.item_id = i.id
+            JOIN zoho_customers cu ON c.customer_id::integer = cu.id
+            WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
+            ORDER BY shortage DESC
+        """, sheet_id)
             
         return {
             'updated_cells': updated_count or 0,
@@ -245,25 +246,24 @@ async def get_available_dates(
     - Quick navigation
     """
     try:
-        async with pool.acquire() as conn:
-            dates = await conn.fetch("""
-                SELECT
-                    so.delivery_date,
-                    COUNT(DISTINCT so.id) as so_count,
-                    COUNT(DISTINCT soi.item_id) as item_count,
-                    SUM(soi.quantity) as total_quantity,
-                    EXISTS(
-                        SELECT 1 FROM allocation_sheets ash
-                        WHERE ash.delivery_date = so.delivery_date
-                    ) as has_sheet
-                FROM sales_orders so
-                JOIN sales_order_items soi ON so.id = soi.sales_order_id
-                WHERE so.delivery_date >= CURRENT_DATE
-                  AND so.status NOT IN ('cancelled', 'completed')
-                GROUP BY so.delivery_date
-                ORDER BY so.delivery_date ASC
-                LIMIT 30
-            """)
+        dates = await fetch_all("""
+            SELECT
+                so.delivery_date,
+                COUNT(DISTINCT so.id) as so_count,
+                COUNT(DISTINCT soi.item_id) as item_count,
+                SUM(soi.quantity) as total_quantity,
+                EXISTS(
+                    SELECT 1 FROM allocation_sheets ash
+                    WHERE ash.delivery_date = so.delivery_date
+                ) as has_sheet
+            FROM sales_orders so
+            JOIN sales_order_items soi ON so.id = soi.sales_order_id
+            WHERE so.delivery_date >= CURRENT_DATE
+              AND so.status NOT IN ('cancelled', 'completed')
+            GROUP BY so.delivery_date
+            ORDER BY so.delivery_date ASC
+            LIMIT 30
+        """)
             
         return {
             'dates': [{
@@ -304,19 +304,18 @@ async def mark_customer_ready(
     - Button changes to "Generate Invoice"
     """
     try:
-        async with pool.acquire() as conn:
-            # Update all cells for this customer on sheet
-            result = await conn.execute("""
-                UPDATE allocation_sheet_cells
-                SET invoice_status = 'ready',
-                    updated_at = NOW()
-                WHERE sheet_id = $1 
-                  AND customer_id = $2
-                  AND invoice_status = 'pending'
-            """, request.sheet_id, request.customer_id)
+        # Update all cells for this customer on sheet
+        result = await execute_query("""
+            UPDATE allocation_sheet_cells
+            SET invoice_status = 'ready',
+                updated_at = NOW()
+            WHERE sheet_id = $1 
+              AND customer_id = $2
+              AND invoice_status = 'pending'
+        """, request.sheet_id, request.customer_id)
             
-            # Extract count from result
-            cells_marked = int(result.split()[-1]) if result else 0
+        # Extract count from result
+        cells_marked = int(result.split()[-1]) if result else 0
             
         return {
             'cells_marked': cells_marked,
@@ -354,67 +353,66 @@ async def generate_customer_invoice(
     - Stock debit confirmation
     """
     try:
-        async with pool.acquire() as conn:
-            # Get cells ready for invoicing
-            cells = await conn.fetch("""
-                SELECT 
-                    c.id,
-                    c.item_id,
-                    c.customer_id,
-                    c.sent_quantity,
-                    c.allocated_batches,
-                    c.so_id,
-                    i.price
-                FROM allocation_sheet_cells c
-                JOIN zoho_items i ON c.item_id = i.id
-                WHERE c.sheet_id = $1 
-                  AND c.customer_id = $2
-                  AND c.invoice_status = 'ready'
-                  AND c.sent_quantity > 0
-            """, request.sheet_id, request.customer_id)
+        # Get cells ready for invoicing
+        cells = await fetch_all("""
+            SELECT 
+                c.id,
+                c.item_id,
+                c.customer_id,
+                c.sent_quantity,
+                c.allocated_batches,
+                c.so_id,
+                i.price
+            FROM allocation_sheet_cells c
+            JOIN zoho_items i ON c.item_id = i.id
+            WHERE c.sheet_id = $1 
+              AND c.customer_id = $2
+              AND c.invoice_status = 'ready'
+              AND c.sent_quantity > 0
+        """, request.sheet_id, request.customer_id)
             
-            if not cells:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="No cells ready for invoicing"
-                )
+        if not cells:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No cells ready for invoicing"
+            )
             
-            # Calculate total
-            total_amount = sum(row['sent_quantity'] * (row['price'] or 0) for row in cells)
+        # Calculate total
+        total_amount = sum(row['sent_quantity'] * (row['price'] or 0) for row in cells)
             
-            # Generate invoice number
-            invoice_number = f"INV-{request.sheet_id}-{request.customer_id[:8]}"
+        # Generate invoice number
+        invoice_number = f"INV-{request.sheet_id}-{request.customer_id[:8]}"
             
-            # Debit stock using existing confirmation API
-            # This marks allocated batches as delivered
-            stock_debited = True
-            for cell in cells:
-                if cell['allocated_batches']:
-                    try:
-                        # Call existing confirm-allocation endpoint logic
-                        await conn.execute("""
-                            UPDATE inventory_batches
-                            SET 
-                                allocated_qty = allocated_qty - qty_to_deliver,
-                                sold_qty = sold_qty + qty_to_deliver,
-                                updated_at = NOW()
-                            FROM (
-                                SELECT unnest($1::jsonb[]) as batch_info
-                            ) batches
-                            WHERE id = (batch_info->>'batch_id')::int
-                        """, cell['allocated_batches'])
-                    except Exception as e:
-                        logger.error(f"Stock debit failed for cell {cell['id']}: {e}")
-                        stock_debited = False
+        # Debit stock using existing confirmation API
+        # This marks allocated batches as delivered
+        stock_debited = True
+        for cell in cells:
+            if cell['allocated_batches']:
+                try:
+                    # Call existing confirm-allocation endpoint logic
+                    await execute_query("""
+                        UPDATE inventory_batches
+                        SET 
+                            allocated_qty = allocated_qty - qty_to_deliver,
+                            sold_qty = sold_qty + qty_to_deliver,
+                            updated_at = NOW()
+                        FROM (
+                            SELECT unnest($1::jsonb[]) as batch_info
+                        ) batches
+                        WHERE id = (batch_info->>'batch_id')::int
+                    """, cell['allocated_batches'])
+                except Exception as e:
+                    logger.error(f"Stock debit failed for cell {cell['id']}: {e}")
+                    stock_debited = False
             
-            # Mark cells as invoiced
-            await conn.execute("""
-                UPDATE allocation_sheet_cells
-                SET invoice_status = 'invoiced',
-                    invoiced_at = NOW(),
-                    updated_at = NOW()
-                WHERE sheet_id = $1 AND customer_id = $2 AND invoice_status = 'ready'
-            """, request.sheet_id, request.customer_id)
+        # Mark cells as invoiced
+        await execute_query("""
+            UPDATE allocation_sheet_cells
+            SET invoice_status = 'invoiced',
+                invoiced_at = NOW(),
+                updated_at = NOW()
+            WHERE sheet_id = $1 AND customer_id = $2 AND invoice_status = 'ready'
+        """, request.sheet_id, request.customer_id)
             
         return {
             'invoice_id': request.sheet_id,  # Placeholder
@@ -451,25 +449,24 @@ async def get_invoice_status(
     - Batch operations
     """
     try:
-        async with pool.acquire() as conn:
-            customers = await conn.fetch("""
-                SELECT
-                    c.customer_id,
-                    cu.contact_name as customer_name,
-                    COUNT(c.id) as items_count,
-                    SUM(c.sent_quantity) as total_sent,
-                    BOOL_OR(c.has_shortfall) as has_shortfall,
-                    CASE
-                        WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
-                        WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
-                        ELSE 'pending'
-                    END as invoice_status
-                FROM allocation_sheet_cells c
-                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
-                WHERE c.sheet_id = $1
-                GROUP BY c.customer_id, cu.contact_name
-                ORDER BY cu.contact_name
-            """, sheet_id)
+        customers = await fetch_all("""
+            SELECT
+                c.customer_id,
+                cu.contact_name as customer_name,
+                COUNT(c.id) as items_count,
+                SUM(c.sent_quantity) as total_sent,
+                BOOL_OR(c.has_shortfall) as has_shortfall,
+                CASE
+                    WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
+                    WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
+                    ELSE 'pending'
+                END as invoice_status
+            FROM allocation_sheet_cells c
+            JOIN zoho_customers cu ON c.customer_id::integer = cu.id
+            WHERE c.sheet_id = $1
+            GROUP BY c.customer_id, cu.contact_name
+            ORDER BY cu.contact_name
+        """, sheet_id)
             
         return {
             'customers': [{
@@ -513,74 +510,73 @@ async def get_sheet_statistics(
     - Reports
     """
     try:
-        async with pool.acquire() as conn:
-            # Summary statistics
-            summary = await conn.fetchrow("""
-                SELECT 
-                    SUM(order_quantity) as total_ordered,
-                    SUM(sent_quantity) as total_sent,
-                    SUM(CASE WHEN has_shortfall THEN (order_quantity - COALESCE(sent_quantity, 0)) ELSE 0 END) as total_shortfall
-                FROM allocation_sheet_cells
-                WHERE sheet_id = $1
-            """, sheet_id)
+        # Summary statistics
+        summary = await fetch_one("""
+            SELECT 
+                SUM(order_quantity) as total_ordered,
+                SUM(sent_quantity) as total_sent,
+                SUM(CASE WHEN has_shortfall THEN (order_quantity - COALESCE(sent_quantity, 0)) ELSE 0 END) as total_shortfall
+            FROM allocation_sheet_cells
+            WHERE sheet_id = $1
+        """, sheet_id)
             
-            total_ordered = float(summary['total_ordered'] or 0)
-            total_sent = float(summary['total_sent'] or 0)
-            total_shortfall = float(summary['total_shortfall'] or 0)
-            fulfillment_rate = (total_sent / total_ordered * 100) if total_ordered > 0 else 0
+        total_ordered = float(summary['total_ordered'] or 0)
+        total_sent = float(summary['total_sent'] or 0)
+        total_shortfall = float(summary['total_shortfall'] or 0)
+        fulfillment_rate = (total_sent / total_ordered * 100) if total_ordered > 0 else 0
             
-            # By item breakdown
-            by_item = await conn.fetch("""
-                SELECT 
-                    c.item_id,
-                    i.name as item_name,
-                    SUM(c.order_quantity) as total_ordered,
-                    SUM(c.sent_quantity) as total_sent,
-                    SUM(CASE WHEN c.has_shortfall THEN (c.order_quantity - COALESCE(c.sent_quantity, 0)) ELSE 0 END) as shortfall,
-                    COUNT(DISTINCT c.customer_id) as customers_affected
-                FROM allocation_sheet_cells c
-                JOIN zoho_items i ON c.item_id = i.id
-                WHERE c.sheet_id = $1
-                GROUP BY c.item_id, i.name
-                ORDER BY shortfall DESC, i.name
-            """, sheet_id)
+        # By item breakdown
+        by_item = await fetch_all("""
+            SELECT 
+                c.item_id,
+                i.name as item_name,
+                SUM(c.order_quantity) as total_ordered,
+                SUM(c.sent_quantity) as total_sent,
+                SUM(CASE WHEN c.has_shortfall THEN (c.order_quantity - COALESCE(c.sent_quantity, 0)) ELSE 0 END) as shortfall,
+                COUNT(DISTINCT c.customer_id) as customers_affected
+            FROM allocation_sheet_cells c
+            JOIN zoho_items i ON c.item_id = i.id
+            WHERE c.sheet_id = $1
+            GROUP BY c.item_id, i.name
+            ORDER BY shortfall DESC, i.name
+        """, sheet_id)
             
-            # By customer breakdown
-            by_customer = await conn.fetch("""
-                SELECT
-                    c.customer_id,
-                    cu.contact_name as customer_name,
-                    SUM(c.order_quantity) as total_ordered,
-                    SUM(c.sent_quantity) as total_sent,
-                    (SUM(c.sent_quantity) / NULLIF(SUM(c.order_quantity), 0) * 100) as fulfillment_rate,
-                    CASE
-                        WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
-                        WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
-                        ELSE 'pending'
-                    END as invoice_status
-                FROM allocation_sheet_cells c
-                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
-                WHERE c.sheet_id = $1
-                GROUP BY c.customer_id, cu.contact_name
-                ORDER BY cu.contact_name
-            """, sheet_id)
+        # By customer breakdown
+        by_customer = await fetch_all("""
+            SELECT
+                c.customer_id,
+                cu.contact_name as customer_name,
+                SUM(c.order_quantity) as total_ordered,
+                SUM(c.sent_quantity) as total_sent,
+                (SUM(c.sent_quantity) / NULLIF(SUM(c.order_quantity), 0) * 100) as fulfillment_rate,
+                CASE
+                    WHEN BOOL_AND(c.invoice_status = 'invoiced') THEN 'invoiced'
+                    WHEN BOOL_OR(c.invoice_status = 'ready') THEN 'ready'
+                    ELSE 'pending'
+                END as invoice_status
+            FROM allocation_sheet_cells c
+            JOIN zoho_customers cu ON c.customer_id::integer = cu.id
+            WHERE c.sheet_id = $1
+            GROUP BY c.customer_id, cu.contact_name
+            ORDER BY cu.contact_name
+        """, sheet_id)
             
-            # Shortfalls detail
-            shortfalls = await conn.fetch("""
-                SELECT
-                    c.item_id,
-                    i.name as item_name,
-                    c.customer_id,
-                    cu.contact_name as customer_name,
-                    c.order_quantity as ordered,
-                    c.sent_quantity as sent,
-                    (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
-                FROM allocation_sheet_cells c
-                JOIN zoho_items i ON c.item_id = i.id
-                JOIN zoho_customers cu ON c.customer_id::integer = cu.id
-                WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
-                ORDER BY (c.order_quantity - COALESCE(c.sent_quantity, 0)) DESC
-            """, sheet_id)
+        # Shortfalls detail
+        shortfalls = await fetch_all("""
+            SELECT
+                c.item_id,
+                i.name as item_name,
+                c.customer_id,
+                cu.contact_name as customer_name,
+                c.order_quantity as ordered,
+                c.sent_quantity as sent,
+                (c.order_quantity - COALESCE(c.sent_quantity, 0)) as shortage
+            FROM allocation_sheet_cells c
+            JOIN zoho_items i ON c.item_id = i.id
+            JOIN zoho_customers cu ON c.customer_id::integer = cu.id
+            WHERE c.sheet_id = $1 AND c.has_shortfall = TRUE
+            ORDER BY (c.order_quantity - COALESCE(c.sent_quantity, 0)) DESC
+        """, sheet_id)
             
         return {
             'summary': {
