@@ -428,7 +428,6 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
             SELECT
                 b.id, b.batch_number, b.status, b.is_repacked,
                 b.created_at,
-                po.farm_name,
                 (
                     SELECT location
                     FROM batch_history bh
@@ -437,7 +436,6 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
                     LIMIT 1
                 ) as current_location
             FROM batches b
-            LEFT JOIN purchase_orders po ON b.po_id = po.id
             {where_clause}
             ORDER BY b.created_at DESC
             LIMIT ${param_count} OFFSET ${param_count + 1}
@@ -454,7 +452,7 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
                 "status": b['status'],
                 "is_repacked": b['is_repacked'],
                 "created_at": b['created_at'],
-                "farm": b.get('farm_name'),
+                "farm": None,  # Farm info not available without JOIN to vendors/farms
                 "current_location": b.get('current_location')
             }
             for b in batches
