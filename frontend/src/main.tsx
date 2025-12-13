@@ -25,6 +25,8 @@ import { SnackbarProvider, useSnackbar, SnackbarKey } from 'notistack';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
 import App from './App';
 import theme from './theme/theme';
@@ -72,7 +74,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                         autoHideDuration={3000}
                         action={(snackbarKey) => <SnackbarCloseButton snackbarKey={snackbarKey} />}
                     >
-                        <App />
+                        <LocalizationProvider dateAdapter={AdapterDayjs}>
+                            <App />
+                        </LocalizationProvider>
                     </SnackbarProvider>
                 </ThemeProvider>
             </QueryClientProvider>

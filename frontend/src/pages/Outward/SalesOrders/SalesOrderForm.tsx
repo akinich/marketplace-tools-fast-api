@@ -29,6 +29,8 @@ import {
 import { Add, Delete, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs, { Dayjs } from 'dayjs';
 import { salesOrdersAPI } from '../../../api/salesOrders';
 import { CreateSORequest, OrderSource, SalesOrderStatus } from '../../../types/SalesOrder';
 import { zohoCustomerAPI } from '../../../api/zohoCustomer';
@@ -65,8 +67,8 @@ const SalesOrderForm: React.FC = () => {
 
     // Form State
     const [customerId, setCustomerId] = useState<number | null>(null);
-    const [orderDate, setOrderDate] = useState<string>(getTodayISO());
-    const [deliveryDate, setDeliveryDate] = useState<string>('');
+    const [orderDate, setOrderDate] = useState<Dayjs | null>(dayjs());
+    const [deliveryDate, setDeliveryDate] = useState<Dayjs | null>(null);
     const [source, setSource] = useState<OrderSource>(OrderSource.MANUAL);
     const [status, setStatus] = useState<SalesOrderStatus>(SalesOrderStatus.DRAFT);
     const [items, setItems] = useState<SOItemRow[]>([]);
@@ -103,8 +105,8 @@ const SalesOrderForm: React.FC = () => {
             try {
                 const order = await salesOrdersAPI.getOrder(id!);
                 setCustomerId(order.customer_id);
-                setOrderDate(order.order_date);
-                setDeliveryDate(order.delivery_date || '');
+                setOrderDate(dayjs(order.order_date));
+                setDeliveryDate(order.delivery_date ? dayjs(order.delivery_date) : null);
                 setSource(order.order_source as OrderSource);
                 setStatus(order.status);
                 setNotes(order.notes || '');
@@ -194,7 +196,7 @@ const SalesOrderForm: React.FC = () => {
     // Fetch price when Item + Customer selected
     const fetchItemPrice = async (itemId: number, custId: number): Promise<number | null> => {
         try {
-            const result = await salesOrdersAPI.getItemPrice(custId, itemId, orderDate);
+            const result = await salesOrdersAPI.getItemPrice(custId, itemId, orderDate?.format('YYYY-MM-DD') || getTodayISO());
             return result.price;
         } catch (error) {
             console.log('No specific price found, falling back to default.');
@@ -286,8 +288,8 @@ const SalesOrderForm: React.FC = () => {
         try {
             const payload: CreateSORequest = {
                 customer_id: customerId!,
-                order_date: orderDate,
-                delivery_date: deliveryDate || undefined,
+                order_date: orderDate?.format('YYYY-MM-DD') || getTodayISO(),
+                delivery_date: deliveryDate?.format('YYYY-MM-DD') || undefined,
                 order_source: source,
                 items: items.map(i => ({
                     item_id: i.item_id!,
@@ -350,23 +352,30 @@ const SalesOrderForm: React.FC = () => {
                         disabled={isEdit}
                     />
 
-                    <TextField
+                    <DatePicker
                         label="Order Date *"
-                        type="date"
                         value={orderDate}
-                        onChange={(e) => setOrderDate(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                        sx={{ width: 180 }}
-                        required
+                        onChange={(newValue) => setOrderDate(newValue)}
+                        format="DD/MM/YYYY"
+                        slotProps={{
+                            textField: {
+                                required: true,
+                                sx: { width: 180 }
+                            }
+                        }}
+                        disabled={isEdit}
                     />
 
-                    <TextField
+                    <DatePicker
                         label="Delivery Date"
-                        type="date"
                         value={deliveryDate}
-                        onChange={(e) => setDeliveryDate(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                        sx={{ width: 180 }}
+                        onChange={(newValue) => setDeliveryDate(newValue)}
+                        format="DD/MM/YYYY"
+                        slotProps={{
+                            textField: {
+                                sx: { width: 180 }
+                            }
+                        }}
                     />
 
                     <FormControl sx={{ width: 200 }}>
