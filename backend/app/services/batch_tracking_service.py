@@ -428,7 +428,7 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
             SELECT
                 b.id, b.batch_number, b.status, b.is_repacked,
                 b.created_at,
-                v.name as vendor_name,
+                v.vendor_display_name,
                 (
                     SELECT location
                     FROM batch_history bh
@@ -455,7 +455,7 @@ async def search_batches(filters: SearchBatchesRequest) -> Dict[str, Any]:
                 "status": b['status'],
                 "is_repacked": b['is_repacked'],
                 "created_at": b['created_at'],
-                "farm": b.get('vendor_name'),  # vendor_name = farm for now
+                "farm": b.get('vendor_display_name'),  # vendor_display_name = farm for now
                 "current_location": b.get('current_location')
             }
             for b in batches

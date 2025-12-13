@@ -65,7 +65,8 @@ const ManualStockEntryModal: React.FC<Props> = ({ open, onClose, onSuccess }) =>
                     zohoItemAPI.getItems({ page: 1, limit: 1000 }),
                     batchTrackingAPI.getActiveBatches({ limit: 100 })
                 ]);
-                setItems(itemsRes || []);
+                // zohoItemAPI returns paginated response: { items: [...], total, page, pages }
+                setItems(Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || []));
                 setBatches(batchesRes.batches || []);
             } catch (error) {
                 console.error('Failed to load dropdown data:', error);
