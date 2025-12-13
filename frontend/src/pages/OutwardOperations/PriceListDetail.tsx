@@ -22,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import priceListAPI, { PriceList, PriceHistoryItem, CustomerPriceListInfo } from '../../api/priceList';
+import { formatDate } from '../../utils/formatters';
 import PriceListDialog from './components/PriceListDialog';
 import PriceListItemsGrid from './components/PriceListItemsGrid';
 import ExcelImportDialog from './components/ExcelImportDialog';
@@ -209,13 +210,13 @@ function PriceListDetail() {
                 <Paper sx={{ p: 2, flex: 1 }}>
                     <Typography variant="caption" color="text.secondary">Valid From</Typography>
                     <Typography variant="h6">
-                        {new Date(priceList.valid_from).toLocaleDateString()}
+                        {formatDate(priceList.valid_from)}
                     </Typography>
                 </Paper>
                 <Paper sx={{ p: 2, flex: 1 }}>
                     <Typography variant="caption" color="text.secondary">Valid To</Typography>
                     <Typography variant="h6">
-                        {priceList.valid_to ? new Date(priceList.valid_to).toLocaleDateString() : 'Indefinite'}
+                        {(priceList.valid_to ? formatDate(priceList.valid_to) : 'Indefinite')}
                     </Typography>
                 </Paper>
                 <Paper sx={{ p: 2, flex: 1 }}>

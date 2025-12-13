@@ -38,6 +38,7 @@ import {
 import { Add as AddIcon, Home as B2CIcon, Visibility as ViewIcon } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { ticketsAPI } from '../api';
+import { formatDate } from '../utils/formatters';
 
 interface Ticket {
     id: number;
@@ -372,7 +373,7 @@ export default function B2CTickets() {
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        {new Date(ticket.created_at).toLocaleDateString()}
+                                        {formatDate(ticket.created_at)}
                                     </TableCell>
                                     <TableCell>
                                         <IconButton

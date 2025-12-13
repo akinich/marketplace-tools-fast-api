@@ -113,7 +113,7 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                     overflow: 'auto'
                 }}
             >
-                <Table stickyHeader size="small">
+                <Table stickyHeader size="small" sx={{ '& .MuiTableCell-root': { borderRight: '1px solid rgba(224, 224, 224, 1)' } }}>
                     <TableHead>
                         <TableRow>
                             {/* Sticky Left Columns */}
@@ -142,18 +142,35 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                             >
                                 Item Name
                             </TableCell>
+
+                            {/* Item Totals - Moved to left after Item Name */}
                             <TableCell
+                                align="center"
                                 sx={{
                                     fontWeight: 'bold',
+                                    bgcolor: 'grey.100',
                                     position: 'sticky',
                                     left: 190,
                                     zIndex: 3,
-                                    bgcolor: 'background.paper',
                                     borderRight: '2px solid #e0e0e0',
-                                    minWidth: 100
+                                    minWidth: 80
                                 }}
                             >
-                                Variety
+                                ORDER Total
+                            </TableCell>
+                            <TableCell
+                                align="center"
+                                sx={{
+                                    fontWeight: 'bold',
+                                    bgcolor: 'grey.100',
+                                    position: 'sticky',
+                                    left: 270,
+                                    zIndex: 3,
+                                    borderRight: '2px solid #666',
+                                    minWidth: 80
+                                }}
+                            >
+                                SENT Total
                             </TableCell>
 
                             {/* Customer Columns */}
@@ -191,9 +208,7 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                                 </TableCell>
                             ))}
 
-                            {/* Item Totals */}
-                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100', borderLeft: '2px solid #666' }}>ORDER Total</TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>SENT Total</TableCell>
+
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -227,16 +242,33 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                                     >
                                         {item.name}
                                     </TableCell>
+
+                                    {/* Item Totals - Moved to left after Item Name */}
                                     <TableCell
+                                        align="center"
                                         sx={{
+                                            fontWeight: 'bold',
+                                            bgcolor: 'grey.100',
                                             position: 'sticky',
                                             left: 190,
                                             zIndex: 1,
-                                            bgcolor: 'background.paper',
                                             borderRight: '2px solid #e0e0e0'
                                         }}
                                     >
-                                        {item.variety || '-'}
+                                        {Number(itemTotalOrder).toFixed(1)}
+                                    </TableCell>
+                                    <TableCell
+                                        align="center"
+                                        sx={{
+                                            fontWeight: 'bold',
+                                            bgcolor: 'grey.100',
+                                            position: 'sticky',
+                                            left: 270,
+                                            zIndex: 1,
+                                            borderRight: '2px solid #666'
+                                        }}
+                                    >
+                                        {Number(itemTotalSent).toFixed(1)}
                                     </TableCell>
 
                                     {/* Customer Cells */}
@@ -268,13 +300,7 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                                         );
                                     })}
 
-                                    {/* Item Totals */}
-                                    <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100', borderLeft: '2px solid #666' }}>
-                                        {Number(itemTotalOrder).toFixed(1)}
-                                    </TableCell>
-                                    <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: 'grey.100' }}>
-                                        {Number(itemTotalSent).toFixed(1)}
-                                    </TableCell>
+
                                 </TableRow>
                             );
                         })}

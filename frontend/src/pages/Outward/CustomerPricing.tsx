@@ -30,6 +30,7 @@ import { useSnackbar } from 'notistack';
 import { salesOrdersAPI } from '../../api/salesOrders';
 import { zohoCustomerAPI } from '../../api/zohoCustomer';
 import { zohoItemAPI } from '../../api/zohoItem';
+import { formatDate } from '../../utils/formatters';
 import { CustomerPricing } from '../../types/SalesOrder';
 import { getTodayISO } from '../../utils/dateUtils';
 
@@ -287,8 +288,8 @@ const CustomerPricingPage: React.FC = () => {
                                             <TableRow key={entry.id}>
                                                 <TableCell>{entry.item_name}</TableCell>
                                                 <TableCell>₹{Number(entry.price).toFixed(2)}</TableCell>
-                                                <TableCell>{new Date(entry.effective_from).toLocaleDateString()}</TableCell>
-                                                <TableCell>{entry.effective_to ? new Date(entry.effective_to).toLocaleDateString() : '-'}</TableCell>
+                                                <TableCell>{formatDate(entry.effective_from)}</TableCell>
+                                                <TableCell>{entry.effective_to ? formatDate(entry.effective_to) : '-'}</TableCell>
                                                 <TableCell>{entry.notes || '-'}</TableCell>
                                             </TableRow>
                                         ))}

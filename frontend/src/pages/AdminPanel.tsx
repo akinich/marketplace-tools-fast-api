@@ -110,6 +110,7 @@ import Switch from '@mui/material/Switch';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { adminAPI } from '../api';
 import { useSnackbar } from 'notistack';
+import { formatDate } from '../utils/formatters';
 import TelegramSettings from './TelegramSettings';
 import SecurityDashboard from './SecurityDashboard';
 
@@ -695,7 +696,7 @@ function UserManagementPage() {
                         size="small"
                       />
                     </TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(user.created_at)}</TableCell>
                     <TableCell>
                       <IconButton
                         size="small"

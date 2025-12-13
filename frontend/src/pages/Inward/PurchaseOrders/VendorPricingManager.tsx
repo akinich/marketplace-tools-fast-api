@@ -31,6 +31,7 @@ import { purchaseOrdersAPI, VendorPricingRequest, PriceHistoryResponse, VendorPr
 import { zohoVendorAPI } from '../../../api/zohoVendor';
 import { zohoItemAPI } from '../../../api/zohoItem';
 import { formatDateForDisplay, getDaysUntil, getTodayISO } from '../../../utils/dateUtils';
+import { formatDate } from '../../../utils/formatters';
 import useAuthStore from '../../../store/authStore';
 
 interface VendorOption {
@@ -240,7 +241,7 @@ const VendorPricingManager: React.FC = () => {
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            {new Date(vendor.last_price_update).toLocaleDateString()}
+                                            {formatDate(vendor.last_price_update)}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -410,7 +411,7 @@ const VendorPricingManager: React.FC = () => {
                                                 <TableCell>
                                                     <Typography variant="caption">{entry.created_by || 'N/A'}</Typography>
                                                     <Typography variant="caption" display="block" color="text.secondary">
-                                                        {new Date(entry.created_at).toLocaleDateString()}
+                                                        {formatDate(entry.created_at)}
                                                     </Typography>
                                                 </TableCell>
                                             </TableRow>

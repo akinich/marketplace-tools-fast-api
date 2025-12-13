@@ -34,6 +34,7 @@ import {
     FullscreenExit as FullscreenExitIcon,
 } from '@mui/icons-material';
 import priceListAPI, { PriceList } from '../../api/priceList';
+import { formatDate } from '../../utils/formatters';
 import PriceListDialog from './components/PriceListDialog';
 
 function PriceListManagement() {
@@ -204,13 +205,13 @@ function PriceListManagement() {
             field: 'valid_from',
             headerName: 'Valid From',
             width: 120,
-            valueFormatter: (params) => new Date(params.value).toLocaleDateString(),
+            valueFormatter: (params) => formatDate(params.value),
         },
         {
             field: 'valid_to',
             headerName: 'Valid To',
             width: 120,
-            valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : 'Indefinite',
+            valueFormatter: (params) => params.value ? formatDate(params.value) : 'Indefinite',
         },
         {
             field: 'status',

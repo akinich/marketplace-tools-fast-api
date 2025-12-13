@@ -40,6 +40,7 @@ import {
 import { DataGrid, GridColDef, GridRowSelectionModel, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { b2cOpsAPI } from '../../api';
+import { formatDate } from '../../utils/formatters';
 
 interface FetchProgress {
     current: number;
@@ -162,7 +163,7 @@ export default function OrderExtractor() {
                     id: order.id,
                     sNo: idx + 1,
                     orderNumber: order.order_number,
-                    date: new Date(order.date_created).toLocaleDateString(),
+                    date: formatDate(order.date_created),
                     customerName,
                     itemsOrdered: itemsOrdered || 'N/A',
                     totalItems,
