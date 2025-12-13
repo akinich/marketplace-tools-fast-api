@@ -74,6 +74,7 @@ import {
 import { useSnackbar } from 'notistack';
 import useAuthStore from '../store/authStore';
 import { developmentAPI } from '../api';
+import { formatDate } from '../utils/formatters';
 
 // ============================================================================
 // CONSTANTS
@@ -104,10 +105,7 @@ const getStatusConfig = (status) => FEATURE_STATUS.find((s) => s.value === statu
 const getPriorityConfig = (priority) => FEATURE_PRIORITY.find((p) => p.value === priority) || FEATURE_PRIORITY[1];
 const getStepStatusConfig = (status) => STEP_STATUS.find((s) => s.value === status) || STEP_STATUS[0];
 
-const formatDate = (dateString) => {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString();
-};
+
 
 // ============================================================================
 // FEATURES LIST COMPONENT

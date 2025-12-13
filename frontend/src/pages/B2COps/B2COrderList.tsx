@@ -37,6 +37,7 @@ import {
 import { DataGrid, GridColDef, GridRowSelectionModel, useGridApiRef } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { b2cOpsAPI } from '../../api';
+import { formatDate } from '../../utils/formatters';
 import axios from 'axios';
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || '';
@@ -112,7 +113,7 @@ export default function B2COrderList() {
             id: order.woo_order_id,
             sNo: idx + 1,
             orderNumber: order.order_number,
-            date: new Date(order.date_created).toLocaleDateString(),
+            date: formatDate(order.date_created),
             customerName,
             itemsOrdered: itemsOrdered || 'N/A',
             totalItems,
@@ -228,7 +229,7 @@ export default function B2COrderList() {
                     id: order.id,
                     sNo: idx + 1,
                     orderNumber: order.order_number,
-                    date: new Date(order.date_created).toLocaleDateString(),
+                    date: formatDate(order.date_created),
                     customerName,
                     itemsOrdered: itemsOrdered || 'N/A',
                     totalItems,
