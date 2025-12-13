@@ -367,12 +367,13 @@ const SalesOrderForm: React.FC = () => {
                     />
 
                     <DatePicker
-                        label="Delivery Date"
+                        label="Delivery Date *"
                         value={deliveryDate}
                         onChange={(newValue) => setDeliveryDate(newValue)}
                         format="DD/MM/YYYY"
                         slotProps={{
                             textField: {
+                                required: true,
                                 sx: { width: 180 }
                             }
                         }}
