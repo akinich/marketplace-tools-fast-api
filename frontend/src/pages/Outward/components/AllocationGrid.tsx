@@ -113,7 +113,7 @@ export default function AllocationGrid({ sheetData, onRefresh }: AllocationGridP
                     overflow: 'auto'
                 }}
             >
-                <Table stickyHeader size="small">
+                <Table stickyHeader size="small" sx={{ '& .MuiTableCell-root': { borderRight: '1px solid rgba(224, 224, 224, 1)' } }}>
                     <TableHead>
                         <TableRow>
                             {/* Sticky Left Columns */}
