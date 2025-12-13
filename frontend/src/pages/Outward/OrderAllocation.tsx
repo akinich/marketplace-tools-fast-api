@@ -94,6 +94,7 @@ export default function OrderAllocation() {
                         label="Delivery Date"
                         value={selectedDate}
                         onChange={handleDateChange}
+                        format="DD/MM/YYYY"
                         slotProps={{
                             textField: {
                                 size: 'small',
