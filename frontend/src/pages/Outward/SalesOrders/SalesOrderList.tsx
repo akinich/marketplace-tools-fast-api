@@ -116,6 +116,12 @@ const SalesOrderList: React.FC = () => {
             valueFormatter: (params) => formatDateForDisplay(params.value),
         },
         {
+            field: 'delivery_date',
+            headerName: 'Delivery Date',
+            width: 130,
+            valueFormatter: (params) => params.value ? formatDateForDisplay(params.value) : '-',
+        },
+        {
             field: 'status',
             headerName: 'Status',
             width: 150,
