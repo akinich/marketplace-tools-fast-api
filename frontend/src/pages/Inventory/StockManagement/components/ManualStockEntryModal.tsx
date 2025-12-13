@@ -63,7 +63,7 @@ const ManualStockEntryModal: React.FC<Props> = ({ open, onClose, onSuccess }) =>
             try {
                 const [itemsRes, batchesRes] = await Promise.all([
                     zohoItemAPI.getItems({ page: 1, limit: 1000 }),
-                    batchTrackingAPI.getActiveBatches({ limit: 1000 })
+                    batchTrackingAPI.getActiveBatches({ limit: 100 })
                 ]);
                 setItems(itemsRes || []);
                 setBatches(batchesRes.batches || []);
