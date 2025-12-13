@@ -189,7 +189,7 @@ async def auto_fill_sheet(
         await allocation_service.auto_fill_sent_quantities(sheet_id)
         
         # Count updated cells and get shortfalls
-        async with get_db_connection() as conn:
+        async with pool.acquire() as conn:
             # Count updated cells
             updated_count = await conn.fetchval("""
                 SELECT COUNT(*)
@@ -245,7 +245,7 @@ async def get_available_dates(
     - Quick navigation
     """
     try:
-        async with get_db_connection() as conn:
+        async with pool.acquire() as conn:
             dates = await conn.fetch("""
                 SELECT 
                     so.delivery_date,
@@ -304,7 +304,7 @@ async def mark_customer_ready(
     - Button changes to "Generate Invoice"
     """
     try:
-        async with get_db_connection() as conn:
+        async with pool.acquire() as conn:
             # Update all cells for this customer on sheet
             result = await conn.execute("""
                 UPDATE allocation_sheet_cells
@@ -354,7 +354,7 @@ async def generate_customer_invoice(
     - Stock debit confirmation
     """
     try:
-        async with get_db_connection() as conn:
+        async with pool.acquire() as conn:
             # Get cells ready for invoicing
             cells = await conn.fetch("""
                 SELECT 
@@ -451,7 +451,7 @@ async def get_invoice_status(
     - Batch operations
     """
     try:
-        async with get_db_connection() as conn:
+        async with pool.acquire() as conn:
             customers = await conn.fetch("""
                 SELECT 
                     c.customer_id,
@@ -513,7 +513,7 @@ async def get_sheet_statistics(
     - Reports
     """
     try:
-        async with get_db_connection() as conn:
+        async with pool.acquire() as conn:
             # Summary statistics
             summary = await conn.fetchrow("""
                 SELECT 
